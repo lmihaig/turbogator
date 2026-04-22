@@ -1,0 +1,3 @@
+[submodule "baseline/ezgatr"]
+	path = baseline/ezgatr
+	url = https://github.com/Guest400123064/ezgatr

@@ -1,0 +1,20 @@
+Environment Configuration
+
+Virtualization: LXC Container
+Hypervisor: Proxmox VE (pve-manager/8.2.4/faa83925c9641325)
+Host Kernel: 6.8.12-1-pve
+Guest OS: Debian 12
+
+Allocated Resources:
+- Memory: 12 GB
+- CPU: Core 2, Core 3 (pinned for workload isolation)
+
+Host Setup:
+- Kernel module loaded to expose MSRs
+  modprobe msr
+- OS Disable Turboboost
+  echo 1 > /sys/devices/system/cpu/intel_pstate/no_turbo
+- Set CPU Frequency Governor to Performance
+  echo "performance" > /sys/devices/system/cpu/cpu[0-9]*/cpufreq/scaling_governor
+- Silicon Disable Turboboost
+  wrmsr -a 0x1a0 0x4000850089
