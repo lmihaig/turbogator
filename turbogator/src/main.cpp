@@ -28,9 +28,9 @@ int main(int argc, char** argv) {
   }
 
   out << "{\"N\": " << N;
-  const double avg_cycles = Profiler::benchmark_cycles(
+  const double median_cycles = Profiler::benchmark_cycles(
       &backend, input.data(), output.data(), batch, N, channels);
-  out << ", \"cycles\": " << avg_cycles;
+  out << ", \"cycles\": " << median_cycles;
   out << "}\n";
 
   return 0;

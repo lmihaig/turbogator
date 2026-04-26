@@ -7,6 +7,7 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 sys.path.append(os.path.join(os.path.dirname(__file__), "ezgatr", "src"))
 
+import numpy as np
 import torch
 from ezgatr.nets.mv_only_gatr import (  # cspell: disable-line
     MVOnlyGATrConfig,
@@ -50,18 +51,21 @@ def run_benchmark():
                 _ = net(x)
 
         print(f"  Doing {runs} benchmark runs...", flush=True)
-        start = time.perf_counter()
+        run_times = []
         with torch.no_grad():
             for _ in range(runs):
+                start = time.perf_counter()
                 _ = net(x)
-        end = time.perf_counter()
+                end = time.perf_counter()
+                run_times.append(end - start)
 
-        avg_seconds = (end - start) / runs
-        avg_cycles = avg_seconds * cpu_freq
+        median_seconds = float(np.median(run_times))
+        median_cycles = median_seconds * cpu_freq
 
-        results.append({"N": N, "cycles": avg_cycles})
+        results.append({"N": N, "cycles": median_cycles})
         print(
-            f"  Result: {avg_cycles:.0f} cycles (Avg {avg_seconds:.4f} sec)", flush=True
+            f"  Result: {median_cycles:.0f} cycles (Median {median_seconds:.4f} sec)",
+            flush=True,
         )
 
         out_data = {
