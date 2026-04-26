@@ -1,12 +1,21 @@
 [project]
-name = "turbogator-local-dev"
+name = "turbogator"
 version = "0.1.0"
-description = "Central local development environment for TurboGator"
+description = "Unified environment definition for TurboGator local and server workflows"
 requires-python = ">=3.11,<3.13"
 dependencies = [
   "torch>=2.1.0,<2.4.1",
   "einops>=0.8.1,<0.9.0",
   "numpy>=1.26,<3.0",
+]
+
+[dependency-groups]
+api = [
+  "fastapi==0.110.0",
+  "uvicorn==0.29.0",
+  "python-multipart==0.0.9",
+]
+analysis = [
   "matplotlib>=3.8.3",
   "pandas>=2.2.1",
 ]
