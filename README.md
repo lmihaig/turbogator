@@ -54,6 +54,10 @@ I tried to automate the annoying parts. Here is the loop for making and testing 
 ├── analysis/                 # data post processing
 │   ├── plot_performance.py   
 │   └── plot_style.py         # reusable wrappers to maintain style
+├── docs/                     # project notes, writeups, and paper assets
+│   ├── project_questions.md  # answers to the questions on the project system
+│   ├── details/              # design notes and architecture sketches
+│   └── papers/               # reference PDFs and related reading
 ├── results/                  
 │   ├── reference/            # metrics, run logs, and validation .bin files
 │   ├── raw/                  # per job results
@@ -70,7 +74,6 @@ I tried to automate the annoying parts. Here is the loop for making and testing 
 ├── server/                   # server side logic, not directly relevant 
 ├── hardware_specs/           # container, cpu, micro arch info 
 ├── README.md                 
-├── project_questions.md      # answers to the questions on the project system 
 │
 # --- Workflow Scripts ---
 ├── submit.sh                 # packages src/ and submits benchmarking job to server
