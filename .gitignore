@@ -16,5 +16,4 @@ results/history.jsonl
 
 !results/baseline/
 
-*.log
 *.tar.gz

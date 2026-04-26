@@ -60,7 +60,97 @@ LLVM_MCA_FLAGS = [
 ]
 
 
-# TODO: REPLACE WITH SOME REAL CALCULATION FOR OUR ALGO
 def calculate_total_flops(N):
-    # return BATCH_SIZE * ((50 * N) + (10000 * (N**2)))
-    return 7000 * BATCH_SIZE * N**2
+    B = BATCH_SIZE
+    T = N
+    C_in = CHANNELS
+    D = 16
+
+    C_hid = 32
+    C_int = 32
+    C_out = 1
+    H = 4
+    L = 4
+
+    # -----
+    def f_mean(b, t, c, d):
+        return 0
+
+    def f_linear(b, t, c_in, c_out, d):
+        return 0
+
+    # -----
+    def f_rmsnorm(b, t, c, d):
+        return 0
+
+    def f_geom_attn(b, h, t, c, d):
+        return 0
+
+    def f_add(b, t, c, d):
+        return 0
+
+    # -----
+    def f_einsum_bilinear(b, t, c, d):
+        # torch.einsum("ijk, ...j, ...k -> ...i", basis, x, y)
+        volume = b * t * c
+
+        # out[i] += basis[i][j][k] * x[j] * y[k]
+        flops_per_pair = 3 * (d**3)
+
+        return volume * flops_per_pair
+
+    def f_geom_prod(b, t, c, d):
+        return f_einsum_bilinear(b, t, c, d)
+
+    def f_equi_join(b, t, c, d):
+        einsum_flops = f_einsum_bilinear(b, t, c, d)
+
+        # ret *= reference[..., [14]]
+        volume = b * t * c
+        broadcast_muls = volume * d
+
+        return einsum_flops + broadcast_muls
+
+    # -----
+    def f_gelu(b, t, c, d):
+        return 0
+
+    def attention_flops():
+        norm = f_rmsnorm(B, T, C_hid, D)
+        proj_qkv = f_linear(B, T, C_hid, 3 * H * C_hid, D)
+        attn = f_geom_attn(B, H, T, C_hid, D)
+        proj_out = f_linear(B, T, H * C_hid, C_hid, D)
+        residual = f_add(B, T, C_hid, D)
+        return norm + proj_qkv + attn + proj_out + residual
+
+    def bilinear_flops():
+        proj_bil = f_linear(B, T, C_hid, 4 * C_int, D)
+        geom_prod = f_geom_prod(B, T, C_int, D)
+        equi_join = f_equi_join(B, T, C_int, D)
+        proj_out = f_linear(B, T, 2 * C_int, C_hid, D)
+        return proj_bil + geom_prod + equi_join + proj_out
+
+    def mlp_flops():
+        norm = f_rmsnorm(B, T, C_hid, D)
+        bilinear = bilinear_flops()
+        gelu = f_gelu(B, T, C_hid, D)
+        proj_out = f_linear(B, T, C_hid, C_hid, D)
+        residual = f_add(B, T, C_hid, D)
+        return norm + bilinear + gelu + proj_out + residual
+
+    reference_flops = f_mean(B, T, C_in, D)
+    embedding_flops = f_linear(B, T, C_in, C_hid, D)
+
+    flops_per_block = attention_flops() + mlp_flops()
+    total_block_flops = L * flops_per_block
+
+    head_flops = f_linear(B, T, C_hid, C_out, D)
+
+    total_flops = reference_flops + embedding_flops + total_block_flops + head_flops
+
+    ##############################3
+    # TODO: TEMP REPLACE
+    total_flops = 7000 * BATCH_SIZE * N**2
+    ############################
+
+    return total_flops
