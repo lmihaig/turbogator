@@ -79,4 +79,4 @@ I tried to automate the annoying parts. Here is the loop for making and testing 
 └── plot.sh                   # update plots
 ```
 
-I feel like the repo is a bit of a bigger mess than I wanted it to be, but fuck it, we'll improve it along the way.
+I feel like the repo is a bit of a bigger mess than I wanted it to be, but we'll improve it along the way.

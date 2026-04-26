@@ -1,7 +1,3 @@
-# /// script
-# requires-python = ">=3.11"
-# dependencies = ["torch>=2.0.0", "numpy>=1.24.0", "einops>=0.8.1"]
-# ///
 import json
 import os
 import sys

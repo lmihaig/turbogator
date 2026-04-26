@@ -19,18 +19,8 @@ HISTORY_FILE = Path("../results/history.jsonl")
 BASELINE_FILE = Path("../results/baseline/metrics.json")
 PLOT_DIR = Path("../results/plots")
 
-# Optional manual label adjustments by exact rendered label.
-# Value format: (x_offset, y_offset)
-# Both values use the same unit: percent-of-axis-span steps.
-# - 1.0 means roughly 1% of axis span.
-# - Works on log-x too (shift is applied in log domain).
-# - Negative x moves left, positive x moves right.
-# - Negative y moves down, positive y moves up.
-# Keys must match the rendered line label text exactly.
-# Example keys:
-# - "ezgatr"
-# - "test2 (scalar)"
-# - "myrun (avx2)"
+# move overlapping labels: "exact label string": (x_offset, y_offset)
+# offsets are roughly % of the axis span (+ is right/up, - is left/down).
 MANUAL_LABEL_ADJUSTMENTS = {
     "test2 (scalar)": (-12.0, 1.2),
 }
