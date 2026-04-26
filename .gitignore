@@ -15,6 +15,7 @@ results/plots/
 results/history.jsonl
 
 !results/baseline/
+!results/plots
 
 *.log
 *.tar.gz

@@ -1,0 +1,172 @@
+// Architecture of MVOnlyGATrModel (src/ezgatr/nets/mv_only_gatr.py)
+// Render: dot -Tpng mv_only_gatr_arch.dot -o mv_only_gatr_arch.png
+//      or dot -Tsvg mv_only_gatr_arch.dot -o mv_only_gatr_arch.svg
+
+digraph MVOnlyGATr {
+    rankdir=TB;
+    compound=true;
+    node [shape=box, style="rounded,filled", fontname="Helvetica", fontsize=10];
+    edge [fontname="Helvetica", fontsize=9];
+
+    // Color legend
+    // - param/learnable layer: lightblue
+    // - functional op:         lightyellow
+    // - tensor / IO:           white
+    // - control / reshape:     lightgrey
+    // - residual add:          lightpink
+
+    // ============================================================
+    // Top-level model: MVOnlyGATrModel.forward
+    // ============================================================
+    subgraph cluster_model {
+        label="MVOnlyGATrModel.forward(x, reference=None, attn_mask=None)";
+        labeljust="l"; style=dashed; color=gray40;
+
+        x_in   [label="x\n[..., C_in, K]", fillcolor=white];
+        ref_in [label="reference\n(optional)", fillcolor=white];
+        ref_calc [label="reference = mean(x, dims=1..-2, keepdim=True)\nif reference is None",
+                  fillcolor=lightgrey];
+
+        emb [label="embedding: MVOnlyGATrEmbedding\nEquiLinear(C_in -> C_hidden)",
+             fillcolor=lightblue];
+
+        // unrolled stack of blocks
+        block0 [label="blocks[0]: MVOnlyGATrBlock", fillcolor=lightblue];
+        blockd [label="...  (num_layers blocks)", fillcolor=lightgrey, shape=plain];
+        blockN [label="blocks[N-1]: MVOnlyGATrBlock", fillcolor=lightblue];
+
+        head [label="head\nEquiLinear(C_hidden -> C_out)", fillcolor=lightblue];
+        y_out [label="y\n[..., C_out, K]", fillcolor=white];
+
+        x_in -> emb;
+        x_in -> ref_calc [style=dotted, label="if ref is None"];
+        ref_in -> ref_calc [style=dotted];
+        emb -> block0;
+        block0 -> blockd;
+        blockd -> blockN;
+        blockN -> head;
+        head -> y_out;
+
+        // reference + attn_mask threaded through every block
+        ref_calc -> block0 [label="reference", style=dashed, color=darkgreen, fontcolor=darkgreen];
+        ref_calc -> blockN [label="reference", style=dashed, color=darkgreen, fontcolor=darkgreen];
+
+        mask_in [label="attn_mask\n(optional)", fillcolor=white];
+        mask_in -> block0 [label="attn_mask", style=dashed, color=darkorange, fontcolor=darkorange];
+        mask_in -> blockN [label="attn_mask", style=dashed, color=darkorange, fontcolor=darkorange];
+    }
+
+    // ============================================================
+    // One block: MVOnlyGATrBlock.forward = mlp(attn(x, mask), reference)
+    // ============================================================
+    subgraph cluster_block {
+        label="MVOnlyGATrBlock.forward (one of num_layers)";
+        labeljust="l"; style=dashed; color=gray40;
+
+        b_in  [label="x_in\n[B, T, C_hidden, K]", fillcolor=white];
+        attn  [label="attn: MVOnlyGATrAttention", fillcolor=lightblue];
+        mlp   [label="mlp:  MVOnlyGATrMLP",        fillcolor=lightblue];
+        b_out [label="x_out", fillcolor=white];
+
+        b_in -> attn [label="x, attn_mask"];
+        attn -> mlp  [label="x, reference"];
+        mlp  -> b_out;
+    }
+
+    blockN -> b_in [lhead=cluster_block, ltail=cluster_model,
+                    style=dotted, color=gray, label="zoom in"];
+
+    // ============================================================
+    // MVOnlyGATrAttention.forward (pre-norm + residual)
+    // ============================================================
+    subgraph cluster_attn {
+        label="MVOnlyGATrAttention.forward";
+        labeljust="l"; style=dashed; color=gray40;
+
+        a_in   [label="x", fillcolor=white];
+        a_res  [label="residual = x", fillcolor=lightgrey];
+        a_ln   [label="EquiRMSNorm(C_hidden,\n  eps, channelwise_rescale)", fillcolor=lightblue];
+        a_qkv  [label="proj_qkv: EquiLinear\nC_hidden -> 3 * H * C_hidden", fillcolor=lightblue];
+        a_split[label="rearrange\n'b t (qkv h c) k -> qkv b h t c k'\n-> q, k, v", fillcolor=lightgrey];
+        a_mix  [label="weight = [exp(w) for w in attn_mix.values()]\nattn_mix: dict[kind -> Parameter\n  shape=(H,1,C_hidden,1)]",
+                fillcolor=lightblue];
+        a_attn [label="equi_geometric_attention(\n  q, k, v,\n  kinds=config.attn_kinds,   # e.g. {ipa, daa}\n  weight=weight,\n  attn_mask, is_causal,\n  dropout_p, scale)",
+                fillcolor=lightyellow];
+        a_merge[label="rearrange\n'b h t c k -> b t (h c) k'", fillcolor=lightgrey];
+        a_out  [label="proj_out: EquiLinear\nH * C_hidden -> C_hidden", fillcolor=lightblue];
+        a_add  [label="+", shape=circle, fillcolor=lightpink, width=0.3, fixedsize=true];
+        a_y    [label="x_out", fillcolor=white];
+
+        a_in -> a_res [style=dashed, color=red];
+        a_in -> a_ln;
+        a_ln -> a_qkv -> a_split -> a_attn;
+        a_mix -> a_attn [style=dashed];
+        a_attn -> a_merge -> a_out -> a_add;
+        a_res  -> a_add [style=dashed, color=red, label="residual"];
+        a_add  -> a_y;
+    }
+
+    attn -> a_in [lhead=cluster_attn, style=dotted, color=gray, label="zoom in"];
+
+    // ============================================================
+    // MVOnlyGATrMLP.forward (pre-norm + residual)
+    // ============================================================
+    subgraph cluster_mlp {
+        label="MVOnlyGATrMLP.forward";
+        labeljust="l"; style=dashed; color=gray40;
+
+        m_in   [label="x", fillcolor=white];
+        m_res  [label="residual = x", fillcolor=lightgrey];
+        m_ln   [label="EquiRMSNorm(C_hidden,\n  eps, channelwise_rescale)", fillcolor=lightblue];
+        m_bil  [label="equi_bil: MVOnlyGATrBilinear", fillcolor=lightblue];
+        m_act  [label="scaler_gated_gelu(x,\n  approximate=config.gelu_approximate)",
+                fillcolor=lightyellow];
+        m_out  [label="proj_out: EquiLinear\nC_hidden -> C_hidden", fillcolor=lightblue];
+        m_add  [label="+", shape=circle, fillcolor=lightpink, width=0.3, fixedsize=true];
+        m_y    [label="x_out", fillcolor=white];
+
+        m_in -> m_res [style=dashed, color=red];
+        m_in -> m_ln -> m_bil -> m_act -> m_out -> m_add;
+        m_res -> m_add [style=dashed, color=red, label="residual"];
+        m_add -> m_y;
+    }
+
+    mlp -> m_in [lhead=cluster_mlp, style=dotted, color=gray, label="zoom in"];
+
+    // reference is consumed by the bilinear sub-layer inside MLP
+    // (threaded: model -> block -> mlp -> bilinear)
+
+    // ============================================================
+    // MVOnlyGATrBilinear.forward
+    // ============================================================
+    subgraph cluster_bil {
+        label="MVOnlyGATrBilinear.forward(x, reference)";
+        labeljust="l"; style=dashed; color=gray40;
+
+        bx     [label="x", fillcolor=white];
+        bref   [label="reference", fillcolor=white];
+        b_proj [label="proj_bil: EquiLinear\nC_hidden -> 4 * C_inter", fillcolor=lightblue];
+        b_split[label="split(dim=-2, size=C_inter)\n-> lg, rg, lj, rj", fillcolor=lightgrey];
+        b_gp   [label="geometric_product(lg, rg)", fillcolor=lightyellow];
+        b_jn   [label="equi_join(lj, rj, reference)", fillcolor=lightyellow];
+        b_cat  [label="concat(dim=-2)\n-> [..., 2 * C_inter, K]", fillcolor=lightgrey];
+        b_out  [label="proj_out: EquiLinear\n2 * C_inter -> C_hidden", fillcolor=lightblue];
+        b_y    [label="output", fillcolor=white];
+
+        bx -> b_proj -> b_split;
+        b_split -> b_gp [label="lg, rg"];
+        b_split -> b_jn [label="lj, rj"];
+        bref    -> b_jn [style=dashed, color=darkgreen];
+        b_gp -> b_cat;
+        b_jn -> b_cat;
+        b_cat -> b_out -> b_y;
+    }
+
+    m_bil -> bx [lhead=cluster_bil, style=dotted, color=gray, label="zoom in"];
+
+    // ============================================================
+    // Init note (MVOnlyGATrModel._init_params)
+    // ============================================================
+    init_note [shape=note, fillcolor="#fffbe6",
+        label="Init (applied to every EquiLinear via self.apply):\n  kaiming_uniform_(weight, nonlinearity='relu')\n  weight /= sqrt(num_layers)        # GPT-2 style downscale\n  if bias is not None: zeros_(bias)"];
+}
