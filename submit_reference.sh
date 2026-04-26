@@ -20,14 +20,11 @@ if [ ! -f "$ROOT_DIR/config.py" ]; then
     exit 1
 fi
 tar -czf "$ROOT_DIR/workspace.tar.gz" \
-    --exclude='reference/ezgatr/.venv' \
-    --exclude='reference/ezgatr/.pytest_cache' \
-    --exclude='reference/ezgatr/.mypy_cache' \
-    --exclude='reference/ezgatr/.ruff_cache' \
-    --exclude='reference/ezgatr/**/__pycache__' \
-    --exclude='reference/ezgatr/**/*.pyc' \
-    --exclude='reference/ezgatr/.ipynb_checkpoints' \
-    -C "$ROOT_DIR" reference config.py
+    -C "$ROOT_DIR" \
+    config.py \
+    reference/benchmark_pytorch.py \
+    reference/generate_validation_data.py \
+    reference/ezgatr/src/ezgatr
 
 echo "Submitting to Queue..."
 RESPONSE=$(curl -s -u "$AUTH" -X POST "$URL/submit" \

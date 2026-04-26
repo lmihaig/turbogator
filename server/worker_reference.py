@@ -43,6 +43,12 @@ def main():
 
         env = os.environ.copy()
         env["PATH"] = "/root/.local/bin:" + env.get("PATH", "")
+        env["OMP_NUM_THREADS"] = "1"
+        env["MKL_NUM_THREADS"] = "1"
+        env["OPENBLAS_NUM_THREADS"] = "1"
+        env["NUMEXPR_NUM_THREADS"] = "1"
+        env["VECLIB_MAXIMUM_THREADS"] = "1"
+        env["BLIS_NUM_THREADS"] = "1"
         uv_bin = shutil.which("uv", path=env["PATH"]) or "uv"
 
         cmd = [
@@ -52,7 +58,7 @@ def main():
             uv_bin,
             "run",
             "--project",
-            "reference/ezgatr",
+            "/opt/aos/api",
             "reference/benchmark_pytorch.py",
         ]
         with run_log.open("a", encoding="utf-8") as log_file:
@@ -93,6 +99,22 @@ def main():
     except Exception as exc:
         with run_log.open("a", encoding="utf-8") as log_file:
             log_file.write(f"ERROR: {exc}\n")
+
+        metrics_out = job_dir / "metrics.json"
+        metrics_out.write_text(json.dumps({"error": str(exc)}), encoding="utf-8")
+
+        payload_dir = job_dir / "artifact_payload"
+        payload_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(metrics_out, payload_dir / "metrics.json")
+        if run_log.exists():
+            shutil.copy2(run_log, payload_dir / "run.log")
+
+        artifact_dir.mkdir(parents=True, exist_ok=True)
+        artifact_tar = artifact_dir / f"{job_id}.tar.gz"
+        with tarfile.open(artifact_tar, "w:gz") as tf:
+            tf.add(payload_dir / "metrics.json", arcname="metrics.json")
+            if (payload_dir / "run.log").exists():
+                tf.add(payload_dir / "run.log", arcname="run.log")
         return 1
     finally:
         if job_dir.exists():
