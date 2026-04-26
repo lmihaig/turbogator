@@ -4,12 +4,14 @@ import os
 import sys
 import time
 
-import torch
-
-REPO_ROOT = os.path.dirname(os.path.dirname(__file__))
-sys.path.insert(0, REPO_ROOT)
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 sys.path.append(os.path.join(os.path.dirname(__file__), "ezgatr", "src"))
-from ezgatr.nets.mv_only_gatr import MVOnlyGATrConfig, MVOnlyGATrModel
+
+import torch
+from ezgatr.nets.mv_only_gatr import (  # cspell: disable-line
+    MVOnlyGATrConfig,
+    MVOnlyGATrModel,
+)
 
 import config as app_config
 
@@ -31,7 +33,7 @@ def run_benchmark():
 
     results = []
     cpu_freq = app_config.CPU_FREQ
-    out_dir = os.path.join(os.path.dirname(__file__), "..", "results", "baseline")
+    out_dir = os.path.join(os.path.dirname(__file__), "..", "results", "reference")
     os.makedirs(out_dir, exist_ok=True)
     out_file = os.path.join(out_dir, "metrics.json")
 
@@ -63,7 +65,7 @@ def run_benchmark():
         )
 
         out_data = {
-            "user": "baseline",
+            "user": "reference",
             "description": "ezgatr",
             "data": results,
         }
@@ -73,7 +75,7 @@ def run_benchmark():
         del x
         gc.collect()
 
-    print("\nBaseline complete!", flush=True)
+    print("\nReference run complete!", flush=True)
 
 
 if __name__ == "__main__":

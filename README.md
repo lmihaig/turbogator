@@ -28,7 +28,7 @@ I think the only thing you guys need to install locally is [uv](https://docs.ast
 I tried to automate the annoying parts. Here is the loop for making and testing changes. If you guys want to change anything about this flow, go for it, just give a heads up.
 
 1. **Write Code:** Implement your changes or a new backend inside the `turbogator/` directory.
-2. **Local Sanity Check:** Run `./debug_local.sh`. This compiles your code locally and runs the validation pipeline to make sure it produces the exact expected output (checks against `baseline/expected.bin`).
+2. **Local Sanity Check:** Run `./debug_local.sh`. This compiles your code locally and runs the validation pipeline to make sure it produces the exact expected output (checks against `reference/expected.bin`).
 3. **Submit Job:** Once it works locally, run `./submit.sh "Brief description of your run"`. This packages your `turbogator/` folder and `config.py` and sends it to the server for benchmarking.
 4. **Get Results:** The script will download the results directly into `results/raw/<timestamp_user>/`. This run will also be automatically appended to your `results/history.jsonl` file.
 5. **Plotting:** * If there are garbage/failed runs you don't want to show up on the graph, just comment them out in `results/history.jsonl`.
@@ -47,15 +47,15 @@ I tried to automate the annoying parts. Here is the loop for making and testing 
 .
 ├── config.py                 # main config file
 ├── turbogator/               # CORE WORK DIR
-├── baseline/                 # Reference Implementation
-│   ├── ezgatr/               # baseline repo 
+├── reference/                # Reference Implementation
+│   ├── ezgatr/               # upstream Python repo 
 │   ├── benchmark_pytorch.py  # should not be run usually
 │   └── generate_validation_data.py # ground truth .bin files
 ├── analysis/                 # data post processing
 │   ├── plot_performance.py   
 │   └── plot_style.py         # reusable wrappers to maintain style
 ├── results/                  
-│   ├── baseline/             # metrics, run logs, and validation .bin files
+│   ├── reference/            # metrics, run logs, and validation .bin files
 │   ├── raw/                  # per job results
 │   └── <timestamp_user>
 │           ├── build.log
@@ -74,7 +74,7 @@ I tried to automate the annoying parts. Here is the loop for making and testing 
 │
 # --- Workflow Scripts ---
 ├── submit.sh                 # packages src/ and submits benchmarking job to server
-├── submit_baseline.sh        # packages baseline and submits benchmarking job to server
+├── submit_reference.sh       # packages reference implementation and submits benchmark job to server
 ├── debug_local.sh            # validation pipeline locally without server submission
 └── plot.sh                   # update plots
 ```

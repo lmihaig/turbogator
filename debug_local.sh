@@ -1,6 +1,9 @@
 #!/bin/bash
 set -euo pipefail
 
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+ROOT_DIR="$SCRIPT_DIR"
+
 FORCE_REGENERATE=0
 case "${1:-}" in
     --force) FORCE_REGENERATE=1 ;;
@@ -13,7 +16,7 @@ esac
 
 echo "Local validation"
 
-VALIDATION_DIR="results/baseline"
+VALIDATION_DIR="$ROOT_DIR/results/reference"
 VALIDATION_FILES=(
     "$VALIDATION_DIR/input.bin"
     "$VALIDATION_DIR/expected.bin"
@@ -34,12 +37,12 @@ fi
 
 if [ "$needs_regeneration" -eq 1 ]; then
     echo "Generating validation data..."
-    uv run baseline/generate_validation_data.py
+    uv run --project "$ROOT_DIR" "$ROOT_DIR/reference/generate_validation_data.py"
 else
     echo "Using existing validation data."
 fi
 
-cd turbogator
+cd "$ROOT_DIR/turbogator"
 
 if [ "$FORCE_REGENERATE" -eq 1 ]; then
     echo "Cleaning build..."

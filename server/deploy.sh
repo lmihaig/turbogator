@@ -19,8 +19,8 @@ ssh ${REMOTE} <<'EOF'
     # Move and restrict worker script
     cp /tmp/aos_setup/worker.py /opt/aos/scripts/
     chmod +x /opt/aos/scripts/worker.py
-    cp /tmp/aos_setup/worker_baseline.py /opt/aos/scripts/
-    chmod +x /opt/aos/scripts/worker_baseline.py
+    cp /tmp/aos_setup/worker_reference.py /opt/aos/scripts/
+    chmod +x /opt/aos/scripts/worker_reference.py
     
     # Move Systemd Service
     cp /tmp/aos_setup/aos-api.service /etc/systemd/system/

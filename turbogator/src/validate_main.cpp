@@ -59,7 +59,7 @@ size_t read_validation_n(const char* filename) {
 
 int main() {
     const size_t batch = 8;
-    const size_t N = read_validation_n("../results/baseline/validation_config.json");
+    const size_t N = read_validation_n("../results/reference/validation_config.json");
     const size_t channels = 2;
     const size_t total_elements = batch * N * channels * 16;
 
@@ -68,8 +68,8 @@ int main() {
     std::vector<float> actual(total_elements, 0.0f);
 
     std::cout << "Loading validation data for N=" << N << "..." << std::endl;
-    read_bin("../results/baseline/input.bin", input.data(), total_elements);
-    read_bin("../results/baseline/expected.bin", expected.data(), total_elements);
+    read_bin("../results/reference/input.bin", input.data(), total_elements);
+    read_bin("../results/reference/expected.bin", expected.data(), total_elements);
 
     ActiveBackend backend = create_backend();
     std::cout << "Validating backend..." << std::endl;

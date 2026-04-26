@@ -14,7 +14,7 @@ import config as app_config
 
 
 def generate_data():
-    output_dir = os.path.join(os.path.dirname(__file__), "..", "results", "baseline")
+    output_dir = os.path.join(os.path.dirname(__file__), "..", "results", "reference")
     os.makedirs(output_dir, exist_ok=True)
     device = "cpu"
     size_channels_in = app_config.CHANNELS
@@ -40,7 +40,7 @@ def generate_data():
     ) as f:
         json.dump({"N": N, "batch": batch_size, "channels": size_channels_in}, f)
 
-    print("Validation data generated in results/baseline/")
+    print("Validation data generated in results/reference/")
 
 
 if __name__ == "__main__":

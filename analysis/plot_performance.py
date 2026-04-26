@@ -15,9 +15,10 @@ from plot_style import (
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 import config as app_config
 
-HISTORY_FILE = Path("../results/history.jsonl")
-BASELINE_FILE = Path("../results/baseline/metrics.json")
-PLOT_DIR = Path("../results/plots")
+REPO_ROOT = Path(__file__).resolve().parents[1]
+HISTORY_FILE = REPO_ROOT / "results" / "history.jsonl"
+REFERENCE_FILE = REPO_ROOT / "results" / "reference" / "metrics.json"
+PLOT_DIR = REPO_ROOT / "results" / "plots"
 
 # move overlapping labels: "exact label string": (x_offset, y_offset)
 # offsets are roughly % of the axis span (+ is right/up, - is left/down).
@@ -43,10 +44,12 @@ def _read_jsonl(path):
         line = raw_line.strip()
         if not line:
             continue
+        if line.startswith("//"):
+            continue
         try:
             row = json.loads(line)
         except json.JSONDecodeError:
-            break
+            continue
         if isinstance(row, dict):
             records.append(row)
     return records
@@ -56,12 +59,12 @@ def load_data():
     return pd.DataFrame(row for row in _read_jsonl(HISTORY_FILE) if "data" in row)
 
 
-def load_baseline():
-    if not BASELINE_FILE.exists():
+def load_reference():
+    if not REFERENCE_FILE.exists():
         return pd.DataFrame()
 
     try:
-        payload = json.loads(BASELINE_FILE.read_text(encoding="utf-8"))
+        payload = json.loads(REFERENCE_FILE.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return pd.DataFrame()
 
@@ -80,7 +83,7 @@ def _aligned_perf_frame(n_series, cycles_series):
 
 def generate_plot():
     history_df = load_data()
-    baseline_df = load_baseline()
+    reference_df = load_reference()
 
     PLOT_DIR.mkdir(parents=True, exist_ok=True)
     fig, ax = new_single_axes(figsize=(10, 6))
@@ -88,8 +91,8 @@ def generate_plot():
     plot_lines = []
     all_y = []
 
-    if {"N", "cycles"}.issubset(baseline_df.columns):
-        aligned = _aligned_perf_frame(baseline_df["N"], baseline_df["cycles"])
+    if {"N", "cycles"}.issubset(reference_df.columns):
+        aligned = _aligned_perf_frame(reference_df["N"], reference_df["cycles"])
         if not aligned.empty:
             plot_lines.append(
                 add_series(

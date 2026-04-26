@@ -62,4 +62,5 @@ LLVM_MCA_FLAGS = [
 
 # TODO: REPLACE WITH SOME REAL CALCULATION FOR OUR ALGO
 def calculate_total_flops(N):
-    return BATCH_SIZE * ((5000 * N) + (100 * (N**2)))
+    # return BATCH_SIZE * ((50 * N) + (10000 * (N**2)))
+    return 7000 * BATCH_SIZE * N**2

@@ -18,7 +18,7 @@ def log_progress(log_path, message):
 def main():
     if len(sys.argv) != 4:
         print(
-            "Usage: worker_baseline.py <job_id> <user> <description>", file=sys.stderr
+            "Usage: worker_reference.py <job_id> <user> <description>", file=sys.stderr
         )
         return 1
 
@@ -32,20 +32,29 @@ def main():
         run_log.write_text("", encoding="utf-8")
         log_progress(
             run_log,
-            f"Baseline worker started for job_id={job_id}, user={user}, desc={desc}",
+            f"Reference worker started for job_id={job_id}, user={user}, desc={desc}",
         )
         log_progress(run_log, "Extracting workspace archive...")
 
         with tarfile.open(workspace_tar, "r:gz") as tf:
             tf.extractall(path=job_dir)
 
-        log_progress(run_log, "Running baseline benchmark...")
+        log_progress(run_log, "Running reference benchmark...")
 
         env = os.environ.copy()
         env["PATH"] = "/root/.local/bin:" + env.get("PATH", "")
         uv_bin = shutil.which("uv", path=env["PATH"]) or "uv"
 
-        cmd = ["taskset", "-c", "2", uv_bin, "run", "baseline/benchmark_pytorch.py"]
+        cmd = [
+            "taskset",
+            "-c",
+            "2",
+            uv_bin,
+            "run",
+            "--project",
+            "reference/ezgatr",
+            "reference/benchmark_pytorch.py",
+        ]
         with run_log.open("a", encoding="utf-8") as log_file:
             log_file.write(f"$ {' '.join(cmd)}\n")
             result = subprocess.run(
@@ -59,16 +68,16 @@ def main():
             )
         if result.returncode != 0:
             raise RuntimeError(
-                f"baseline benchmark failed with exit code {result.returncode}"
+                f"reference benchmark failed with exit code {result.returncode}"
             )
 
-        metrics_src = job_dir / "results/baseline/metrics.json"
+        metrics_src = job_dir / "results/reference/metrics.json"
         payload = json.loads(metrics_src.read_text(encoding="utf-8"))
 
         metrics_out = job_dir / "metrics.json"
         metrics_out.write_text(json.dumps(payload), encoding="utf-8")
-        log_progress(run_log, "Collected baseline metrics.")
-        log_progress(run_log, "Baseline job completed successfully.")
+        log_progress(run_log, "Collected reference metrics.")
+        log_progress(run_log, "Reference job completed successfully.")
 
         payload_dir = job_dir / "artifact_payload"
         payload_dir.mkdir(parents=True, exist_ok=True)

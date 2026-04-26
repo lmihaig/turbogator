@@ -1,5 +1,8 @@
 #!/bin/bash
-set -uo pipefail
+set -euo pipefail
+
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+ROOT_DIR="$SCRIPT_DIR"
 
 command -v jq >/dev/null 2>&1 || { echo "Error: jq is required but not installed."; exit 1; }
 
@@ -9,21 +12,29 @@ URL="https://aos.licu.dev"
 
 TMP_LOG=$(mktemp /tmp/aos_live_log_XXXXXX.log)
 TMP_ARCHIVE=$(mktemp /tmp/aos_results_XXXXXX.tar.gz)
-trap 'rm -f workspace.tar.gz "$TMP_LOG" "$TMP_ARCHIVE" 2>/dev/null' EXIT
+trap 'rm -f "$ROOT_DIR/workspace.tar.gz" "$TMP_LOG" "$TMP_ARCHIVE" 2>/dev/null' EXIT
 
 echo "Packing workspace..."
-if [ ! -f config.py ]; then
+if [ ! -f "$ROOT_DIR/config.py" ]; then
     echo "Error: config.py is required in workspace root."
     exit 1
 fi
-tar -czf workspace.tar.gz baseline/ config.py
+tar -czf "$ROOT_DIR/workspace.tar.gz" \
+    --exclude='reference/ezgatr/.venv' \
+    --exclude='reference/ezgatr/.pytest_cache' \
+    --exclude='reference/ezgatr/.mypy_cache' \
+    --exclude='reference/ezgatr/.ruff_cache' \
+    --exclude='reference/ezgatr/**/__pycache__' \
+    --exclude='reference/ezgatr/**/*.pyc' \
+    --exclude='reference/ezgatr/.ipynb_checkpoints' \
+    -C "$ROOT_DIR" reference config.py
 
 echo "Submitting to Queue..."
 RESPONSE=$(curl -s -u "$AUTH" -X POST "$URL/submit" \
     -F "user=${USER}" \
     -F "description=ezgatr" \
-    -F "target=baseline" \
-    -F "workspace=@workspace.tar.gz")
+    -F "target=reference" \
+    -F "workspace=@$ROOT_DIR/workspace.tar.gz")
 
 JOB_ID=$(echo "$RESPONSE" | jq -r '.job_id // empty')
 if [ -z "$JOB_ID" ]; then
@@ -66,21 +77,21 @@ done
 
 echo "--------------------------------------------------"
 
-mkdir -p results/baseline
+mkdir -p "$ROOT_DIR/results/reference"
 curl -s -u "$AUTH" -o "$TMP_ARCHIVE" "$URL/download/${JOB_ID}"
-tar -xzf "$TMP_ARCHIVE" -C results/baseline
+tar -xzf "$TMP_ARCHIVE" -C "$ROOT_DIR/results/reference"
 
-echo "Results saved to results/baseline/"
+echo "Results saved to results/reference/"
 
-if [ -f results/baseline/run.log ]; then
+if [ -f "$ROOT_DIR/results/reference/run.log" ]; then
     echo "---- Final server log tail ----"
-    tail -n 120 results/baseline/run.log
+    tail -n 120 "$ROOT_DIR/results/reference/run.log"
     echo "-------------------------------"
 fi
 
-if grep -q '"error"' results/baseline/metrics.json; then
-    echo "Baseline failed!"
-    cat results/baseline/metrics.json
+if grep -q '"error"' "$ROOT_DIR/results/reference/metrics.json"; then
+    echo "Reference run failed!"
+    cat "$ROOT_DIR/results/reference/metrics.json"
     exit 1
 fi
 

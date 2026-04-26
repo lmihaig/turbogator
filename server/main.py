@@ -25,12 +25,12 @@ async def submit_job(
     with open(tar_path, "wb") as buffer:
         buffer.write(await workspace.read())
 
-    if target == "baseline":
+    if target == "reference":
         subprocess.run(
             [
                 "tsp",
                 "python3",
-                "/opt/aos/scripts/worker_baseline.py",
+                "/opt/aos/scripts/worker_reference.py",
                 job_id,
                 user,
                 description,
