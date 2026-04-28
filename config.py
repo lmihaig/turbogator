@@ -5,7 +5,8 @@ CPU_FREQ = 8e8
 
 ROOFLINE_BETA = 32
 ROOFLINE_PI_SCALAR = 3.33
-ROOFLINE_PI_VECTOR = 8
+# single precision = 16, double precision = 8
+ROOFLINE_PI_VECTOR = 16
 
 # probably don't need to change these
 BATCH_SIZE = 8
