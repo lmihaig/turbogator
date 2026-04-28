@@ -77,17 +77,17 @@ def calculate_total_flops(N):
         return 0
 
     def f_linear(b, t, c_in, c_out, d):
-        return 0
+        return b * t * 2 * d * c_in * c_out
 
     # -----
     def f_rmsnorm(b, t, c, d):
-        return 0
+        return b * t * (c * (15 + 2*d + 1) + 4)
 
     def f_geom_attn(b, h, t, c, d):
         return 0
 
     def f_add(b, t, c, d):
-        return 0
+        return b * t * c * d
 
     # -----
     def f_einsum_bilinear(b, t, c, d):
@@ -113,7 +113,7 @@ def calculate_total_flops(N):
 
     # -----
     def f_gelu(b, t, c, d):
-        return 0
+        return b * t * c * (4 + d)
 
     def attention_flops():
         norm = f_rmsnorm(B, T, C_hid, D)
