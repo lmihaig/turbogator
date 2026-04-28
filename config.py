@@ -196,9 +196,10 @@ def calculate_total_flops(N):
 
 
 ##############################3
-# TODO: TEMP REPLACE
 def calculate_total_bytes(N):
-    # Q(n)
+    # Q(n) — strict compulsory traffic (lower bound):
+    #   input + output + all learnable params + all precomputed bases
+
     B = BATCH_SIZE
     T = N
     C_in = CHANNELS
@@ -210,7 +211,56 @@ def calculate_total_bytes(N):
     H = 4
     L = 4
 
-    total_bytes = B * T * D * C_in * 4 # torch.float32 size for input
+    BYTES = 4  # PyTorch default: float32
+
+    # 1. input + final output
+    io_bytes = B * T * (C_in + C_out) * D * BYTES
+
+    # 2. learnable params
+    def equi_linear_params(c_in, c_out):
+        # weight: (c_out, c_in, 9), bias: (c_out,)
+        return c_out * c_in * 9 + c_out
+
+    def equi_rmsnorm_params(c):
+        # channelwise rescale weight: (c,)
+        return c
+
+    embed_p = equi_linear_params(C_in, C_hid)
+    head_p = equi_linear_params(C_hid, C_out)
+
+    # one block
+    attn_norm_p = equi_rmsnorm_params(C_hid)
+    attn_mix_p = 2 * H * C_hid  # ipa + daa, each (H, 1, C_hid, 1)
+    proj_qkv_p = equi_linear_params(C_hid, 3 * H * C_hid)
+    attn_out_p = equi_linear_params(H * C_hid, C_hid)
+
+    mlp_norm_p = equi_rmsnorm_params(C_hid)
+    proj_bil_p = equi_linear_params(C_hid, 4 * C_int)
+    bil_out_p = equi_linear_params(2 * C_int, C_hid)
+    mlp_out_p = equi_linear_params(C_hid, C_hid)
+
+    block_p = (
+        attn_norm_p
+        + attn_mix_p
+        + proj_qkv_p
+        + attn_out_p
+        + mlp_norm_p
+        + proj_bil_p
+        + bil_out_p
+        + mlp_out_p
+    )
+
+    param_bytes = (embed_p + L * block_p + head_p) * BYTES
+
+    # 3. precomputed bases
+    basis_bytes = (
+        9 * D * D  # EquiLinear basis
+        + D**3  # geometric_product basis
+        + D**3  # equi_join kernel
+        + 2 * 4 * 4 * 5  # daa bq, bk
+    ) * BYTES
+
+    total_bytes = io_bytes + param_bytes + basis_bytes
     print(f"Q({N}): {total_bytes}")
 
     return total_bytes
