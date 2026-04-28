@@ -87,20 +87,23 @@ def calculate_total_flops(N):
 
     def f_geom_attn(b, h, t, c, d):
         # qs size of ipa - (b, h, t, c, 7)
-        qk_daa_computation = (b * h * t * c) # trivector normalization muls
+        _linear_normalizer = (b * h * t * c * 3) # linear square normalizer div pow add
+        qk_daa_computation = (b * h * t * c * 4) # trivector normalization muls
         qk_daa_computation += 5*4*4*(b * h * t * c)*3 # dist_vec computation k times 4*4 times 2 muls and one add
+        qk_daa_computation += _linear_normalizer
 
         qk_daa_computation *= 2 # we have q and k computations
-        qk_daa_computation += (b * h * t * c * 5) # q weighting
+        qk_ipa_weighting = (b * h * t * c * 7) # q weighting
+        qk_daa_weighting = (b * h * t * c * 5) # q weighting
 
         # torch.cat(qs, dim=-1) shape - (b, h, t, c*12)
         # torch.cat(qs, dim=-1) shape - (b, h, t, c*12)
         scaled_dot_product_attention = b*h*(t**2)* (24*c - 1) # 12c multiplications and 12c-1 additions per output element
         scaled_dot_product_attention += b*h*(t**2) # scaling scores
         scaled_dot_product_attention += 4*b*h*(t**2) # softmax exp div 1 FLOP each
-        scaled_dot_product_attention += 24*b*h*(t**2) # Attention output AV
+        scaled_dot_product_attention += 24*b*h*(t**2) # Attention output AV 
 
-        return scaled_dot_product_attention + qk_daa_computation
+        return scaled_dot_product_attention + qk_daa_computation + qk_ipa_weighting + qk_daa_weighting
 
     def f_add(b, t, c, d):
         return 0
