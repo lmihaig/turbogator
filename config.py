@@ -1,3 +1,12 @@
+MACHINE = "Intel N100 (1 Core, 800Mhz)"
+
+# 800 Mhz
+CPU_FREQ = 8e8
+
+ROOFLINE_BETA = 32
+ROOFLINE_PI_SCALAR = 3.33
+ROOFLINE_PI_VECTOR = 16
+
 # probably don't need to change these
 BATCH_SIZE = 8
 CHANNELS = 2
@@ -27,8 +36,6 @@ SIZES = [
 # this is used by the validation pipeline and also valgrind
 REPRESENTATIVE_N = 128
 
-# 800 Mhz
-CPU_FREQ = 8e8
 
 PERF_EVENTS = [
     "cycles",
@@ -61,6 +68,7 @@ LLVM_MCA_FLAGS = [
 
 
 def calculate_total_flops(N):
+    # W(n)
     B = BATCH_SIZE
     T = N
     C_in = CHANNELS
@@ -178,3 +186,13 @@ def calculate_total_flops(N):
     ############################
 
     return total_flops
+
+
+##############################3
+# TODO: TEMP REPLACE
+def calculate_total_bytes(N):
+    # Q(n)
+    return BATCH_SIZE * N * N * CHANNELS * 16 * 400
+
+
+############################

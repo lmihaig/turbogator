@@ -1,10 +1,10 @@
-import json
 import os
 import sys
 from pathlib import Path
 
 import pandas as pd
-from plot_style import (
+from data_io import load_history_dataframe, load_reference_dataframe
+from style import (
     add_series,
     new_single_axes,
     place_line_labels,
@@ -35,43 +35,6 @@ def _cycles_to_perf(n_series, cycles_series):
     return out.replace([float("inf"), float("-inf")], pd.NA).dropna()
 
 
-def _read_jsonl(path):
-    if not path.exists():
-        return []
-
-    records = []
-    for raw_line in path.read_text(encoding="utf-8").splitlines():
-        line = raw_line.strip()
-        if not line:
-            continue
-        if line.startswith("//"):
-            continue
-        try:
-            row = json.loads(line)
-        except json.JSONDecodeError:
-            continue
-        if isinstance(row, dict):
-            records.append(row)
-    return records
-
-
-def load_data():
-    return pd.DataFrame(row for row in _read_jsonl(HISTORY_FILE) if "data" in row)
-
-
-def load_reference():
-    if not REFERENCE_FILE.exists():
-        return pd.DataFrame()
-
-    try:
-        payload = json.loads(REFERENCE_FILE.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return pd.DataFrame()
-
-    data = payload.get("data", []) if isinstance(payload, dict) else []
-    return pd.DataFrame(data if isinstance(data, list) else [])
-
-
 def _aligned_perf_frame(n_series, cycles_series):
     return pd.DataFrame(
         {
@@ -81,9 +44,9 @@ def _aligned_perf_frame(n_series, cycles_series):
     ).dropna()
 
 
-def generate_plot():
-    history_df = load_data()
-    reference_df = load_reference()
+def generate_performance_plot():
+    history_df = load_history_dataframe(HISTORY_FILE)
+    reference_df = load_reference_dataframe(REFERENCE_FILE)
 
     PLOT_DIR.mkdir(parents=True, exist_ok=True)
     fig, ax = new_single_axes(figsize=(10, 6))
@@ -139,7 +102,7 @@ def generate_plot():
     y_max = max(all_y) if all_y else 1.0
     style_axes(
         ax,
-        title="Performance",
+        title=f"Performance: {app_config.MACHINE}",
         y_unit_text="Performance [flops / cycle]",
         x_label="Input Size N",
         x_scale="log2",
@@ -153,10 +116,10 @@ def generate_plot():
         label_adjustments=MANUAL_LABEL_ADJUSTMENTS,
     )
 
-    output_path = PLOT_DIR / "plot_latest.pdf"
+    output_path = PLOT_DIR / "performance.pdf"
     save_figure(fig, output_path, tight_rect=(0, 0, 1.0, 1.0))
     print(f"Plot successfully generated at: {output_path}")
 
 
 if __name__ == "__main__":
-    generate_plot()
+    generate_performance_plot()

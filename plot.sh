@@ -10,6 +10,6 @@ if [ ! -f "$ROOT_DIR/results/history.jsonl" ]; then
   exit 1
 fi
 
-uv run --project "$ROOT_DIR" --group analysis "$ROOT_DIR/analysis/plot_performance.py"
+uv run --project "$ROOT_DIR" --group analysis "$ROOT_DIR/analysis/plot_all.py"
 
 echo "Job's done. Plots at results/plots/"
