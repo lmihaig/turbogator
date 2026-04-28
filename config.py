@@ -101,7 +101,7 @@ def calculate_total_flops(N):
         scaled_dot_product_attention = b*h*(t**2)* (24*c - 1) # 12c multiplications and 12c-1 additions per output element
         scaled_dot_product_attention += b*h*(t**2) # scaling scores
         scaled_dot_product_attention += 4*b*h*(t**2) # softmax exp div 1 FLOP each
-        scaled_dot_product_attention += 24*b*h*(t**2) # Attention output AV 
+        scaled_dot_product_attention += 32 * b * h * (t**2) * c  # Attention output AV
 
         return scaled_dot_product_attention + qk_daa_computation + qk_ipa_weighting + qk_daa_weighting
 
