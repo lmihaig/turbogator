@@ -145,7 +145,7 @@ def calculate_total_flops(N):
         proj_out = f_equi_linear(B, T, H * C_hid, C_hid, D)
         residual = f_add(B, T, C_hid, D)
         
-        return norm + proj_qkv + attn + proj_out + residual
+        return norm + proj_qkv + attn + proj_out + residual + attention_weights
 
     def bilinear_flops():
         proj_bil = f_equi_linear(B, T, C_hid, 4 * C_int, D)
