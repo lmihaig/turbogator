@@ -78,7 +78,7 @@ def calculate_total_flops(N):
     def f_mean(b, t, c, d):
         return b * t * c * d
 
-    def f_linear(b, t, c_in, c_out, d):
+    def f_equi_linear(b, t, c_in, c_out, d):
         return b * t * 2 * d * c_in * c_out
 
     # -----
@@ -139,35 +139,36 @@ def calculate_total_flops(N):
 
     def attention_flops():
         norm = f_rmsnorm(B, T, C_hid, D)
-        proj_qkv = f_linear(B, T, C_hid, 3 * H * C_hid, D)
+        proj_qkv = f_equi_linear(B, T, C_hid, 3 * H * C_hid, D)
         attention_weights = 2*f_exp(H, 1, C_hid, 1) # we have 2 kinds of attention ipa and daa
         attn = f_geom_attn(B, H, T, C_hid, D)
-        proj_out = f_linear(B, T, H * C_hid, C_hid, D)
+        proj_out = f_equi_linear(B, T, H * C_hid, C_hid, D)
         residual = f_add(B, T, C_hid, D)
+        
         return norm + proj_qkv + attn + proj_out + residual
 
     def bilinear_flops():
-        proj_bil = f_linear(B, T, C_hid, 4 * C_int, D)
+        proj_bil = f_equi_linear(B, T, C_hid, 4 * C_int, D)
         geom_prod = f_geom_prod(B, T, C_int, D)
         equi_join = f_equi_join(B, T, C_int, D)
-        proj_out = f_linear(B, T, 2 * C_int, C_hid, D)
+        proj_out = f_equi_linear(B, T, 2 * C_int, C_hid, D)
         return proj_bil + geom_prod + equi_join + proj_out
 
     def mlp_flops():
         norm = f_rmsnorm(B, T, C_hid, D)
         bilinear = bilinear_flops()
         gelu = f_gelu(B, T, C_hid, D)
-        proj_out = f_linear(B, T, C_hid, C_hid, D)
+        proj_out = f_equi_linear(B, T, C_hid, C_hid, D)
         residual = f_add(B, T, C_hid, D)
         return norm + bilinear + gelu + proj_out + residual
 
     reference_flops = f_mean(B, T, C_in, D)
-    embedding_flops = f_linear(B, T, C_in, C_hid, D)
+    embedding_flops = f_equi_linear(B, T, C_in, C_hid, D)
 
     flops_per_block = attention_flops() + mlp_flops()
     total_block_flops = L * flops_per_block
 
-    head_flops = f_linear(B, T, C_hid, C_out, D)
+    head_flops = f_equi_linear(B, T, C_hid, C_out, D)
 
     total_flops = reference_flops + embedding_flops + total_block_flops + head_flops
 
