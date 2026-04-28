@@ -163,7 +163,7 @@ def calculate_total_flops(N):
         attn = f_geom_attn(B, H, T, C_hid, D)
         proj_out = f_equi_linear(B, T, H * C_hid, C_hid, D)
         residual = f_add(B, T, C_hid, D)
-        
+
         return norm + proj_qkv + attn + proj_out + residual + attention_weights
 
     def bilinear_flops():
@@ -210,7 +210,7 @@ def calculate_total_bytes(N):
     H = 4
     L = 4
 
-    total_bytes = T * D * C_in * 8
+    total_bytes = B * T * D * C_in * 4 # torch.float32 size for input
     print(f"Q({N}): {total_bytes}")
 
     return total_bytes
