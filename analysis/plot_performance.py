@@ -116,7 +116,7 @@ def generate_performance_plot():
         label_adjustments=MANUAL_LABEL_ADJUSTMENTS,
     )
 
-    output_path = PLOT_DIR / "performance.pdf"
+    output_path = PLOT_DIR / "performance"
     save_figure(fig, output_path, tight_rect=(0, 0, 1.0, 1.0))
     print(f"Plot successfully generated at: {output_path}")
 

@@ -346,6 +346,9 @@ def annotate_bar_values(
         )
 
 
+DEFAULT_SAVE_FMTS = ["png", "svg"]
+
+
 def save_figure(
     fig,
     output_path,
@@ -354,8 +357,17 @@ def save_figure(
     tight_rect=(0, 0, 1.0, 0.95),
 ):
     output = Path(output_path)
+    base = output.with_suffix("")
+
     output.parent.mkdir(parents=True, exist_ok=True)
+
     fig.tight_layout(rect=tight_rect)
-    fig.savefig(output, dpi=dpi, bbox_inches="tight")
+
+    saved = []
+    for f in DEFAULT_SAVE_FMTS:
+        out = base.with_suffix(f".{f}")
+        fig.savefig(out, dpi=dpi, bbox_inches="tight", format=f)
+        saved.append(out)
+
     plt.close(fig)
-    return output
+    return saved[0] if len(saved) == 1 else saved

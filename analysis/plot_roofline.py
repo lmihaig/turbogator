@@ -202,7 +202,7 @@ def generate_roofline_plot():
 
     place_line_labels(plot_lines)
 
-    output_path = PLOT_DIR / "roofline.pdf"
+    output_path = PLOT_DIR / "roofline"
     save_figure(fig, output_path)
     print(f"Roofline plot successfully generated at: {output_path}")
 
