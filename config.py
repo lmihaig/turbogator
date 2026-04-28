@@ -76,7 +76,7 @@ def calculate_total_flops(N):
 
     # -----
     def f_mean(b, t, c, d):
-        return 0
+        return b * t * c * d
 
     def f_linear(b, t, c_in, c_out, d):
         return b * t * 2 * d * c_in * c_out
