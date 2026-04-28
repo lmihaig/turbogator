@@ -5,7 +5,7 @@ CPU_FREQ = 8e8
 
 ROOFLINE_BETA = 32
 ROOFLINE_PI_SCALAR = 3.33
-ROOFLINE_PI_VECTOR = 16
+ROOFLINE_PI_VECTOR = 8
 
 # probably don't need to change these
 BATCH_SIZE = 8
@@ -80,8 +80,6 @@ def calculate_total_flops(N):
     H = 4
     L = 4
 
-
-
     # -----
     def f_mean(b, t, c, d):
         return b * t * c * d
@@ -91,31 +89,42 @@ def calculate_total_flops(N):
 
     # -----
     def f_rmsnorm(b, t, c, d):
-        return b * t * (c * (15 + 2*d + 1) + 4)
+        return b * t * (c * (15 + 2 * d + 1) + 4)
 
     def f_geom_attn(b, h, t, c, d):
         # qs size of ipa - (b, h, t, c, 7)
-        _linear_normalizer = (b * h * t * c * 3) # linear square normalizer div pow add
-        qk_daa_computation = (b * h * t * c * 4) # trivector normalization muls
-        qk_daa_computation += 5*4*4*(b * h * t * c)*3 # dist_vec computation k times 4*4 times 2 muls and one add
+        _linear_normalizer = b * h * t * c * 3  # linear square normalizer div pow add
+        qk_daa_computation = b * h * t * c * 4  # trivector normalization muls
+        qk_daa_computation += (
+            5 * 4 * 4 * (b * h * t * c) * 3
+        )  # dist_vec computation k times 4*4 times 2 muls and one add
         qk_daa_computation += _linear_normalizer
 
-        qk_daa_computation *= 2 # we have q and k computations
-        qk_ipa_weighting = (b * h * t * c * 7) # q weighting
-        qk_daa_weighting = (b * h * t * c * 5) # q weighting
+        qk_daa_computation *= 2  # we have q and k computations
+        qk_ipa_weighting = b * h * t * c * 7  # q weighting
+        qk_daa_weighting = b * h * t * c * 5  # q weighting
 
         # torch.cat(qs, dim=-1) shape - (b, h, t, c*12)
         # torch.cat(qs, dim=-1) shape - (b, h, t, c*12)
-        scaled_dot_product_attention = b*h*(t**2)* (24*c - 1) # 12c multiplications and 12c-1 additions per output element
-        scaled_dot_product_attention += b*h*(t**2) # scaling scores
-        scaled_dot_product_attention += 4*b*h*(t**2) # softmax exp div 1 FLOP each
+        scaled_dot_product_attention = (
+            b * h * (t**2) * (24 * c - 1)
+        )  # 12c multiplications and 12c-1 additions per output element
+        scaled_dot_product_attention += b * h * (t**2)  # scaling scores
+        scaled_dot_product_attention += (
+            4 * b * h * (t**2)
+        )  # softmax exp div 1 FLOP each
         scaled_dot_product_attention += 32 * b * h * (t**2) * c  # Attention output AV
 
-        return scaled_dot_product_attention + qk_daa_computation + qk_ipa_weighting + qk_daa_weighting
+        return (
+            scaled_dot_product_attention
+            + qk_daa_computation
+            + qk_ipa_weighting
+            + qk_daa_weighting
+        )
 
     def f_add(b, t, c, d):
         return b * t * c * d
-    
+
     def f_exp(b, t, c, d):
         return b * t * c * d
 
@@ -148,7 +157,9 @@ def calculate_total_flops(N):
     def attention_flops():
         norm = f_rmsnorm(B, T, C_hid, D)
         proj_qkv = f_equi_linear(B, T, C_hid, 3 * H * C_hid, D)
-        attention_weights = 2*f_exp(H, 1, C_hid, 1) # we have 2 kinds of attention ipa and daa
+        attention_weights = 2 * f_exp(
+            H, 1, C_hid, 1
+        )  # we have 2 kinds of attention ipa and daa
         attn = f_geom_attn(B, H, T, C_hid, D)
         proj_out = f_equi_linear(B, T, H * C_hid, C_hid, D)
         residual = f_add(B, T, C_hid, D)
@@ -180,11 +191,7 @@ def calculate_total_flops(N):
 
     total_flops = reference_flops + embedding_flops + total_block_flops + head_flops
 
-    ##############################3
-    # TODO: TEMP REPLACE
-    total_flops = 7000 * BATCH_SIZE * N**2
-    ############################
-
+    print(f"W({N}): {total_flops}")
     return total_flops
 
 
@@ -192,7 +199,21 @@ def calculate_total_flops(N):
 # TODO: TEMP REPLACE
 def calculate_total_bytes(N):
     # Q(n)
-    return BATCH_SIZE * N * N * CHANNELS * 16 * 400
+    B = BATCH_SIZE
+    T = N
+    C_in = CHANNELS
+    D = 16
+
+    C_hid = 32
+    C_int = 32
+    C_out = 1
+    H = 4
+    L = 4
+
+    total_bytes = T * D * C_in * 8
+    print(f"Q({N}): {total_bytes}")
+
+    return total_bytes
 
 
 ############################
