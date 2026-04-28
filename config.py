@@ -79,7 +79,7 @@ def calculate_total_flops(N):
         return b * t * c * d
 
     def f_equi_linear(b, t, c_in, c_out, d):
-        return b * t * 2 * d * c_in * c_out
+        return 2 * b * t * c_in * c_out * d * d
 
     # -----
     def f_rmsnorm(b, t, c, d):
