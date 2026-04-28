@@ -30,10 +30,7 @@ digraph MVOnlyGATr {
         emb [label="embedding: MVOnlyGATrEmbedding\nEquiLinear(C_in -> C_hidden)",
              fillcolor=lightblue];
 
-        // unrolled stack of blocks
-        block0 [label="blocks[0]: MVOnlyGATrBlock", fillcolor=lightblue];
-        blockd [label="...  (num_layers blocks)", fillcolor=lightgrey, shape=plain];
-        blockN [label="blocks[N-1]: MVOnlyGATrBlock", fillcolor=lightblue];
+        blocks [label="blocks[0..N-1]: MVOnlyGATrBlock × num_layers\n(sequential, same weights per block)", fillcolor=lightblue];
 
         head [label="head\nEquiLinear(C_hidden -> C_out)", fillcolor=lightblue];
         y_out [label="y\n[..., C_out, K]", fillcolor=white];
@@ -41,19 +38,15 @@ digraph MVOnlyGATr {
         x_in -> emb;
         x_in -> ref_calc [style=dotted, label="if ref is None"];
         ref_in -> ref_calc [style=dotted];
-        emb -> block0;
-        block0 -> blockd;
-        blockd -> blockN;
-        blockN -> head;
+        emb -> blocks;
+        blocks -> head;
         head -> y_out;
 
         // reference + attn_mask threaded through every block
-        ref_calc -> block0 [label="reference", style=dashed, color=darkgreen, fontcolor=darkgreen];
-        ref_calc -> blockN [label="reference", style=dashed, color=darkgreen, fontcolor=darkgreen];
+        ref_calc -> blocks [label="reference", style=dashed, color=darkgreen, fontcolor=darkgreen];
 
         mask_in [label="attn_mask\n(optional)", fillcolor=white];
-        mask_in -> block0 [label="attn_mask", style=dashed, color=darkorange, fontcolor=darkorange];
-        mask_in -> blockN [label="attn_mask", style=dashed, color=darkorange, fontcolor=darkorange];
+        mask_in -> blocks [label="attn_mask", style=dashed, color=darkorange, fontcolor=darkorange];
     }
 
     // ============================================================
@@ -66,15 +59,15 @@ digraph MVOnlyGATr {
         b_in  [label="x_in\n[B, T, C_hidden, K]", fillcolor=white];
         attn  [label="attn: MVOnlyGATrAttention", fillcolor=lightblue];
         mlp   [label="mlp:  MVOnlyGATrMLP",        fillcolor=lightblue];
-        b_out [label="x_out", fillcolor=white];
+        block_out [label="x_out", fillcolor=white];
 
         b_in -> attn [label="x, attn_mask"];
         attn -> mlp  [label="x, reference"];
-        mlp  -> b_out;
+        mlp  -> block_out;
     }
 
-    blockN -> b_in [lhead=cluster_block, ltail=cluster_model,
-                    style=dotted, color=gray, label="zoom in"];
+    blocks -> b_in [lhead=cluster_block, ltail=cluster_model,
+                    style=dotted, color=gray, label="zoom in ↓"];
 
     // ============================================================
     // MVOnlyGATrAttention.forward (pre-norm + residual)
@@ -93,7 +86,7 @@ digraph MVOnlyGATr {
         a_attn [label="equi_geometric_attention(\n  q, k, v,\n  kinds=config.attn_kinds,   # e.g. {ipa, daa}\n  weight=weight,\n  attn_mask, is_causal,\n  dropout_p, scale)",
                 fillcolor=lightyellow];
         a_merge[label="rearrange\n'b h t c k -> b t (h c) k'", fillcolor=lightgrey];
-        a_out  [label="proj_out: EquiLinear\nH * C_hidden -> C_hidden", fillcolor=lightblue];
+        a_out  [label="attn.proj_out: EquiLinear\nH * C_hidden -> C_hidden", fillcolor=lightblue];
         a_add  [label="+", shape=circle, fillcolor=lightpink, width=0.3, fixedsize=true];
         a_y    [label="x_out", fillcolor=white];
 
@@ -106,7 +99,7 @@ digraph MVOnlyGATr {
         a_add  -> a_y;
     }
 
-    attn -> a_in [lhead=cluster_attn, style=dotted, color=gray, label="zoom in"];
+    attn -> a_in [style=dotted, color=gray, label="zoom in"];
 
     // ============================================================
     // MVOnlyGATrMLP.forward (pre-norm + residual)
@@ -121,7 +114,7 @@ digraph MVOnlyGATr {
         m_bil  [label="equi_bil: MVOnlyGATrBilinear", fillcolor=lightblue];
         m_act  [label="scaler_gated_gelu(x,\n  approximate=config.gelu_approximate)",
                 fillcolor=lightyellow];
-        m_out  [label="proj_out: EquiLinear\nC_hidden -> C_hidden", fillcolor=lightblue];
+        m_out  [label="mlp.proj_out: EquiLinear\nC_hidden -> C_hidden", fillcolor=lightblue];
         m_add  [label="+", shape=circle, fillcolor=lightpink, width=0.3, fixedsize=true];
         m_y    [label="x_out", fillcolor=white];
 
@@ -131,7 +124,7 @@ digraph MVOnlyGATr {
         m_add -> m_y;
     }
 
-    mlp -> m_in [lhead=cluster_mlp, style=dotted, color=gray, label="zoom in"];
+    mlp -> m_in [style=dotted, color=gray, label="zoom in"];
 
     // reference is consumed by the bilinear sub-layer inside MLP
     // (threaded: model -> block -> mlp -> bilinear)
@@ -150,7 +143,7 @@ digraph MVOnlyGATr {
         b_gp   [label="geometric_product(lg, rg)", fillcolor=lightyellow];
         b_jn   [label="equi_join(lj, rj, reference)", fillcolor=lightyellow];
         b_cat  [label="concat(dim=-2)\n-> [..., 2 * C_inter, K]", fillcolor=lightgrey];
-        b_out  [label="proj_out: EquiLinear\n2 * C_inter -> C_hidden", fillcolor=lightblue];
+        b_out  [label="bilinear.proj_out: EquiLinear\n2 * C_inter -> C_hidden", fillcolor=lightblue];
         b_y    [label="output", fillcolor=white];
 
         bx -> b_proj -> b_split;
@@ -162,7 +155,7 @@ digraph MVOnlyGATr {
         b_cat -> b_out -> b_y;
     }
 
-    m_bil -> bx [lhead=cluster_bil, style=dotted, color=gray, label="zoom in"];
+    m_bil -> bx [style=dotted, color=gray, label="zoom in"];
 
     // ============================================================
     // Init note (MVOnlyGATrModel._init_params)
