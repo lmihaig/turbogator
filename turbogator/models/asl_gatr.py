@@ -1,5 +1,7 @@
 from ezgatr.nets import mv_only_gatr as base
 from ezgatr.nets.mv_only_gatr import MVOnlyGATrModel
+from ezgatr.nn.functional import linear as linear_func
+from ezgatr.nn.functional import norm as norm_func
 
 from turbogator.runtime import ops
 
@@ -12,6 +14,8 @@ def patch_ops(impls=None):
     base.equi_join = ops.equi_join
     base.equi_geometric_attention = ops.equi_geometric_attention
     base.scaler_gated_gelu = ops.scaler_gated_gelu
+    linear_func.equi_linear = ops.equi_linear
+    norm_func.equi_rms_norm = ops.equi_rms_norm
 
 
 def set_model_impl(op_name, impl_name):

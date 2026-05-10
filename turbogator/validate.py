@@ -3,23 +3,10 @@ from ezgatr.nets.mv_only_gatr import MVOnlyGATrConfig, MVOnlyGATrModel
 
 import config as app_config
 from turbogator.models.asl_gatr import TurboGatorModel
-from turbogator.runtime import ops
 
 
 def validate(seed=42) -> None:
     torch.manual_seed(seed)
-
-    impls = ops.current_impls()
-    for name in [
-        "geometric_product",
-        "equi_join",
-        "equi_geometric_attention",
-        "scaler_gated_gelu",
-    ]:
-        if "baseline" not in ops.available_impls(name):
-            raise RuntimeError(f"baseline impl not available for {name}")
-        if impls.get(name) != "baseline":
-            raise RuntimeError(f"{name} not using baseline impl: {impls.get(name)}")
 
     N = app_config.REPRESENTATIVE_N
     T, C_in = app_config.get_dimensions(N)

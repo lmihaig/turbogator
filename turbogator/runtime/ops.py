@@ -8,6 +8,8 @@ from ezgatr.nn.functional import (
 from ezgatr.nn.functional import equi_join as _py_equi_join
 from ezgatr.nn.functional import geometric_product as _py_geometric_product
 from ezgatr.nn.functional import scaler_gated_gelu as _py_scaler_gated_gelu
+from ezgatr.nn.functional.linear import equi_linear as _py_equi_linear
+from ezgatr.nn.functional.norm import equi_rms_norm as _py_equi_rms_norm
 
 try:
     _ext = importlib.import_module("turbogator_ext")
@@ -20,6 +22,8 @@ _IMPLS = {
     "equi_join": {"py": _py_equi_join},
     "equi_geometric_attention": {"py": _py_equi_geometric_attention},
     "scaler_gated_gelu": {"py": _py_scaler_gated_gelu},
+    "equi_linear": {"py": _py_equi_linear},
+    "equi_rms_norm": {"py": _py_equi_rms_norm},
 }
 
 
@@ -37,6 +41,21 @@ def _baseline_equi_geometric_attention(*args, **kwargs):
 
 
 def _baseline_scaler_gated_gelu(x, approximate="tanh"):
+    return torch.zeros_like(x)
+
+
+def _baseline_equi_linear(x, weight, bias=None, normalize_basis=True):
+    out_channels = weight.shape[0]
+    return torch.zeros(
+        *x.shape[:-2],
+        out_channels,
+        x.shape[-1],
+        device=x.device,
+        dtype=x.dtype,
+    )
+
+
+def _baseline_equi_rms_norm(x, weight=None, eps=None):
     return torch.zeros_like(x)
 
 
@@ -62,6 +81,10 @@ if _ext is not None:
         )
     if hasattr(_ext, "scaler_gated_gelu_baseline"):
         _IMPLS["scaler_gated_gelu"]["baseline"] = _ext.scaler_gated_gelu_baseline
+    if hasattr(_ext, "equi_linear_baseline"):
+        _IMPLS["equi_linear"]["baseline"] = _ext.equi_linear_baseline
+    if hasattr(_ext, "equi_rms_norm_baseline"):
+        _IMPLS["equi_rms_norm"]["baseline"] = _ext.equi_rms_norm_baseline
 
 if "baseline" not in _IMPLS["geometric_product"]:
     _IMPLS["geometric_product"]["baseline"] = _baseline_geometric_product
@@ -71,6 +94,10 @@ if "baseline" not in _IMPLS["equi_geometric_attention"]:
     _IMPLS["equi_geometric_attention"]["baseline"] = _baseline_equi_geometric_attention
 if "baseline" not in _IMPLS["scaler_gated_gelu"]:
     _IMPLS["scaler_gated_gelu"]["baseline"] = _baseline_scaler_gated_gelu
+if "baseline" not in _IMPLS["equi_linear"]:
+    _IMPLS["equi_linear"]["baseline"] = _baseline_equi_linear
+if "baseline" not in _IMPLS["equi_rms_norm"]:
+    _IMPLS["equi_rms_norm"]["baseline"] = _baseline_equi_rms_norm
 
 
 _SELECTED = {}
@@ -147,3 +174,11 @@ def equi_geometric_attention(*args, **kwargs):
 
 def scaler_gated_gelu(x, approximate="tanh"):
     return _dispatch("scaler_gated_gelu", x, approximate)
+
+
+def equi_linear(x, weight, bias=None, normalize_basis=True):
+    return _dispatch("equi_linear", x, weight, bias, normalize_basis)
+
+
+def equi_rms_norm(x, weight=None, eps=None):
+    return _dispatch("equi_rms_norm", x, weight, eps)

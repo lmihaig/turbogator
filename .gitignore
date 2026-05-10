@@ -1,19 +1,26 @@
-turbogator/build/
+build/
+csrc/build/
+.skbuild/
+*.so
 *.o
 *.out
-
 *.dSYM/
+*.egg-info/
+dist/
 
 __pycache__/
 *.pyc
 .venv/
-
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
 .DS_Store
 
 results/raw/
 results/plots/
 results/history.jsonl
-
-!results/baseline/
-
 *.tar.gz
+*.bin
+*.log
+
+!results/reference/
