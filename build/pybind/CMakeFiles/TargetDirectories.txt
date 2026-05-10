@@ -1,0 +1,7 @@
+/home/lmg/Desktop/team66/build/pybind/CMakeFiles/turbogator_ext.dir
+/home/lmg/Desktop/team66/build/pybind/CMakeFiles/edit_cache.dir
+/home/lmg/Desktop/team66/build/pybind/CMakeFiles/rebuild_cache.dir
+/home/lmg/Desktop/team66/build/pybind/CMakeFiles/list_install_components.dir
+/home/lmg/Desktop/team66/build/pybind/CMakeFiles/install.dir
+/home/lmg/Desktop/team66/build/pybind/CMakeFiles/install/local.dir
+/home/lmg/Desktop/team66/build/pybind/CMakeFiles/install/strip.dir

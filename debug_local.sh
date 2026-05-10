@@ -16,44 +16,30 @@ esac
 
 echo "Local validation"
 
-VALIDATION_DIR="$ROOT_DIR/results/reference"
-VALIDATION_FILES=(
-    "$VALIDATION_DIR/input.bin"
-    "$VALIDATION_DIR/expected.bin"
-    "$VALIDATION_DIR/validation_config.json"
-)
+cd "$ROOT_DIR"
 
-needs_regeneration=0
-if [ "$FORCE_REGENERATE" -eq 1 ]; then
-    needs_regeneration=1
-else
-    for file_path in "${VALIDATION_FILES[@]}"; do
-        if [ ! -f "$file_path" ]; then
-            needs_regeneration=1
-            break
-        fi
-    done
-fi
+echo "Building C++ extension..."
+UV_PYTHON=$(uv run --no-project --with torch --with numpy --with einops \
+    python -c "import sys; print(sys.executable)")
+rm -f "$ROOT_DIR/turbogator"/turbogator_ext*.so
+rm -rf "$ROOT_DIR/build/pybind"
+cmake -S "$ROOT_DIR" -B "$ROOT_DIR/build/pybind" \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DPython_EXECUTABLE="$UV_PYTHON"
+cmake --build "$ROOT_DIR/build/pybind"
 
-if [ "$needs_regeneration" -eq 1 ]; then
-    echo "Generating validation data..."
-    uv run --project "$ROOT_DIR" "$ROOT_DIR/reference/generate_validation_data.py"
-else
-    echo "Using existing validation data."
-fi
-
-cd "$ROOT_DIR/turbogator"
-
-if [ "$FORCE_REGENERATE" -eq 1 ]; then
-    echo "Cleaning build..."
-    make clean
-fi
-
-make validate
-
-echo "Running local validation..."
+echo "Running Python validation..."
 echo "--------------------------------------------------"
-./build/validate_kernel
+PYTHONPATH="$ROOT_DIR:$ROOT_DIR/turbogator:$ROOT_DIR/turbogator/ezgatr/src" \
+TURBOGATOR_IMPL_GEOMETRIC_PRODUCT=baseline \
+TURBOGATOR_IMPL_EQUI_JOIN=baseline \
+TURBOGATOR_IMPL_EQUI_GEOMETRIC_ATTENTION=baseline \
+TURBOGATOR_IMPL_SCALER_GATED_GELU=baseline \
+uv run --no-project \
+    --with torch \
+    --with numpy \
+    --with einops \
+    "$ROOT_DIR/turbogator/validate.py"
 EXIT_CODE=$?
 echo "--------------------------------------------------"
 

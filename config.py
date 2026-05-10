@@ -10,7 +10,7 @@ ROOFLINE_PI_VECTOR = 16
 
 # probably don't need to change these
 BATCH_SIZE = 8
-CHANNELS = 2
+VECTOR_DIM = 16
 BUILD_JOBS = 4
 PINNED_CPU_CORE = 2
 
@@ -20,22 +20,18 @@ PINNED_CPU_CORE = 2
 RUN_BENCHMARK = False
 RUN_PERF = True
 
-SIZES = [
-    16,
-    32,
-    64,
-    96,
-    128,
-    192,
-    256,
-    384,
-    512,
-    768,
-    1024,
-]
+# these are NOT N, these are sizes
+SIZES = [1, 2, 3, 4, 6, 8, 10, 12, 16, 20, 24, 28, 32]
 
 # this is used by the validation pipeline and also valgrind
-REPRESENTATIVE_N = 128
+REPRESENTATIVE_N = 4  # 4 * 32 = 128
+
+
+def get_dimensions(N):
+    # returns (T, C_in) for given size N
+    T = 32 * N
+    C_in = 2 * N
+    return T, C_in
 
 
 PERF_EVENTS = [
@@ -71,9 +67,8 @@ LLVM_MCA_FLAGS = [
 def calculate_total_flops(N):
     # W(n)
     B = BATCH_SIZE
-    T = N
-    C_in = CHANNELS
-    D = 16
+    T, C_in = get_dimensions(N)
+    D = VECTOR_DIM
 
     C_hid = 32
     C_int = 32
@@ -202,9 +197,8 @@ def calculate_total_bytes(N):
     #   input + output + all learnable params + all precomputed bases
 
     B = BATCH_SIZE
-    T = N
-    C_in = CHANNELS
-    D = 16
+    T, C_in = get_dimensions(N)
+    D = VECTOR_DIM
 
     C_hid = 32
     C_int = 32

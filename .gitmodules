@@ -1,3 +1,4 @@
-[submodule "reference/ezgatr"]
-	path = reference/ezgatr
-	url = https://github.com/Guest400123064/ezgatr
+[submodule "turbogator/ezgatr"]
+    path = turbogator/ezgatr
+    url = https://github.com/Guest400123064/ezgatr
+

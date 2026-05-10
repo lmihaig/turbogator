@@ -1,0 +1,1 @@
+/usr/bin/c++ -fPIC -O3 -DNDEBUG -shared -flto=auto -Wl,--dependency-file=CMakeFiles/turbogator_ext.dir/link.d  -o /home/lmg/Desktop/team66/turbogator/turbogator_ext.cpython-314-x86_64-linux-gnu.so CMakeFiles/turbogator_ext.dir/csrc/bindings.cpp.o

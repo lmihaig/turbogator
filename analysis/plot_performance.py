@@ -56,20 +56,22 @@ def generate_performance_plot():
 
     if {"N", "cycles"}.issubset(reference_df.columns):
         aligned = _aligned_perf_frame(reference_df["N"], reference_df["cycles"])
-        if not aligned.empty:
-            plot_lines.append(
-                add_series(
-                    ax,
-                    x=aligned["N"],
-                    y=aligned["perf"],
-                    label="ezgatr",
-                    primary=True,
-                    linestyle="--",
-                    linewidth=3.2,
-                    marker="o",
-                )
+    else:
+        aligned = pd.DataFrame()
+    if not aligned.empty:
+        plot_lines.append(
+            add_series(
+                ax,
+                x=aligned["N"],
+                y=aligned["perf"],
+                label="ezgatr",
+                primary=True,
+                linestyle="--",
+                linewidth=3.2,
+                marker="o",
             )
-            all_y.extend(float(v) for v in aligned["perf"])
+        )
+        all_y.extend(float(v) for v in aligned["perf"])
 
     if not history_df.empty:
         latest = history_df.drop_duplicates(subset=["description"], keep="last")
@@ -104,7 +106,7 @@ def generate_performance_plot():
         ax,
         title=f"Performance: {app_config.MACHINE}",
         y_unit_text="Performance [flops / cycle]",
-        x_label="Input Size N",
+        x_label=f"X = ({app_config.BATCH_SIZE}, 32N, 2N, {app_config.VECTOR_DIM})",
         x_scale="log2",
         grid_axis="y",
         ylim=(0, max(1.0, y_max * 1.2)),

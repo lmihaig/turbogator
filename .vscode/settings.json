@@ -1,5 +1,5 @@
 {
     "python.analysis.extraPaths": [
-        "${workspaceFolder}/reference/ezgatr/src"
+        "${workspaceFolder}/turbogator/ezgatr/src"
     ]
 }
