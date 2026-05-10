@@ -2,10 +2,10 @@ import torch
 from ezgatr.nets.mv_only_gatr import MVOnlyGATrConfig, MVOnlyGATrModel
 
 import config as app_config
-from turbogator.models.asl_gatr import TurboGatorModel
+from turbogator.engine import TurboGatorModel
 
 
-def validate(seed=42) -> None:
+def validate(seed=42):
     torch.manual_seed(seed)
 
     N = app_config.REPRESENTATIVE_N

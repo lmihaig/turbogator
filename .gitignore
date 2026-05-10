@@ -1,12 +1,23 @@
 build/
 csrc/build/
 .skbuild/
+CMakeCache.txt
+CMakeFiles/
+CMakeInit.txt
+cmake_install.cmake
+CMakeLists.txt.user
+build.ninja
+rules.ninja
+.ninja_deps
+.ninja_log
 *.so
 *.o
 *.out
 *.dSYM/
 *.egg-info/
 dist/
+.cmake/
+.skbuild-info.json
 
 __pycache__/
 *.pyc
@@ -14,7 +25,9 @@ __pycache__/
 .mypy_cache/
 .pytest_cache/
 .ruff_cache/
+
 .DS_Store
+.idea/
 
 results/raw/
 results/plots/
@@ -22,5 +35,6 @@ results/history.jsonl
 *.tar.gz
 *.bin
 *.log
+workspace.tar.gz
 
 !results/reference/

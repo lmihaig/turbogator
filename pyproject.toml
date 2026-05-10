@@ -1,29 +1,54 @@
+[project]
+name = "turbogator"
+version = "0.1.0"
+readme = "README.md"
+authors = [
+  { name = "Adam Suma", email = "adsuma@student.ethz.ch" },
+  { name = "Frederico Aberle", email = "faberle@student.ethz.ch" },
+  { name = "Jannis Alsbach", email = "jalsbach@student.ethz.ch" },
+  { name = "Mihai-George Licu", email = "milicu@student.ethz.ch" }
+]
+requires-python = ">=3.11,<3.13"
+dependencies = [
+  "torch==2.4.0+cpu",
+  "einops>=0.8.1,<0.9.0",
+  "numpy>=1.26,<3.0",
+  "ezgatr",
+  "scikit-build-core<=0.12.2",
+  "cmake>=3.15",
+  "pybind11>=2.10",
+  "ninja",
+  "wheel"
+]
+
+[project.scripts]
+gator = "gator:main"
+
 [build-system]
 requires = [
     "scikit-build-core<=0.12.2",
     "cmake>=3.15",
     "pybind11>=2.10",
+    "ninja",
+    "torch==2.4.0+cpu",
     "wheel",
 ]
-build-backend = "scikit_build_core"
-
-[project]
-name = "turbogator"
-version = "0.1.0"
-readme = "README.md"
-requires-python = ">=3.11,<3.13"
-dependencies = [
-  "torch>=2.1.0,<2.4.1",
-  "einops>=0.8.1,<0.9.0",
-  "numpy>=1.26,<3.0",
-]
+build-backend = "scikit_build_core.build"
 
 [tool.scikit-build.cmake]
 build-type = "Release"
 
-[tool.scikit-build.editable]
-mode = "inplace"
+[tool.scikit-build.cmake.define]
+CMAKE_EXPORT_COMPILE_COMMANDS = "ON"
 
+[tool.scikit-build]
+build-dir = "build/skbuild"
+
+[tool.scikit-build.editable]
+mode = "redirect"
+
+[tool.scikit-build.wheel]
+packages = ["turbogator"]
 
 [dependency-groups]
 api = [
@@ -35,3 +60,12 @@ analysis = [
   "matplotlib>=3.8.3",
   "pandas>=2.2.1",
 ]
+
+[tool.uv.sources]
+ezgatr = { git = "https://github.com/Guest400123064/ezgatr.git", rev = "371ff50fd4820afff09f7de8e384c2f083d980bb" }
+torch = { index = "pytorch-cpu" }
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true

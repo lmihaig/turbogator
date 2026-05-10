@@ -14,7 +14,6 @@ ARTIFACT_DIR = "/opt/aos/artifacts"
 async def submit_job(
     user=Form(...),
     description=Form(...),
-    target=Form("cpp"),
     workspace: UploadFile = File(...),
 ):
     job_id = f"{int(time.time())}_{user}"
@@ -25,23 +24,10 @@ async def submit_job(
     with open(tar_path, "wb") as buffer:
         buffer.write(await workspace.read())
 
-    if target == "reference":
-        subprocess.run(
-            [
-                "tsp",
-                "python3",
-                "/opt/aos/scripts/worker_reference.py",
-                job_id,
-                user,
-                description,
-            ],
-            check=False,
-        )
-    else:
-        subprocess.run(
-            ["tsp", "python3", "/opt/aos/scripts/worker.py", job_id, user, description],
-            check=False,
-        )
+    subprocess.run(
+        ["tsp", "python3", "/opt/aos/scripts/worker.py", job_id, user, description],
+        check=False,
+    )
 
     return {"status": "queued", "job_id": job_id}
 

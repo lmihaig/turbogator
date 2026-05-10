@@ -21,10 +21,12 @@ RUN_BENCHMARK = False
 RUN_PERF = True
 
 # these are NOT N, these are sizes
-SIZES = [1, 2, 3, 4, 6, 8, 10, 12, 16, 20, 24, 28, 32]
+# SIZES =  [1, 2, 3, 4, 6, 8, 12, 16]
+SIZES = [1]
 
 # this is used by the validation pipeline and also valgrind
-REPRESENTATIVE_N = 4  # 4 * 32 = 128
+# 4 * 32 = 128
+REPRESENTATIVE_N = 4
 
 
 def get_dimensions(N):
