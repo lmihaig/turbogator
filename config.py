@@ -14,19 +14,12 @@ VECTOR_DIM = 16
 BUILD_JOBS = 4
 PINNED_CPU_CORE = 2
 
-
-# i think running only with perf is fine, overhead seems to be ~2% in testing
-# but if needed we can run both or either
-RUN_BENCHMARK = False
-RUN_PERF = True
-
 # these are NOT N, these are sizes
-# SIZES =  [1, 2, 3, 4, 6, 8, 12, 16]
-SIZES = [1]
+SIZES = [1, 2, 3, 4, 6, 8, 12, 16]
+# SIZES = [1]
 
-# this is used by the validation pipeline and also valgrind
-# 4 * 32 = 128
-REPRESENTATIVE_N = 4
+# this is used by the validation pipeline and also microbenchmarks
+REPRESENTATIVE_N = 8
 
 
 def get_dimensions(N):
@@ -51,26 +44,23 @@ PERF_EVENTS = [
 ]
 
 
-LLVM_MCA_FLAGS = [
-    "-mtriple=x86_64-unknown-unknown",
-    "-mcpu=skylake",  # tool doesn't support gracemont particularly, but skylake e-cores should satisfy
-    "-dispatch=6",
-    "-lqueue=64",
-    "-squeue=40",
-    "-iterations=1000",
-    "-bottleneck-analysis",
-    "-timeline",
-    "-timeline-max-cycles=100",
-    "-all-stats",
-    "-output-asm-variant=1",
-]
+# LLVM_MCA_FLAGS = [
+#     "-mtriple=x86_64-unknown-unknown",
+#     "-mcpu=skylake",  # tool doesn't support gracemont particularly, but skylake e-cores should satisfy
+#     "-dispatch=6",
+#     "-lqueue=64",
+#     "-squeue=40",
+#     "-iterations=1000",
+#     "-bottleneck-analysis",
+#     "-timeline",
+#     "-timeline-max-cycles=100",
+#     "-all-stats",
+#     "-output-asm-variant=1",
+# ]
 
 
-def calculate_total_flops(N):
+def calculate_total_flops(B, T, C_in, D):
     # W(n)
-    B = BATCH_SIZE
-    T, C_in = get_dimensions(N)
-    D = VECTOR_DIM
 
     C_hid = 32
     C_int = 32
@@ -189,18 +179,14 @@ def calculate_total_flops(N):
 
     total_flops = reference_flops + embedding_flops + total_block_flops + head_flops
 
-    print(f"W({N}): {total_flops}")
+    # print(f"W({B}, {T}, {C_in}, {D}): {total_flops}")
     return total_flops
 
 
 ##############################3
-def calculate_total_bytes(N):
+def calculate_total_bytes(B, T, C_in, D):
     # Q(n) — strict compulsory traffic (lower bound):
     #   input + output + all learnable params + all precomputed bases
-
-    B = BATCH_SIZE
-    T, C_in = get_dimensions(N)
-    D = VECTOR_DIM
 
     C_hid = 32
     C_int = 32
@@ -258,7 +244,7 @@ def calculate_total_bytes(N):
     ) * BYTES
 
     total_bytes = io_bytes + param_bytes + basis_bytes
-    print(f"Q({N}): {total_bytes}")
+    # print(f"Q({B}, {T}, {C_in}, {D}): {total_bytes}")
 
     return total_bytes
 

@@ -10,15 +10,17 @@ authors = [
 ]
 requires-python = ">=3.12,<3.13"
 dependencies = [
-  "torch==2.4.0+cpu",
+  "torch==2.4.0+cpu ; sys_platform != 'darwin'",
+  "torch==2.4.0 ; sys_platform == 'darwin'",
   "einops>=0.8.1,<0.9.0",
   "numpy>=1.26,<3.0",
   "ezgatr",
   "scikit-build-core<=0.12.2",
   "cmake>=3.15",
   "pybind11>=2.10",
+  "pyitt>=1.6.0",
   "ninja",
-  "wheel"
+  "wheel",
 ]
 
 [project.scripts]
@@ -26,17 +28,18 @@ gator = "gator:main"
 
 [build-system]
 requires = [
+    "torch==2.4.0+cpu ; sys_platform != 'darwin'",
+    "torch==2.4.0 ; sys_platform == 'darwin'",
     "scikit-build-core<=0.12.2",
     "cmake>=3.15",
     "pybind11>=2.10",
     "ninja",
-    "torch==2.4.0",
     "wheel",
 ]
 build-backend = "scikit_build_core.build"
 
 [tool.scikit-build.cmake]
-build-type = "Release"
+build-type = "RelWithDebInfo"
 
 [tool.scikit-build.cmake.define]
 CMAKE_EXPORT_COMPILE_COMMANDS = "ON"
@@ -51,14 +54,15 @@ mode = "redirect"
 packages = ["turbogator"]
 
 [dependency-groups]
-api = [
+local = [
+  "py-spy>=0.3.14",
+  "matplotlib>=3.8.3",
+  "pandas>=2.2.1",
+]
+server = [
   "fastapi==0.110.0",
   "uvicorn==0.29.0",
   "python-multipart==0.0.9",
-]
-analysis = [
-  "matplotlib>=3.8.3",
-  "pandas>=2.2.1",
 ]
 
 [tool.uv.sources]
@@ -69,3 +73,6 @@ torch = { index = "pytorch-cpu" }
 name = "pytorch-cpu"
 url = "https://download.pytorch.org/whl/cpu"
 explicit = true
+
+[tool.scikit-build.install]
+strip = false

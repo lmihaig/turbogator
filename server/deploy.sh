@@ -31,7 +31,7 @@ ssh ${REMOTE} <<'EOF'
     echo "Syncing Python environment (uv)..."
     cd /opt/aos/api
     
-    uv sync --group api --no-install-project
+    uv sync --group server --no-install-project
     
     echo "Restarting AOS Daemon..."
     systemctl daemon-reload

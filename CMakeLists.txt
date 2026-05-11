@@ -5,6 +5,8 @@ set(CMAKE_CXX_COMPILER_WORKS 1)
 
 project(turbogator_ext LANGUAGES CXX)
 
+set(CMAKE_BUILD_TYPE "RelWithDebInfo" CACHE STRING "" FORCE)
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
@@ -45,7 +47,8 @@ target_compile_options(turbogator_ext PRIVATE
     -Wall
     -Wextra
     -march=native
-    -g0
+    -O3
+    -g
 )
 
 target_include_directories(turbogator_ext PRIVATE 

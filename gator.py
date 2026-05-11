@@ -13,8 +13,11 @@ import urllib.request
 from datetime import datetime
 from pathlib import Path
 
+import config as app_config
+
 AUTH = "turbogator:TurboGator2026"
 URL = "https://aos.licu.dev"
+_BUILD_DONE = False
 
 
 class Log:
@@ -91,16 +94,91 @@ def _api_submit(user, desc, tar_path):
     return json.loads(_api_request("/submit", data=body, headers=headers))
 
 
-def cmd_debug(args):
+def do_build():
+    global _BUILD_DONE
+    if _BUILD_DONE:
+        return
+    cpu_count = os.cpu_count() or 1
+    os.environ["CMAKE_BUILD_PARALLEL_LEVEL"] = str(cpu_count)
     shutil.rmtree("build/skbuild", ignore_errors=True)
     for p in Path("turbogator").glob("*.so"):
         p.unlink()
+    run_cmd(["uv", "sync", "--group", "local", "--reinstall-package", "turbogator"])
+    _BUILD_DONE = True
 
-    run_cmd(["uv", "sync", "--reinstall-package", "turbogator"])
+
+def cmd_debug(args):
+    do_build()
+    cmd_validate(args, build=False)
+    cmd_microbench(args, build=False)
+
+
+def cmd_validate(args, build=True):
+    if build:
+        do_build()
 
     Log.info("Validating Turbogator C++ extensions against PyTorch...")
     run_cmd(["uv", "run", "python", "turbogator/validate.py"])
     Log.success("Validation Complete!")
+
+
+def cmd_microbench(args, build=True):
+    if build:
+        do_build()
+    out_dir = Path("results/microbench")
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    desc = getattr(args, "description", "turbogator")
+    t_dim, c_in = app_config.get_dimensions(app_config.REPRESENTATIVE_N)
+    flamegraph_path = out_dir / "profile.speedscope.json"
+    torch_profile_out = out_dir / "pytorch_profile.trace.json"
+    Log.info(f"Recording py-spy ({desc}): T={t_dim}, C_in={c_in}")
+
+    cmd = [
+        "py-spy",
+        "record",
+        "-o",
+        str(flamegraph_path),
+        "--format",
+        "speedscope",
+        "--rate",
+        "100",
+        "--native",
+        "--",
+        sys.executable,
+        "turbogator/benchmark.py",
+        "--desc",
+        desc,
+        "--t",
+        str(t_dim),
+        "--c",
+        str(c_in),
+        "--profile",
+        "none",
+    ]
+    run_cmd(cmd)
+
+    Log.info("Running torch profiler...")
+    run_cmd(
+        [
+            sys.executable,
+            "turbogator/benchmark.py",
+            "--desc",
+            desc,
+            "--t",
+            str(t_dim),
+            "--c",
+            str(c_in),
+            "--profile",
+            "torch",
+            "--profile-out",
+            str(torch_profile_out),
+        ]
+    )
+
+    Log.success(f"Microbenchmark complete. Outputs saved to {out_dir}")
+    Log.info("Open py-spy flamegraph to https://www.speedscope.app/")
+    Log.info("Open torch trace in https://ui.perfetto.dev")
 
 
 def cmd_clean(args):
@@ -144,9 +222,7 @@ def cmd_plot(args):
     if not Path("results/history.jsonl").exists():
         Log.error("results/history.jsonl not found.")
         sys.exit(1)
-    run_cmd(
-        ["uv", "run", "--project", ".", "--group", "analysis", "analysis/plot_all.py"]
-    )
+    run_cmd(["uv", "run", "--project", ".", "--group", "local", "analysis/plot_all.py"])
     Log.success("Plots generated in results/plots/")
 
 
@@ -219,19 +295,30 @@ def cmd_submit(args):
     out_dir.mkdir(parents=True, exist_ok=True)
 
     Log.info("Downloading artifacts...")
-    tar_data = _api_request(f"/download/{job_id}")
     tmp_archive = root / f"tmp_{job_id}.tar.gz"
+    max_attempts = 3
+    for attempt in range(1, max_attempts + 1):
+        tar_data = _api_request(f"/download/{job_id}")
+        with open(tmp_archive, "wb") as f:
+            f.write(tar_data)
 
-    with open(tmp_archive, "wb") as f:
-        f.write(tar_data)
+        try:
+            with tarfile.open(tmp_archive, "r:gz") as tf:
+                tf.extractall(path=out_dir)
+            break
+        except (EOFError, tarfile.ReadError) as exc:
+            tmp_archive.unlink(missing_ok=True)
+            if attempt == max_attempts:
+                Log.error(f"Failed to extract artifacts: {exc}")
+                sys.exit(1)
+            Log.info("Artifacts incomplete; retrying download...")
+            time.sleep(2 * attempt)
 
-    with tarfile.open(tmp_archive, "r:gz") as tf:
-        tf.extractall(path=out_dir)
-
-    tmp_archive.unlink()
+    tmp_archive.unlink(missing_ok=True)
     tar_path.unlink()
 
     metrics_file = out_dir / "metrics.json"
+    advisor_dir = out_dir / "advisor_results"
     if metrics_file.exists():
         data = json.loads(metrics_file.read_text())
         if "error" in data:
@@ -242,6 +329,9 @@ def cmd_submit(args):
                 f.write(json.dumps(data) + "\n")
             Log.success("Metrics appended to local history.")
 
+    if advisor_dir.exists():
+        Log.success(f"Intel Advisor results saved to {advisor_dir}")
+
     Log.success(f"Job Complete! Data saved to {out_dir}")
 
 
@@ -249,7 +339,21 @@ def main():
     parser = argparse.ArgumentParser(description="TurboGator Dev Workflow")
     subs = parser.add_subparsers(dest="cmd", required=True)
 
-    subs.add_parser("debug", help="Build and run local validation")
+    p_debug = subs.add_parser("debug", help="Build and run local validation")
+    p_debug.add_argument(
+        "description",
+        nargs="?",
+        default="turbogator",
+        help="Model description for microbench (e.g., ezgatr)",
+    )
+    subs.add_parser("validate", help="Run local validation")
+    p_microbench = subs.add_parser("microbench", help="Run local microbenchmarks")
+    p_microbench.add_argument(
+        "description",
+        nargs="?",
+        default="turbogator",
+        help="Model description for benchmark.py (e.g., ezgatr)",
+    )
     subs.add_parser("clean", help="Remove all build and temp files")
     subs.add_parser("plot", help="Generate analysis plots")
 
@@ -265,6 +369,10 @@ def main():
     args = parser.parse_args()
     if args.cmd == "debug":
         cmd_debug(args)
+    elif args.cmd == "validate":
+        cmd_validate(args)
+    elif args.cmd == "microbench":
+        cmd_microbench(args)
     elif args.cmd == "clean":
         cmd_clean(args)
     elif args.cmd == "plot":
