@@ -18,10 +18,28 @@ PLOT_DIR = REPO_ROOT / "results" / "plots"
 
 
 def _roofline_points(df):
-    n = pd.to_numeric(df["N"], errors="coerce")
+    if "X" not in df.columns or "cycles" not in df.columns:
+        return pd.DataFrame(columns=["I", "perf"])
+
     cycles = pd.to_numeric(df["cycles"], errors="coerce")
-    flops = n.apply(app_config.calculate_total_flops)
-    bytes_total = n.apply(app_config.calculate_total_bytes)
+    flops = df["X"].apply(
+        lambda x: (
+            app_config.calculate_total_flops(
+                x.get("B"), x.get("T"), x.get("C_in"), x.get("D")
+            )
+            if isinstance(x, dict)
+            else float("nan")
+        )
+    )
+    bytes_total = df["X"].apply(
+        lambda x: (
+            app_config.calculate_total_bytes(
+                x.get("B"), x.get("T"), x.get("C_in"), x.get("D")
+            )
+            if isinstance(x, dict)
+            else float("nan")
+        )
+    )
 
     points = pd.DataFrame({"I": flops / bytes_total, "perf": flops / cycles})
     valid = np.isfinite(points["I"]) & np.isfinite(points["perf"])
