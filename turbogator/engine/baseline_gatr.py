@@ -9,6 +9,10 @@ from einops import rearrange
 
 # still use the ezgatr config
 from ezgatr.nets.mv_only_gatr import MVOnlyGATrConfig
+from ezgatr.nn.functional.activation import scaler_gated_gelu
+from ezgatr.nn.functional.dual import equi_join
+from ezgatr.nn.functional.linear import equi_linear, geometric_product
+from ezgatr.nn.functional.norm import equi_rms_norm
 
 from turbogator.engine import cpp_bindings as c_ops
 
@@ -54,9 +58,7 @@ class EquiLinear(nn.Module):
             nn.init.uniform_(self.bias, -bound, bound)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return c_ops.equi_linear_baseline(
-            x, self.weight, self.bias, self.normalize_basis
-        )
+        return equi_linear(x, self.weight, self.bias, self.normalize_basis)
 
     def extra_repr(self) -> str:
         return (
@@ -98,7 +100,7 @@ class EquiRMSNorm(nn.Module):
             nn.init.ones_(self.weight)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return c_ops.equi_rms_norm_baseline(x, self.weight, self.eps)
+        return equi_rms_norm(x, self.weight, self.eps)
 
     def extra_repr(self) -> str:
         return (
@@ -155,8 +157,8 @@ class MVOnlyGATrBilinear(nn.Module):
 
         x = torch.cat(
             [
-                c_ops.geometric_product_baseline(lg, rg),
-                c_ops.equi_join_baseline(lj, rj, reference),
+                geometric_product(lg, rg),
+                equi_join(lj, rj, reference),
             ],
             dim=-2,
         )
@@ -191,9 +193,7 @@ class MVOnlyGATrMLP(nn.Module):
 
         x = self.layer_norm(x)
         x = self.equi_bil(x, reference)
-        x = self.proj_out(
-            c_ops.scaler_gated_gelu_baseline(x, self.config.gelu_approximate)
-        )
+        x = self.proj_out(scaler_gated_gelu(x, self.config.gelu_approximate))
 
         return x + residual
 
