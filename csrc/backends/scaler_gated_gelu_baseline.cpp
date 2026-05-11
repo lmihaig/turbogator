@@ -1,6 +1,6 @@
 #include "ops.hpp"
 
-namespace tg {
+namespace turbogator {
 
 void scaler_gated_gelu_baseline(const float* x, float* out, size_t n) {
     for (size_t i = 0; i < n; ++i) {
@@ -8,4 +8,4 @@ void scaler_gated_gelu_baseline(const float* x, float* out, size_t n) {
     }
 }
 
-}  // namespace tg
+}  // namespace turbogator

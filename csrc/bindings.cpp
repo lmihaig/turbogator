@@ -31,7 +31,7 @@ PYBIND11_MODULE(turbogator_ext, m) {
             throw std::runtime_error("geometric_product_baseline: size mismatch");
         }
         auto out = make_out_like(a);
-        tg::geometric_product_baseline(
+        turbogator::geometric_product_baseline(
             a.data_ptr<float>(),
             b.data_ptr<float>(),
             out.data_ptr<float>(),
@@ -45,7 +45,7 @@ PYBIND11_MODULE(turbogator_ext, m) {
             throw std::runtime_error("geometric_product_vectorized: size mismatch");
         }
         auto out = make_out_like(a);
-        tg::geometric_product_vectorized(
+        turbogator::geometric_product_vectorized(
             a.data_ptr<float>(),
             b.data_ptr<float>(),
             out.data_ptr<float>(),
@@ -59,7 +59,7 @@ PYBIND11_MODULE(turbogator_ext, m) {
             throw std::runtime_error("equi_join_baseline: size mismatch");
         }
         auto out = make_out_like(a);
-        tg::equi_join_baseline(
+        turbogator::equi_join_baseline(
             a.data_ptr<float>(),
             b.data_ptr<float>(),
             ref.numel() ? ref.data_ptr<float>() : nullptr,
@@ -104,7 +104,7 @@ PYBIND11_MODULE(turbogator_ext, m) {
             bool is_causal = kwargs.contains("is_causal") && kwargs["is_causal"].cast<bool>();
 
             auto out = torch::empty_like(v);
-            tg::equi_geometric_attention_baseline(
+            turbogator::equi_geometric_attention_baseline(
                 q.data_ptr<float>(), k.data_ptr<float>(),
                 v.data_ptr<float>(), out.data_ptr<float>(),
                 B, H, T, C, kinds, weights, mask_ptr, is_causal
@@ -118,7 +118,7 @@ PYBIND11_MODULE(turbogator_ext, m) {
         [](torch::Tensor x, py::object approximate) {
             (void)approximate;
         auto out = make_out_like(x);
-        tg::scaler_gated_gelu_baseline(
+        turbogator::scaler_gated_gelu_baseline(
             x.data_ptr<float>(),
             out.data_ptr<float>(),
             x.numel()
@@ -141,7 +141,7 @@ PYBIND11_MODULE(turbogator_ext, m) {
                     bias_ptr = bias_tensor.data_ptr<float>();
                 }
             }
-            tg::equi_linear_baseline(
+            turbogator::equi_linear_baseline(
                 x.data_ptr<float>(),
                 weight.data_ptr<float>(),
                 bias_ptr,
@@ -168,7 +168,7 @@ PYBIND11_MODULE(turbogator_ext, m) {
                     weight_ptr = weight_tensor.data_ptr<float>();
                 }
             }
-            tg::equi_rms_norm_baseline(
+            turbogator::equi_rms_norm_baseline(
                 x.data_ptr<float>(),
                 weight_ptr,
                 out.data_ptr<float>(),

@@ -1,6 +1,6 @@
 #include "ops.hpp"
 
-namespace tg {
+namespace turbogator {
 
 void equi_join_baseline(const float* a, const float* b, const float* ref, float* out, size_t n) {
     (void)ref;
@@ -9,4 +9,4 @@ void equi_join_baseline(const float* a, const float* b, const float* ref, float*
     }
 }
 
-}  // namespace tg
+}  // namespace turbogator

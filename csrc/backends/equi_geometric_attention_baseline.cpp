@@ -5,7 +5,7 @@
 #include <limits>
 #include <vector>
 
-namespace tg {
+namespace turbogator {
 
 static constexpr int N_BLADES  = 16;
 static constexpr int N_IPA     = 7;
@@ -173,4 +173,4 @@ void equi_geometric_attention_baseline(
     }
 }
 
-}  // namespace tg
+}  // namespace turbogator

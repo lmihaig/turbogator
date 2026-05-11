@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-namespace tg {
+namespace turbogator {
 
 void geometric_product_baseline(const float* a, const float* b, float* out, size_t n);
 void geometric_product_vectorized(const float* a, const float* b, float* out, size_t n);
@@ -22,4 +22,4 @@ void scaler_gated_gelu_baseline(const float* x, float* out, size_t n);
 void equi_linear_baseline(const float* x, const float* weight, const float* bias, float* out, size_t n);
 void equi_rms_norm_baseline(const float* x, const float* weight, float* out, size_t n);
 
-}  // namespace tg
+}  // namespace turbogator

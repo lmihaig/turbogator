@@ -1,6 +1,6 @@
 #include "ops.hpp"
 
-namespace tg {
+namespace turbogator {
 
 void equi_linear_baseline(const float* x, const float* weight, const float* bias, float* out, size_t n) {
     (void)x;
@@ -11,4 +11,4 @@ void equi_linear_baseline(const float* x, const float* weight, const float* bias
     }
 }
 
-}  // namespace tg
+}  // namespace turbogator

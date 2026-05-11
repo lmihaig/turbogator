@@ -1,6 +1,6 @@
 #include "ops.hpp"
 
-namespace tg {
+namespace turbogator {
 
 void geometric_product_baseline(const float* a, const float* b, float* out, size_t n) {
     for (size_t i = 0; i < n; ++i) {
@@ -8,4 +8,4 @@ void geometric_product_baseline(const float* a, const float* b, float* out, size
     }
 }
 
-}  // namespace tg
+}  // namespace turbogator
