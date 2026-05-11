@@ -36,11 +36,18 @@ def GATOR_FORWARD_PASS(model, x):
     return model(x)
 
 
-def analyze_runs(times_ns):
+def analyze_runs(warmup_ns, step_ns):
+    times_ns = warmup_ns + step_ns
     t = np.array(times_ns, dtype=np.float64) / 1e9
     med, mn, mx = np.median(t), np.min(t), np.max(t)
 
-    print(f"raw_s: {', '.join(f'{x:.6f}' for x in t)}")
+    labeled = []
+    for i, x in enumerate(t):
+        prefix = "W" if i < len(warmup_ns) else "S"
+        labeled.append(f"{prefix}{i:02d}={x:.6f}")
+
+    print(f"counts: warmup={len(warmup_ns)} steps={len(step_ns)}")
+    print(f"raw_s: {', '.join(labeled)}")
     print(f"median_s: {med:.6f} | min_s: {mn:.6f} | max_s: {mx:.6f}")
     print(f"cv: {np.std(t) / np.mean(t):.4f} | med/min: {med / mn:.4f}")
 
@@ -93,22 +100,26 @@ def benchmark(
         if profile == "torch":
             return run_torch_profiler(model, x, profile_out)
 
+        warmup_times_ns = []
         for _ in range(warmup):
+            t0 = time.perf_counter_ns()
             GATOR_FORWARD_PASS(model, x)
+            t1 = time.perf_counter_ns()
+            warmup_times_ns.append(t1 - t0)
 
-        times_ns = []
+        step_times_ns = []
         for _ in range(steps):
             t0 = time.perf_counter_ns()
             with AdvisorRegion(profile):
                 GATOR_FORWARD_PASS(model, x)
             t1 = time.perf_counter_ns()
-            times_ns.append(t1 - t0)
+            step_times_ns.append(t1 - t0)
 
-    analyze_runs(times_ns)
+    analyze_runs(warmup_times_ns, step_times_ns)
 
     result = {
         "X": {"B": B, "T": T, "C_in": C_in, "D": D},
-        "cycles": float(np.median(times_ns)) * app_config.CPU_FREQ / 1e9,
+        "cycles": float(np.median(step_times_ns)) * app_config.CPU_FREQ / 1e9,
     }
     print(result)
 
