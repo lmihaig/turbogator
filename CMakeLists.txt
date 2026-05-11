@@ -12,7 +12,7 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 find_package(pybind11 REQUIRED)
 find_package(Python COMPONENTS Interpreter Development)
 
-file(GLOB TURBOGATOR_BACKEND_SOURCES "${CMAKE_SOURCE_DIR}/csrc/backends/*.cpp")
+file(GLOB TURBOGATOR_BACKEND_SOURCES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/csrc/backends/*.cpp")
 
 execute_process(
     COMMAND "${Python_EXECUTABLE}" -c "import torch; print(torch.utils.cmake_prefix_path)"

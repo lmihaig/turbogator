@@ -96,7 +96,7 @@ def cmd_debug(args):
     for p in Path("turbogator").glob("*.so"):
         p.unlink()
 
-    run_cmd(["uv", "sync"])
+    run_cmd(["uv", "sync", "--reinstall-package", "turbogator"])
 
     Log.info("Validating Turbogator C++ extensions against PyTorch...")
     run_cmd(["uv", "run", "python", "turbogator/validate.py"])
