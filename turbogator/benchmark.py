@@ -83,9 +83,7 @@ def run_torch_profiler(model, x, out_path):
             prof.step()
 
 
-def benchmark(
-    desc, T, C_in, seed=42, warmup=5, steps=10, profile="none", profile_out=None
-):
+def benchmark(desc, T, C_in, seed, warmup, steps, profile, profile_out):
     torch.manual_seed(seed)
 
     B, D = app_config.BATCH_SIZE, app_config.VECTOR_DIM
@@ -135,11 +133,9 @@ if __name__ == "__main__":
     parser.add_argument("--t", type=int, required=True)
     parser.add_argument("--c", type=int, required=True)
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--warmup", type=int, default=5)
-    parser.add_argument("--steps", type=int, default=10)
-    parser.add_argument(
-        "--profile", choices=["none", "torch", "advisor"], default="none"
-    )
+    parser.add_argument("--warmup", type=int, default=3)
+    parser.add_argument("--steps", type=int, default=7)
+    parser.add_argument("--profile", type=str, default="none")
     parser.add_argument("--profile-out", type=str, default=None)
     parser.add_argument("--out", type=str, default=None)
     args = parser.parse_args()

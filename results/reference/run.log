@@ -1,146 +1,122 @@
 
 $ uv sync --reinstall-package turbogator
 Resolved 48 packages in 4ms
-   Building turbogator @ file:///opt/aos/workspaces/1778534382_lmg
-      Built turbogator @ file:///opt/aos/workspaces/1778534382_lmg
-Prepared 1 package in 19.41s
+   Building turbogator @ file:///opt/aos/workspaces/1778612066_lmg
+      Built turbogator @ file:///opt/aos/workspaces/1778612066_lmg
+Prepared 1 package in 20.77s
 Uninstalled 1 package in 1ms
 Installed 1 package in 8ms
- - turbogator==0.1.0 (from file:///opt/aos/workspaces/1778534152_lmg)
- + turbogator==0.1.0 (from file:///opt/aos/workspaces/1778534382_lmg)
+ - turbogator==0.1.0 (from file:///opt/aos/workspaces/1778605395_lmg)
+ + turbogator==0.1.0 (from file:///opt/aos/workspaces/1778612066_lmg)
 
-$ taskset -c 2 uv run perf stat --no-big-num -x , -e cycles,instructions,branches,branch-misses,L1-dcache-loads,LLC-load-misses,dTLB-load-misses,topdown-retiring,topdown-bad-spec,topdown-fe-bound,topdown-be-bound -o /opt/aos/workspaces/1778534382_lmg/perf_1.csv -- python turbogator/benchmark.py --desc ezgatr --t 32 --c 2 --out /opt/aos/workspaces/1778534382_lmg/temp_1.json
-raw_s: 1.812007, 1.717723, 1.757378, 1.701741, 1.732093, 1.737261, 1.692686, 1.692370, 1.703545, 1.686010
-median_s: 1.7106341600000001
-min_s: 1.686010292
-median_over_min: 1.014604814761119
-cv: 0.021299833970798487
+$ taskset -c 2 uv run perf stat --no-big-num -x , -e cycles,instructions,branches,branch-misses,L1-dcache-loads,LLC-load-misses,dTLB-load-misses,topdown-retiring,topdown-bad-spec,topdown-fe-bound,topdown-be-bound -o /opt/aos/workspaces/1778612066_lmg/perf_1.csv -- python turbogator/benchmark.py --desc ezgatr --t 32 --c 2 --out /opt/aos/workspaces/1778612066_lmg/temp_1.json
+counts: warmup=3 steps=7
+raw_s: W00=3.962488, W01=1.765344, W02=1.666356, S03=1.735576, S04=1.730529, S05=1.753507, S06=1.819678, S07=1.776084, S08=1.786385, S09=1.834273
+median_s: 1.770714 | min_s: 1.666356 | max_s: 3.962488
+cv: 0.3335 | med/min: 1.0626
 rolling_median:
-k=5 median=1.732093s rel_err=1.25%
-k=6 median=1.734677s rel_err=1.41%
-k=7 median=1.732093s rel_err=1.25%
-k=8 median=1.724908s rel_err=0.83%
-k=9 median=1.717723s rel_err=0.41%
-k=10 median=1.710634s rel_err=0.00%
-max_s: 1.812006812
-p95_s: 1.7874239050999998
-{'X': {'B': 8, 'T': 32, 'C_in': 2, 'D': 16}, 'cycles': 1368507328.0}
+k=05 median=1.735576s rel_err=1.98%
+k=06 median=1.744542s rel_err=1.48%
+k=07 median=1.753507s rel_err=0.97%
+k=08 median=1.759426s rel_err=0.64%
+k=09 median=1.765344s rel_err=0.30%
+k=10 median=1.770714s rel_err=0.00%
+{'X': {'B': 8, 'T': 32, 'C_in': 2, 'D': 16}, 'cycles': 1420867210.4}
 
-$ taskset -c 2 uv run perf stat --no-big-num -x , -e cycles,instructions,branches,branch-misses,L1-dcache-loads,LLC-load-misses,dTLB-load-misses,topdown-retiring,topdown-bad-spec,topdown-fe-bound,topdown-be-bound -o /opt/aos/workspaces/1778534382_lmg/perf_2.csv -- python turbogator/benchmark.py --desc ezgatr --t 64 --c 4 --out /opt/aos/workspaces/1778534382_lmg/temp_2.json
-raw_s: 3.328962, 3.286702, 3.352179, 3.382956, 3.415951, 3.349076, 3.346375, 3.390444, 3.461343, 3.455447
-median_s: 3.367567314
-min_s: 3.286702335
-median_over_min: 1.0246036819759645
-cv: 0.015612350940707164
+$ taskset -c 2 uv run perf stat --no-big-num -x , -e cycles,instructions,branches,branch-misses,L1-dcache-loads,LLC-load-misses,dTLB-load-misses,topdown-retiring,topdown-bad-spec,topdown-fe-bound,topdown-be-bound -o /opt/aos/workspaces/1778612066_lmg/perf_2.csv -- python turbogator/benchmark.py --desc ezgatr --t 64 --c 4 --out /opt/aos/workspaces/1778612066_lmg/temp_2.json
+counts: warmup=3 steps=7
+raw_s: W00=5.661199, W01=3.447376, W02=3.361163, S03=3.439983, S04=3.460106, S05=3.324200, S06=3.445598, S07=3.334698, S08=3.283636, S09=3.391693
+median_s: 3.415838 | min_s: 3.283636 | max_s: 5.661199
+cv: 0.1894 | med/min: 1.0403
 rolling_median:
-k=5 median=3.352179s rel_err=0.46%
-k=6 median=3.350628s rel_err=0.50%
-k=7 median=3.349076s rel_err=0.55%
-k=8 median=3.350628s rel_err=0.50%
-k=9 median=3.352179s rel_err=0.46%
-k=10 median=3.367567s rel_err=0.00%
-max_s: 3.461343415
-p95_s: 3.45868990045
-{'X': {'B': 8, 'T': 64, 'C_in': 4, 'D': 16}, 'cycles': 2694053851.2}
+k=05 median=3.447376s rel_err=0.92%
+k=06 median=3.443679s rel_err=0.82%
+k=07 median=3.445598s rel_err=0.87%
+k=08 median=3.442790s rel_err=0.79%
+k=09 median=3.439983s rel_err=0.71%
+k=10 median=3.415838s rel_err=0.00%
+{'X': {'B': 8, 'T': 64, 'C_in': 4, 'D': 16}, 'cycles': 2713354424.0}
 
-$ taskset -c 2 uv run perf stat --no-big-num -x , -e cycles,instructions,branches,branch-misses,L1-dcache-loads,LLC-load-misses,dTLB-load-misses,topdown-retiring,topdown-bad-spec,topdown-fe-bound,topdown-be-bound -o /opt/aos/workspaces/1778534382_lmg/perf_3.csv -- python turbogator/benchmark.py --desc ezgatr --t 96 --c 6 --out /opt/aos/workspaces/1778534382_lmg/temp_3.json
-raw_s: 4.884928, 4.848059, 4.920146, 4.870865, 4.914251, 4.858339, 4.893871, 4.920740, 5.069418, 4.946600
-median_s: 4.9040609150000005
-min_s: 4.848058586
-median_over_min: 1.01155149592493
-cv: 0.012186335467007642
+$ taskset -c 2 uv run perf stat --no-big-num -x , -e cycles,instructions,branches,branch-misses,L1-dcache-loads,LLC-load-misses,dTLB-load-misses,topdown-retiring,topdown-bad-spec,topdown-fe-bound,topdown-be-bound -o /opt/aos/workspaces/1778612066_lmg/perf_3.csv -- python turbogator/benchmark.py --desc ezgatr --t 96 --c 6 --out /opt/aos/workspaces/1778612066_lmg/temp_3.json
+counts: warmup=3 steps=7
+raw_s: W00=7.343863, W01=4.963217, W02=4.985675, S03=4.912838, S04=4.930497, S05=4.868007, S06=5.054196, S07=4.942573, S08=5.011559, S09=4.953498
+median_s: 4.958357 | min_s: 4.868007 | max_s: 7.343863
+cv: 0.1381 | med/min: 1.0186
 rolling_median:
-k=5 median=4.884928s rel_err=0.39%
-k=6 median=4.877897s rel_err=0.53%
-k=7 median=4.884928s rel_err=0.39%
-k=8 median=4.889400s rel_err=0.30%
-k=9 median=4.893871s rel_err=0.21%
-k=10 median=4.904061s rel_err=0.00%
-max_s: 5.069418344
-p95_s: 5.014149971749999
-{'X': {'B': 8, 'T': 96, 'C_in': 6, 'D': 16}, 'cycles': 3923248732.0}
+k=05 median=4.963217s rel_err=0.10%
+k=06 median=4.946857s rel_err=0.23%
+k=07 median=4.963217s rel_err=0.10%
+k=08 median=4.952895s rel_err=0.11%
+k=09 median=4.963217s rel_err=0.10%
+k=10 median=4.958357s rel_err=0.00%
+{'X': {'B': 8, 'T': 96, 'C_in': 6, 'D': 16}, 'cycles': 3954058072.0}
 
-$ taskset -c 2 uv run perf stat --no-big-num -x , -e cycles,instructions,branches,branch-misses,L1-dcache-loads,LLC-load-misses,dTLB-load-misses,topdown-retiring,topdown-bad-spec,topdown-fe-bound,topdown-be-bound -o /opt/aos/workspaces/1778534382_lmg/perf_4.csv -- python turbogator/benchmark.py --desc ezgatr --t 128 --c 8 --out /opt/aos/workspaces/1778534382_lmg/temp_4.json
-raw_s: 7.465940, 7.400978, 7.650482, 7.388043, 7.263526, 7.525873, 7.423790, 7.155086, 7.401593, 7.464064
-median_s: 7.41269155
-min_s: 7.15508628
-median_over_min: 1.0360030976453858
-cv: 0.01729506249002181
+$ taskset -c 2 uv run perf stat --no-big-num -x , -e cycles,instructions,branches,branch-misses,L1-dcache-loads,LLC-load-misses,dTLB-load-misses,topdown-retiring,topdown-bad-spec,topdown-fe-bound,topdown-be-bound -o /opt/aos/workspaces/1778612066_lmg/perf_4.csv -- python turbogator/benchmark.py --desc ezgatr --t 128 --c 8 --out /opt/aos/workspaces/1778612066_lmg/temp_4.json
+counts: warmup=3 steps=7
+raw_s: W00=9.800361, W01=7.495289, W02=7.633154, S03=7.618093, S04=7.577053, S05=7.659329, S06=7.613938, S07=7.575424, S08=7.536820, S09=7.312241
+median_s: 7.595495 | min_s: 7.312241 | max_s: 9.800361
+cv: 0.0873 | med/min: 1.0387
 rolling_median:
-k=5 median=7.400978s rel_err=0.16%
-k=6 median=7.433459s rel_err=0.28%
-k=7 median=7.423790s rel_err=0.15%
-k=8 median=7.412384s rel_err=0.00%
-k=9 median=7.401593s rel_err=0.15%
-k=10 median=7.412692s rel_err=0.00%
-max_s: 7.650482026
-p95_s: 7.5944079148
-{'X': {'B': 8, 'T': 128, 'C_in': 8, 'D': 16}, 'cycles': 5930153240.0}
+k=05 median=7.618093s rel_err=0.30%
+k=06 median=7.625623s rel_err=0.40%
+k=07 median=7.618093s rel_err=0.30%
+k=08 median=7.616015s rel_err=0.27%
+k=09 median=7.613938s rel_err=0.24%
+k=10 median=7.595495s rel_err=0.00%
+{'X': {'B': 8, 'T': 128, 'C_in': 8, 'D': 16}, 'cycles': 6061642151.2}
 
-$ taskset -c 2 uv run perf stat --no-big-num -x , -e cycles,instructions,branches,branch-misses,L1-dcache-loads,LLC-load-misses,dTLB-load-misses,topdown-retiring,topdown-bad-spec,topdown-fe-bound,topdown-be-bound -o /opt/aos/workspaces/1778534382_lmg/perf_6.csv -- python turbogator/benchmark.py --desc ezgatr --t 192 --c 12 --out /opt/aos/workspaces/1778534382_lmg/temp_6.json
-raw_s: 11.152808, 11.163296, 11.080129, 11.165097, 11.190225, 11.147258, 11.121070, 11.072247, 11.111932, 11.146750
-median_s: 11.147004168999999
-min_s: 11.072247465
-median_over_min: 1.006751719037739
-cv: 0.0032425652919949137
+$ taskset -c 2 uv run perf stat --no-big-num -x , -e cycles,instructions,branches,branch-misses,L1-dcache-loads,LLC-load-misses,dTLB-load-misses,topdown-retiring,topdown-bad-spec,topdown-fe-bound,topdown-be-bound -o /opt/aos/workspaces/1778612066_lmg/perf_6.csv -- python turbogator/benchmark.py --desc ezgatr --t 192 --c 12 --out /opt/aos/workspaces/1778612066_lmg/temp_6.json
+counts: warmup=3 steps=7
+raw_s: W00=13.501822, W01=11.154254, W02=11.200566, S03=11.248411, S04=11.203576, S05=11.250066, S06=11.189533, S07=11.169011, S08=11.317659, S09=11.161704
+median_s: 11.202071 | min_s: 11.154254 | max_s: 13.501822
+cv: 0.0602 | med/min: 1.0043
 rolling_median:
-k=5 median=11.163296s rel_err=0.15%
-k=6 median=11.158052s rel_err=0.10%
-k=7 median=11.152808s rel_err=0.05%
-k=8 median=11.150033s rel_err=0.03%
-k=9 median=11.147258s rel_err=0.00%
-k=10 median=11.147004s rel_err=0.00%
-max_s: 11.190224757
-p95_s: 11.178917303699999
-{'X': {'B': 8, 'T': 192, 'C_in': 12, 'D': 16}, 'cycles': 8917603335.2}
+k=05 median=11.203576s rel_err=0.01%
+k=06 median=11.225993s rel_err=0.21%
+k=07 median=11.203576s rel_err=0.01%
+k=08 median=11.202071s rel_err=0.00%
+k=09 median=11.203576s rel_err=0.01%
+k=10 median=11.202071s rel_err=0.00%
+{'X': {'B': 8, 'T': 192, 'C_in': 12, 'D': 16}, 'cycles': 8962860922.4}
 
-$ taskset -c 2 uv run perf stat --no-big-num -x , -e cycles,instructions,branches,branch-misses,L1-dcache-loads,LLC-load-misses,dTLB-load-misses,topdown-retiring,topdown-bad-spec,topdown-fe-bound,topdown-be-bound -o /opt/aos/workspaces/1778534382_lmg/perf_8.csv -- python turbogator/benchmark.py --desc ezgatr --t 256 --c 16 --out /opt/aos/workspaces/1778534382_lmg/temp_8.json
-raw_s: 15.454372, 15.533679, 15.910390, 15.691617, 15.046049, 15.687610, 15.912149, 15.810503, 15.817298, 15.427092
-median_s: 15.689613431
-min_s: 15.046049145
-median_over_min: 1.0427729751377202
-cv: 0.016378833052553044
+$ taskset -c 2 uv run perf stat --no-big-num -x , -e cycles,instructions,branches,branch-misses,L1-dcache-loads,LLC-load-misses,dTLB-load-misses,topdown-retiring,topdown-bad-spec,topdown-fe-bound,topdown-be-bound -o /opt/aos/workspaces/1778612066_lmg/perf_8.csv -- python turbogator/benchmark.py --desc ezgatr --t 256 --c 16 --out /opt/aos/workspaces/1778612066_lmg/temp_8.json
+counts: warmup=3 steps=7
+raw_s: W00=18.047260, W01=15.803758, W02=15.872485, S03=16.008788, S04=15.926553, S05=15.897005, S06=15.946206, S07=15.823555, S08=15.683837, S09=15.199343
+median_s: 15.884745 | min_s: 15.199343 | max_s: 18.047260
+cv: 0.0443 | med/min: 1.0451
 rolling_median:
-k=5 median=15.533679s rel_err=0.99%
-k=6 median=15.610645s rel_err=0.50%
-k=7 median=15.687610s rel_err=0.01%
-k=8 median=15.689613s rel_err=0.00%
-k=9 median=15.691617s rel_err=0.01%
-k=10 median=15.689613s rel_err=0.00%
-max_s: 15.912149199
-p95_s: 15.911357389800001
-{'X': {'B': 8, 'T': 256, 'C_in': 16, 'D': 16}, 'cycles': 12551690744.8}
+k=05 median=15.926553s rel_err=0.26%
+k=06 median=15.911779s rel_err=0.17%
+k=07 median=15.926553s rel_err=0.26%
+k=08 median=15.911779s rel_err=0.17%
+k=09 median=15.897005s rel_err=0.08%
+k=10 median=15.884745s rel_err=0.00%
+{'X': {'B': 8, 'T': 256, 'C_in': 16, 'D': 16}, 'cycles': 12717603636.0}
 
-$ taskset -c 2 uv run perf stat --no-big-num -x , -e cycles,instructions,branches,branch-misses,L1-dcache-loads,LLC-load-misses,dTLB-load-misses,topdown-retiring,topdown-bad-spec,topdown-fe-bound,topdown-be-bound -o /opt/aos/workspaces/1778534382_lmg/perf_12.csv -- python turbogator/benchmark.py --desc ezgatr --t 384 --c 24 --out /opt/aos/workspaces/1778534382_lmg/temp_12.json
-raw_s: 25.134877, 25.208650, 25.368599, 25.341562, 25.062574, 25.047989, 25.272095, 25.971048, 25.193949, 25.250219
-median_s: 25.229434574000003
-min_s: 25.047989209
-median_over_min: 1.0072439094206735
-cv: 0.009883503000942524
+$ taskset -c 2 uv run perf stat --no-big-num -x , -e cycles,instructions,branches,branch-misses,L1-dcache-loads,LLC-load-misses,dTLB-load-misses,topdown-retiring,topdown-bad-spec,topdown-fe-bound,topdown-be-bound -o /opt/aos/workspaces/1778612066_lmg/perf_12.csv -- python turbogator/benchmark.py --desc ezgatr --t 384 --c 24 --out /opt/aos/workspaces/1778612066_lmg/temp_12.json
+counts: warmup=3 steps=7
+raw_s: W00=27.441988, W01=25.046148, W02=25.082293, S03=25.042759, S04=25.182729, S05=24.961154, S06=25.082910, S07=25.181356, S08=25.248998, S09=25.158692
+median_s: 25.120801 | min_s: 24.961154 | max_s: 27.441988
+cv: 0.0278 | med/min: 1.0064
 rolling_median:
-k=5 median=25.208650s rel_err=0.08%
-k=6 median=25.171764s rel_err=0.23%
-k=7 median=25.208650s rel_err=0.08%
-k=8 median=25.240373s rel_err=0.04%
-k=9 median=25.208650s rel_err=0.08%
-k=10 median=25.229435s rel_err=0.00%
-max_s: 25.971047771
-p95_s: 25.69994564
-{'X': {'B': 8, 'T': 384, 'C_in': 24, 'D': 16}, 'cycles': 20183547659.2}
+k=05 median=25.082293s rel_err=0.15%
+k=06 median=25.064221s rel_err=0.23%
+k=07 median=25.082293s rel_err=0.15%
+k=08 median=25.082602s rel_err=0.15%
+k=09 median=25.082910s rel_err=0.15%
+k=10 median=25.120801s rel_err=0.00%
+{'X': {'B': 8, 'T': 384, 'C_in': 24, 'D': 16}, 'cycles': 20126953757.6}
 
-$ taskset -c 2 uv run perf stat --no-big-num -x , -e cycles,instructions,branches,branch-misses,L1-dcache-loads,LLC-load-misses,dTLB-load-misses,topdown-retiring,topdown-bad-spec,topdown-fe-bound,topdown-be-bound -o /opt/aos/workspaces/1778534382_lmg/perf_16.csv -- python turbogator/benchmark.py --desc ezgatr --t 512 --c 32 --out /opt/aos/workspaces/1778534382_lmg/temp_16.json
-raw_s: 36.496276, 36.485007, 36.116396, 36.221612, 36.093041, 36.372569, 36.391453, 36.414660, 36.381750, 36.291050
-median_s: 36.3771593865
-min_s: 36.093041029
-median_over_min: 1.007871832059585
-cv: 0.0037139525633164226
+$ taskset -c 2 uv run perf stat --no-big-num -x , -e cycles,instructions,branches,branch-misses,L1-dcache-loads,LLC-load-misses,dTLB-load-misses,topdown-retiring,topdown-bad-spec,topdown-fe-bound,topdown-be-bound -o /opt/aos/workspaces/1778612066_lmg/perf_16.csv -- python turbogator/benchmark.py --desc ezgatr --t 512 --c 32 --out /opt/aos/workspaces/1778612066_lmg/temp_16.json
+counts: warmup=3 steps=7
+raw_s: W00=38.599086, W01=36.213205, W02=36.336555, S03=35.937959, S04=36.345342, S05=35.990624, S06=36.159007, S07=36.020930, S08=36.319302, S09=35.941207
+median_s: 36.186106 | min_s: 35.937959 | max_s: 38.599086
+cv: 0.0207 | med/min: 1.0069
 rolling_median:
-k=5 median=36.221612s rel_err=0.43%
-k=6 median=36.297090s rel_err=0.22%
-k=7 median=36.372569s rel_err=0.01%
-k=8 median=36.382011s rel_err=0.01%
-k=9 median=36.381750s rel_err=0.01%
-k=10 median=36.377159s rel_err=0.00%
-max_s: 36.496275649
-p95_s: 36.491204856399996
-{'X': {'B': 8, 'T': 512, 'C_in': 32, 'D': 16}, 'cycles': 29101727509.2}
+k=05 median=36.336555s rel_err=0.42%
+k=06 median=36.274880s rel_err=0.25%
+k=07 median=36.213205s rel_err=0.07%
+k=08 median=36.186106s rel_err=0.00%
+k=09 median=36.213205s rel_err=0.07%
+k=10 median=36.186106s rel_err=0.00%
+{'X': {'B': 8, 'T': 512, 'C_in': 32, 'D': 16}, 'cycles': 28816744177.6}
