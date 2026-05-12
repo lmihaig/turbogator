@@ -1,0 +1,14 @@
+import importlib
+
+turbogator_ext = importlib.import_module("turbogator.turbogator_ext")
+
+# baseline impl
+equi_linear_baseline = turbogator_ext.equi_linear_baseline
+geometric_product_baseline = turbogator_ext.geometric_product_baseline
+equi_join_baseline = turbogator_ext.equi_join_baseline
+equi_rms_norm_baseline = turbogator_ext.equi_rms_norm_baseline
+scaler_gated_gelu_baseline = turbogator_ext.scaler_gated_gelu_baseline
+equi_geometric_attention_baseline = turbogator_ext.equi_geometric_attention_baseline
+
+# vectorized impl
+geometric_product_vectorized = turbogator_ext.geometric_product_vectorized

@@ -2,10 +2,10 @@ import torch
 from ezgatr.nets.mv_only_gatr import MVOnlyGATrConfig, MVOnlyGATrModel
 
 import config as app_config
-from turbogator.models.asl_gatr import TurboGatorModel
+from turbogator.engine import TurboGatorModel
 
 
-def validate(seed=42) -> None:
+def validate(seed=42):
     torch.manual_seed(seed)
 
     N = app_config.REPRESENTATIVE_N
@@ -24,7 +24,7 @@ def validate(seed=42) -> None:
     # copy random weights to ensure identical
     net_aslr.load_state_dict(net.state_dict(), strict=True)
     output_aslr = net_aslr(x)
-
+    print(f"Mean absolute difference between implementations: {(output - output_aslr).abs().mean().item()}")
     # 0.01% relative error
     # 0.00001 absolute error
     torch.testing.assert_close(

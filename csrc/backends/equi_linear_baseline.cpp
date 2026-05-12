@@ -7,7 +7,7 @@
 
 using BasisElement = std::variant<int, std::pair<int, int>>;
 
-namespace tg
+namespace turbogator
 
 {
     void _compute_pin_equi_linear_basis(bool normalize, float basis[9][16][16])
@@ -80,4 +80,4 @@ namespace tg
         }
     }
 
-} // namespace tg
+} // namespace turbogator

@@ -1,20 +1,24 @@
 # Breakdown of ezgatr steps
 
-x = (B,T,C_in,D)
+`x = (B,T,C_in,D)`
 
-- B = batch_size
-- T = sequence length?
-- C_in = input channels
-- D = vector dimensions
+- **B** = batch_size
+- **T** = sequence length?
+- **C_in** = input channels
+- **D** = vector dimensions
 
-I think it will stay hardcoded (8,T,2,16) but keep it as variables for now
+hardcoded `(8,T,C_in,16)`
 
-- C_hid = hidden channels = 32
-- C_int = intermediate channels = 32
-- C_out = output channels = 1
-- H = attention heads = 4
-- L = number of layers = 4
+- `T = N*32`
+- `C_in = N*2`
 
+- **C_hid** = hidden channels = 32
+- **C_int** = intermediate channels = 32
+- **C_out** = output channels = 1
+- **H** = attention heads = 4
+- **L** = number of layers = 4
+
+```ansi
 MVOnlyGATrModel.forward(x)
 |
 |-- torch.mean(x)  -> reference: [B, 1, 1, D]
@@ -55,3 +59,4 @@ MVOnlyGATrModel.forward(x)
 |                                                 -> Returns block_y: [B, T, C_hid, D]
 |
 |-- EquiLinear(C_hid, C_out)                      -> out: [B, T, C_out, D]
+```

@@ -1,37 +1,78 @@
-[build-system]
-requires = [
-    "scikit-build-core<=0.12.2",
-    "cmake>=3.15",
-    "pybind11>=2.10",
-    "wheel",
-]
-build-backend = "scikit_build_core"
-
 [project]
 name = "turbogator"
 version = "0.1.0"
 readme = "README.md"
-requires-python = ">=3.11,<3.13"
+authors = [
+  { name = "Adam Suma", email = "adsuma@student.ethz.ch" },
+  { name = "Frederico Aberle", email = "faberle@student.ethz.ch" },
+  { name = "Jannis Alsbach", email = "jalsbach@student.ethz.ch" },
+  { name = "Mihai-George Licu", email = "milicu@student.ethz.ch" }
+]
+requires-python = ">=3.12,<3.13"
 dependencies = [
-  "torch>=2.1.0,<2.4.1",
+  "torch==2.4.0+cpu ; sys_platform != 'darwin'",
+  "torch==2.4.0 ; sys_platform == 'darwin'",
   "einops>=0.8.1,<0.9.0",
   "numpy>=1.26,<3.0",
+  "ezgatr",
+  "scikit-build-core<=0.12.2",
+  "cmake>=3.15",
+  "pybind11>=2.10",
+  "pyitt>=1.6.0",
+  "ninja",
+  "wheel",
 ]
 
+[project.scripts]
+gator = "gator:main"
+
+[build-system]
+requires = [
+    "torch==2.4.0+cpu ; sys_platform != 'darwin'",
+    "torch==2.4.0 ; sys_platform == 'darwin'",
+    "scikit-build-core<=0.12.2",
+    "cmake>=3.15",
+    "pybind11>=2.10",
+    "ninja",
+    "wheel",
+]
+build-backend = "scikit_build_core.build"
+
 [tool.scikit-build.cmake]
-build-type = "Release"
+build-type = "RelWithDebInfo"
+
+[tool.scikit-build.cmake.define]
+CMAKE_EXPORT_COMPILE_COMMANDS = "ON"
+
+[tool.scikit-build]
+build-dir = "build/skbuild"
 
 [tool.scikit-build.editable]
-mode = "inplace"
+mode = "redirect"
 
+[tool.scikit-build.wheel]
+packages = ["turbogator"]
 
 [dependency-groups]
-api = [
+local = [
+  "py-spy>=0.3.14",
+  "matplotlib>=3.8.3",
+  "pandas>=2.2.1",
+]
+server = [
   "fastapi==0.110.0",
   "uvicorn==0.29.0",
   "python-multipart==0.0.9",
 ]
-analysis = [
-  "matplotlib>=3.8.3",
-  "pandas>=2.2.1",
-]
+
+[tool.uv.sources]
+ezgatr = { git = "https://github.com/Guest400123064/ezgatr.git", rev = "371ff50fd4820afff09f7de8e384c2f083d980bb" }
+torch = { index = "pytorch-cpu" }
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.scikit-build.install]
+strip = false

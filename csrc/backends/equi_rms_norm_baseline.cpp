@@ -1,6 +1,6 @@
 #include "ops.hpp"
 
-namespace tg {
+namespace turbogator {
 
 void equi_rms_norm_baseline(const float* x, const float* weight, float* out, size_t n) {
     (void)x;
@@ -10,4 +10,4 @@ void equi_rms_norm_baseline(const float* x, const float* weight, float* out, siz
     }
 }
 
-}  // namespace tg
+}  // namespace turbogator

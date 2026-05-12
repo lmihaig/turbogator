@@ -1,5 +1,7 @@
 #include <pybind11/pybind11.h>
-#include <pybind11/numpy.h>
+#include <torch/extension.h>
+
+#include <vector>
 
 #include "backends/ops.hpp"
 
@@ -7,86 +9,175 @@ namespace py = pybind11;
 
 namespace {
 
-py::array_t<float> make_out_like(const py::array_t<float>& in) {
-    return py::array_t<float>(in.size());
+torch::Tensor make_out_like(const torch::Tensor& in) {
+    return torch::empty_like(in);
 }
 
-py::array_t<float> make_out_with_shape(const py::buffer_info& info, const std::vector<ssize_t>& shape) {
-    return py::array_t<float>(shape, info.strides);
-}
-
-py::array_t<float> make_equi_linear_out(const py::array_t<float>& x, const py::array_t<float>& weight) {
-    auto x_info = x.request();
-    auto w_info = weight.request();
-
-    if (x_info.shape.size() < 2 || w_info.shape.size() < 2) {
-        return py::array_t<float>(x.size());
+torch::Tensor make_equi_linear_out(const torch::Tensor& x, const torch::Tensor& weight) {
+    if (x.sizes().size() < 2 || weight.sizes().size() < 2) {
+        return torch::empty_like(x);
     }
 
-    const ssize_t out_channels = w_info.shape[0];
-    std::vector<ssize_t> shape = x_info.shape;
-    shape[shape.size() - 2] = out_channels;
-    return py::array_t<float>(shape);
+    auto shape = x.sizes().vec();
+    shape[shape.size() - 2] = weight.size(0);
+    return torch::empty(shape, x.options());
 }
 
 }
 
 PYBIND11_MODULE(turbogator_ext, m) {
-    m.def("geometric_product_baseline", [](py::array_t<float> a, py::array_t<float> b) {
-        if (a.size() != b.size()) {
+    m.def("geometric_product_baseline", [](torch::Tensor a, torch::Tensor b) {
+        if (a.numel() != b.numel()) {
             throw std::runtime_error("geometric_product_baseline: size mismatch");
         }
         auto out = make_out_like(a);
-        tg::geometric_product_baseline(a.data(), b.data(), out.mutable_data(), a.size());
+        turbogator::geometric_product_baseline(
+            a.data_ptr<float>(),
+            b.data_ptr<float>(),
+            out.data_ptr<float>(),
+            a.numel()
+        );
         return out;
     });
 
-    m.def("geometric_product_vectorized", [](py::array_t<float> a, py::array_t<float> b) {
-        if (a.size() != b.size()) {
+    m.def("geometric_product_vectorized", [](torch::Tensor a, torch::Tensor b) {
+        if (a.numel() != b.numel()) {
             throw std::runtime_error("geometric_product_vectorized: size mismatch");
         }
         auto out = make_out_like(a);
-        tg::geometric_product_vectorized(a.data(), b.data(), out.mutable_data(), a.size());
+        turbogator::geometric_product_vectorized(
+            a.data_ptr<float>(),
+            b.data_ptr<float>(),
+            out.data_ptr<float>(),
+            a.numel()
+        );
         return out;
     });
 
-    m.def("equi_join_baseline", [](py::array_t<float> a, py::array_t<float> b, py::array_t<float> ref) {
-        if (a.size() != b.size()) {
+    m.def("equi_join_baseline", [](torch::Tensor a, torch::Tensor b, torch::Tensor ref) {
+        if (a.numel() != b.numel()) {
             throw std::runtime_error("equi_join_baseline: size mismatch");
         }
         auto out = make_out_like(a);
-        tg::equi_join_baseline(a.data(), b.data(), ref.size() ? ref.data() : nullptr, out.mutable_data(), a.size());
+        turbogator::equi_join_baseline(
+            a.data_ptr<float>(),
+            b.data_ptr<float>(),
+            ref.numel() ? ref.data_ptr<float>() : nullptr,
+            out.data_ptr<float>(),
+            a.numel()
+        );
         return out;
     });
 
-    m.def("equi_geometric_attention_baseline", [](py::array_t<float> q, py::array_t<float> k, py::array_t<float> v) {
-        if (q.size() != k.size() || q.size() != v.size()) {
-            throw std::runtime_error("equi_geometric_attention_baseline: size mismatch");
+    m.def(
+        "equi_geometric_attention_baseline",
+        [](torch::Tensor q, torch::Tensor k, torch::Tensor v, py::kwargs kwargs) {
+            // q, k, v: (B, H, T, C, 16)
+            q = q.contiguous();
+            k = k.contiguous();
+            v = v.contiguous();
+            auto sz = q.sizes();
+            int64_t B = sz[0], H = sz[1], T = sz[2], C = sz[3];
+
+            std::vector<std::string> kinds;
+            if (kwargs.contains("kinds"))
+                for (auto item : kwargs["kinds"].cast<py::dict>())
+                    kinds.push_back(item.first.cast<std::string>());
+
+            // weights: one per kind, shape (H, 1, C, 1) → H*C floats, w[h*C + c]
+            std::vector<torch::Tensor> weight_storage;
+            std::vector<const float*> weights;
+            if (kwargs.contains("weight"))
+                for (auto w : kwargs["weight"].cast<py::list>()) {
+                    auto wt = w.cast<torch::Tensor>().contiguous();
+                    weight_storage.push_back(wt);
+                    weights.push_back(wt.data_ptr<float>());
+                }
+
+            torch::Tensor mask_storage;
+            const float* mask_ptr = nullptr;
+            if (kwargs.contains("attn_mask") && !kwargs["attn_mask"].is_none()) {
+                mask_storage = kwargs["attn_mask"].cast<torch::Tensor>().contiguous();
+                mask_ptr = mask_storage.data_ptr<float>();
+            }
+
+            bool is_causal = kwargs.contains("is_causal") && kwargs["is_causal"].cast<bool>();
+
+            auto out = torch::empty_like(v);
+            turbogator::equi_geometric_attention_baseline(
+                q.data_ptr<float>(), k.data_ptr<float>(),
+                v.data_ptr<float>(), out.data_ptr<float>(),
+                B, H, T, C, kinds, weights, mask_ptr, is_causal
+            );
+            return py::make_tuple(out, py::none());
         }
-        auto out = make_out_like(q);
-        tg::equi_geometric_attention_baseline(q.data(), k.data(), v.data(), out.mutable_data(), q.size());
-        return out;
-    });
+    );
 
-    m.def("scaler_gated_gelu_baseline", [](py::array_t<float> x) {
+    m.def(
+        "scaler_gated_gelu_baseline",
+        [](torch::Tensor x, py::object approximate) {
+            (void)approximate;
         auto out = make_out_like(x);
-        tg::scaler_gated_gelu_baseline(x.data(), out.mutable_data(), x.size());
+        turbogator::scaler_gated_gelu_baseline(
+            x.data_ptr<float>(),
+            out.data_ptr<float>(),
+            x.numel()
+        );
         return out;
-    });
+        },
+        py::arg("x"),
+        py::arg("approximate") = "tanh"
+    );
 
-    m.def("equi_linear_baseline", [](py::array_t<float> x, py::array_t<float> weight, py::array_t<float> bias, bool normalize_basis) {
-        (void)normalize_basis;
-        auto out = make_equi_linear_out(x, weight);
-        const float* bias_ptr = bias.size() ? bias.data() : nullptr;
-        tg::equi_linear_baseline(x.data(), weight.data(), bias_ptr, out.mutable_data(), out.size());
-        return out;
-    }, py::arg("x"), py::arg("weight"), py::arg("bias"), py::arg("normalize_basis") = true);
+    m.def(
+        "equi_linear_baseline",
+        [](torch::Tensor x, torch::Tensor weight, py::object bias, bool normalize_basis) {
+            (void)normalize_basis;
+            auto out = make_equi_linear_out(x, weight);
+            const float* bias_ptr = nullptr;
+            if (!bias.is_none()) {
+                auto bias_tensor = bias.cast<torch::Tensor>();
+                if (bias_tensor.numel()) {
+                    bias_ptr = bias_tensor.data_ptr<float>();
+                }
+            }
+            turbogator::equi_linear_baseline(
+                x.data_ptr<float>(),
+                weight.data_ptr<float>(),
+                bias_ptr,
+                out.data_ptr<float>(),
+                out.numel()
+            );
+            return out;
+        },
+        py::arg("x"),
+        py::arg("weight"),
+        py::arg("bias") = py::none(),
+        py::arg("normalize_basis") = true
+    );
 
-    m.def("equi_rms_norm_baseline", [](py::array_t<float> x, py::array_t<float> weight, float eps) {
-        (void)eps;
-        auto out = make_out_like(x);
-        const float* weight_ptr = weight.size() ? weight.data() : nullptr;
-        tg::equi_rms_norm_baseline(x.data(), weight_ptr, out.mutable_data(), out.size());
-        return out;
-    }, py::arg("x"), py::arg("weight"), py::arg("eps") = 0.0f);
+    m.def(
+        "equi_rms_norm_baseline",
+        [](torch::Tensor x, py::object weight, py::object eps) {
+            (void)eps;
+            auto out = make_out_like(x);
+            const float* weight_ptr = nullptr;
+            if (!weight.is_none()) {
+                auto weight_tensor = weight.cast<torch::Tensor>();
+                if (weight_tensor.numel()) {
+                    weight_ptr = weight_tensor.data_ptr<float>();
+                }
+            }
+            turbogator::equi_rms_norm_baseline(
+                x.data_ptr<float>(),
+                weight_ptr,
+                out.data_ptr<float>(),
+                out.numel()
+            );
+            return out;
+        },
+        py::arg("x"),
+        py::arg("weight") = py::none(),
+        py::arg("eps") = py::none()
+    );
 }
