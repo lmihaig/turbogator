@@ -10,7 +10,7 @@ using BasisElement = std::variant<int, std::pair<int, int>>;
 namespace turbogator
 
 {
-    void _compute_pin_equi_linear_basis(bool normalize, float basis[9][16][16])
+    void _compute_pin_equi_linear_basis(bool normalize_basis, float basis[9][16][16])
     {
         const std::vector<std::vector<BasisElement>> basis_elements = {
             {0},
@@ -44,7 +44,7 @@ namespace turbogator
                 }
             }
 
-            if (normalize)
+            if (normalize_basis)
             {
                 float sum_sq = 0.0f;
                 for (int i = 0; i < 16; ++i)
@@ -64,7 +64,9 @@ namespace turbogator
         }
     }
 
-    void equi_linear_baseline(const float *x, const float *weight, const float *bias, float *out, size_t n, bool normalize = true)
+    void equi_linear_baseline(const float *x, const float *weight, const float *bias, float *out,
+                              size_t batch, size_t in_channels, size_t out_channels,
+                              bool normalize_basis)
     {
         (void)x;
         (void)weight;
@@ -72,7 +74,7 @@ namespace turbogator
 
         float basis[9][16][16];
         memset(basis, 0, sizeof(basis));
-        _compute_pin_equi_linear_basis(normalize, basis);
+        _compute_pin_equi_linear_basis(normalize_basis, basis);
 
         for (size_t i = 0; i < n; ++i)
         {

@@ -132,7 +132,8 @@ PYBIND11_MODULE(turbogator_ext, m) {
     m.def(
         "equi_linear_baseline",
         [](torch::Tensor x, torch::Tensor weight, py::object bias, bool normalize_basis) {
-            (void)normalize_basis;
+            x = x.contiguous();
+            weight = weight.contiguous();
             auto out = make_equi_linear_out(x, weight);
             const float* bias_ptr = nullptr;
             if (!bias.is_none()) {
@@ -141,12 +142,21 @@ PYBIND11_MODULE(turbogator_ext, m) {
                     bias_ptr = bias_tensor.data_ptr<float>();
                 }
             }
+
+            // x: (..., in_channels, 16); weight: (out_channels, in_channels, 9)
+            const auto x_sizes = x.sizes();
+            size_t in_channels  = x_sizes[x_sizes.size() - 2];
+            size_t out_channels = weight.size(0);
+            size_t batch = 1;
+            for (size_t i = 0; i + 2 < x_sizes.size(); ++i) batch *= x_sizes[i];
+
             turbogator::equi_linear_baseline(
                 x.data_ptr<float>(),
                 weight.data_ptr<float>(),
                 bias_ptr,
                 out.data_ptr<float>(),
-                out.numel()
+                batch, in_channels, out_channels,
+                normalize_basis
             );
             return out;
         },

@@ -19,7 +19,9 @@ void equi_geometric_attention_baseline(
     bool is_causal
 );
 void scaler_gated_gelu_baseline(const float* x, float* out, size_t n);
-void equi_linear_baseline(const float* x, const float* weight, const float* bias, float* out, size_t n);
+void equi_linear_baseline(const float* x, const float* weight, const float* bias, float* out,
+                          size_t batch, size_t in_channels, size_t out_channels,
+                          bool normalize_basis = true);
 void equi_rms_norm_baseline(const float* x, const float* weight, float* out, size_t n);
 
 }  // namespace turbogator
