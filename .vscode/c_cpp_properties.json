@@ -1,0 +1,15 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "${default}"
+            ],
+            "defines": [],
+            "compileCommands": [
+                "${workspaceFolder}/build/skbuild/compile_commands.json"
+            ]
+        }
+    ],
+    "version": 4
+}
