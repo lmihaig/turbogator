@@ -5,11 +5,11 @@
 #include <cmath>
 #include <cstring>
 
-using BasisElement = std::variant<int, std::pair<int, int>>;
-
 namespace turbogator
 
 {
+    using BasisElement = std::variant<int, std::pair<int, int>>;
+
     void _compute_pin_equi_linear_basis(bool normalize_basis, float basis[9][16][16])
     {
         const std::vector<std::vector<BasisElement>> basis_elements = {
