@@ -10,7 +10,6 @@ from einops import rearrange
 # still use the ezgatr config
 from ezgatr.nets.mv_only_gatr import MVOnlyGATrConfig
 from ezgatr.nn.functional.activation import scaler_gated_gelu
-from ezgatr.nn.functional.linear import equi_linear
 from ezgatr.nn.functional.norm import equi_rms_norm
 
 from turbogator.engine import cpp_bindings as c_ops
@@ -57,7 +56,9 @@ class EquiLinear(nn.Module):
             nn.init.uniform_(self.bias, -bound, bound)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return equi_linear(x, self.weight, self.bias, self.normalize_basis)
+        return c_ops.equi_linear_baseline(
+            x, self.weight, self.bias, self.normalize_basis
+        )
 
     def extra_repr(self) -> str:
         return (
