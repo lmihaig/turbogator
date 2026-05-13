@@ -1,7 +1,7 @@
 {
   "user": "lmg",
   "description": "ezgatr",
-  "job_id": "1778534382_lmg",
+  "job_id": "1778612066_lmg",
   "data": [
     {
       "X": {
@@ -10,20 +10,20 @@
         "C_in": 2,
         "D": 16
       },
-      "cycles": 1368507328.0,
+      "cycles": 1420867210.4,
       "N": 1,
       "perf": {
-        "cycles": 27011198313.0,
-        "instructions": 42123345042.0,
-        "branches": 3723319824.0,
-        "branch-misses": 58033304.0,
-        "L1-dcache-loads": 18477759663.0,
-        "LLC-load-misses": 637422.0,
-        "dTLB-load-misses": 7575429.0,
-        "topdown-retiring": 63948765113.0,
-        "topdown-bad-spec": 9354769053.0,
-        "topdown-fe-bound": 20830730556.0,
-        "topdown-be-bound": 40675634616.0
+        "cycles": 20198034012.0,
+        "instructions": 31171768509.0,
+        "branches": 3172023814.0,
+        "branch-misses": 55331573.0,
+        "L1-dcache-loads": 13138110656.0,
+        "LLC-load-misses": 521626.0,
+        "dTLB-load-misses": 6173943.0,
+        "topdown-retiring": 45927331893.0,
+        "topdown-bad-spec": 8634942189.0,
+        "topdown-fe-bound": 17571682550.0,
+        "topdown-be-bound": 28802093920.0
       }
     },
     {
@@ -33,20 +33,20 @@
         "C_in": 4,
         "D": 16
       },
-      "cycles": 2694053851.2,
+      "cycles": 2713354424.0,
       "N": 2,
       "perf": {
-        "cycles": 46202522570.0,
-        "instructions": 73589273825.0,
-        "branches": 5287528775.0,
-        "branch-misses": 61554747.0,
-        "L1-dcache-loads": 34117803959.0,
-        "LLC-load-misses": 1205380.0,
-        "dTLB-load-misses": 464449772.0,
-        "topdown-retiring": 116603065628.0,
-        "topdown-bad-spec": 10297620055.0,
-        "topdown-fe-bound": 24884707952.0,
-        "topdown-be-bound": 79109536083.0
+        "cycles": 33109907958.0,
+        "instructions": 52239510612.0,
+        "branches": 4205912107.0,
+        "branch-misses": 58690723.0,
+        "L1-dcache-loads": 23616172632.0,
+        "LLC-load-misses": 884975.0,
+        "dTLB-load-misses": 316600351.0,
+        "topdown-retiring": 81023148129.0,
+        "topdown-bad-spec": 9388173187.0,
+        "topdown-fe-bound": 20181822783.0,
+        "topdown-be-bound": 54816991161.0
       }
     },
     {
@@ -56,20 +56,20 @@
         "C_in": 6,
         "D": 16
       },
-      "cycles": 3923248732.0,
+      "cycles": 3954058072.0,
       "N": 3,
       "perf": {
-        "cycles": 64690547918.0,
-        "instructions": 105445138025.0,
-        "branches": 6842031678.0,
-        "branch-misses": 65565508.0,
-        "L1-dcache-loads": 49943351318.0,
-        "LLC-load-misses": 1981723.0,
-        "dTLB-load-misses": 12451571.0,
-        "topdown-retiring": 169945326129.0,
-        "topdown-bad-spec": 10883257831.0,
-        "topdown-fe-bound": 39114406831.0,
-        "topdown-be-bound": 103509786432.0
+        "cycles": 45463016140.0,
+        "instructions": 72958295120.0,
+        "branches": 5153354261.0,
+        "branch-misses": 61699787.0,
+        "L1-dcache-loads": 34049310664.0,
+        "LLC-load-misses": 1282801.0,
+        "dTLB-load-misses": 9500358.0,
+        "topdown-retiring": 116109046391.0,
+        "topdown-bad-spec": 9956094034.0,
+        "topdown-fe-bound": 29406509335.0,
+        "topdown-be-bound": 71788155645.0
       }
     },
     {
@@ -79,20 +79,20 @@
         "C_in": 8,
         "D": 16
       },
-      "cycles": 5930153240.0,
+      "cycles": 6061642151.2,
       "N": 4,
       "perf": {
-        "cycles": 93767551330.0,
-        "instructions": 144259756751.0,
-        "branches": 9378613259.0,
-        "branch-misses": 73497975.0,
-        "L1-dcache-loads": 68109302991.0,
-        "LLC-load-misses": 2505845.0,
-        "dTLB-load-misses": 987053539.0,
-        "topdown-retiring": 233403676878.0,
-        "topdown-bad-spec": 13082027715.0,
-        "topdown-fe-bound": 37386445423.0,
-        "topdown-be-bound": 184662620600.0
+        "cycles": 65682628789.0,
+        "instructions": 100386190330.0,
+        "branches": 7134791420.0,
+        "branch-misses": 66292607.0,
+        "L1-dcache-loads": 46451470114.0,
+        "LLC-load-misses": 1884709.0,
+        "dTLB-load-misses": 661783598.0,
+        "topdown-retiring": 160135667776.0,
+        "topdown-bad-spec": 11346673191.0,
+        "topdown-fe-bound": 29131938081.0,
+        "topdown-be-bound": 127617802818.0
       }
     },
     {
@@ -102,20 +102,20 @@
         "C_in": 12,
         "D": 16
       },
-      "cycles": 8917603335.2,
+      "cycles": 8962860922.4,
       "N": 6,
       "perf": {
-        "cycles": 137382849752.0,
-        "instructions": 219245732103.0,
-        "branches": 13691455213.0,
-        "branch-misses": 84251882.0,
-        "L1-dcache-loads": 103919822123.0,
-        "LLC-load-misses": 5505737.0,
-        "dTLB-load-misses": 1502519022.0,
-        "topdown-retiring": 357162133623.0,
-        "topdown-bad-spec": 15674390433.0,
-        "topdown-fe-bound": 54360758265.0,
-        "topdown-be-bound": 258985452164.0
+        "cycles": 94436248597.0,
+        "instructions": 149341844563.0,
+        "branches": 9816454155.0,
+        "branch-misses": 74642429.0,
+        "L1-dcache-loads": 70172630217.0,
+        "LLC-load-misses": 3749735.0,
+        "dTLB-load-misses": 1001294174.0,
+        "topdown-retiring": 241890818456.0,
+        "topdown-bad-spec": 13123615227.0,
+        "topdown-fe-bound": 40401663907.0,
+        "topdown-be-bound": 176361016405.0
       }
     },
     {
@@ -125,20 +125,20 @@
         "C_in": 16,
         "D": 16
       },
-      "cycles": 12551690744.8,
+      "cycles": 12717603636.0,
       "N": 8,
       "perf": {
-        "cycles": 190106241897.0,
-        "instructions": 294583412250.0,
-        "branches": 17434232104.0,
-        "branch-misses": 93774033.0,
-        "L1-dcache-loads": 141407098145.0,
-        "LLC-load-misses": 7815878.0,
-        "dTLB-load-misses": 2013179355.0,
-        "topdown-retiring": 484013493866.0,
-        "topdown-bad-spec": 17955682993.0,
-        "topdown-fe-bound": 65355215522.0,
-        "topdown-be-bound": 382616727019.0
+        "cycles": 130342854280.0,
+        "instructions": 201092129420.0,
+        "branches": 12568421915.0,
+        "branch-misses": 81023171.0,
+        "L1-dcache-loads": 95428781214.0,
+        "LLC-load-misses": 5146317.0,
+        "dTLB-load-misses": 1342070036.0,
+        "topdown-retiring": 327936011956.0,
+        "topdown-bad-spec": 14715301314.0,
+        "topdown-fe-bound": 47780831934.0,
+        "topdown-be-bound": 260613197322.0
       }
     },
     {
@@ -148,20 +148,20 @@
         "C_in": 24,
         "D": 16
       },
-      "cycles": 20183547659.2,
+      "cycles": 20126953757.6,
       "N": 12,
       "perf": {
-        "cycles": 303439649041.0,
-        "instructions": 464017386991.0,
-        "branches": 26584624337.0,
-        "branch-misses": 119067575.0,
-        "L1-dcache-loads": 223322453000.0,
-        "LLC-load-misses": 14378850.0,
-        "dTLB-load-misses": 3021918548.0,
-        "topdown-retiring": 767532436222.0,
-        "topdown-bad-spec": 24209283534.0,
-        "topdown-fe-bound": 96972153816.0,
-        "topdown-be-bound": 627315443435.0
+        "cycles": 203442082472.0,
+        "instructions": 311923584364.0,
+        "branches": 18316341555.0,
+        "branch-misses": 96716268.0,
+        "L1-dcache-loads": 149554240343.0,
+        "LLC-load-misses": 11894512.0,
+        "dTLB-load-misses": 2013615976.0,
+        "topdown-retiring": 513893420615.0,
+        "topdown-bad-spec": 18236850388.0,
+        "topdown-fe-bound": 67447498447.0,
+        "topdown-be-bound": 416703225892.0
       }
     },
     {
@@ -171,20 +171,20 @@
         "C_in": 32,
         "D": 16
       },
-      "cycles": 29101727509.2,
+      "cycles": 28816744177.6,
       "N": 16,
       "perf": {
-        "cycles": 434215371501.0,
-        "instructions": 660624043439.0,
-        "branches": 38056305893.0,
-        "branch-misses": 153494744.0,
-        "L1-dcache-loads": 316873628536.0,
-        "LLC-load-misses": 22988753.0,
-        "dTLB-load-misses": 4080937868.0,
-        "topdown-retiring": 1093295815600.0,
-        "topdown-bad-spec": 32949397431.0,
-        "topdown-fe-bound": 138781758543.0,
-        "topdown-be-bound": 903022948957.0
+        "cycles": 290088132747.0,
+        "instructions": 444245237561.0,
+        "branches": 26229843223.0,
+        "branch-misses": 120407464.0,
+        "L1-dcache-loads": 212199410355.0,
+        "LLC-load-misses": 16520430.0,
+        "dTLB-load-misses": 2720357904.0,
+        "topdown-retiring": 733325463837.0,
+        "topdown-bad-spec": 24157228554.0,
+        "topdown-fe-bound": 95648175036.0,
+        "topdown-be-bound": 595548623734.0
       }
     }
   ]

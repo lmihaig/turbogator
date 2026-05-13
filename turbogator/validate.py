@@ -24,14 +24,17 @@ def validate(seed=42):
     # copy random weights to ensure identical
     net_aslr.load_state_dict(net.state_dict(), strict=True)
     output_aslr = net_aslr(x)
-    print(f"Mean absolute difference between implementations: {(output - output_aslr).abs().mean().item()}")
+    # print(output_aslr)
+    print(
+        f"Mean absolute difference between implementations: {(output - output_aslr).abs().mean().item()}"
+    )
     # 0.01% relative error
     # 0.00001 absolute error
     torch.testing.assert_close(
         output_aslr,
         output,
         rtol=1e-4,
-        atol=1e-5,  # 0.00001 absolute error
+        atol=1e-5,
         msg="Output does not match reference!",
     )
 

@@ -10,8 +10,7 @@ from einops import rearrange
 # still use the ezgatr config
 from ezgatr.nets.mv_only_gatr import MVOnlyGATrConfig
 from ezgatr.nn.functional.activation import scaler_gated_gelu
-from ezgatr.nn.functional.dual import equi_join
-from ezgatr.nn.functional.linear import equi_linear, geometric_product
+from ezgatr.nn.functional.linear import equi_linear
 from ezgatr.nn.functional.norm import equi_rms_norm
 
 from turbogator.engine import cpp_bindings as c_ops
@@ -157,8 +156,10 @@ class MVOnlyGATrBilinear(nn.Module):
 
         x = torch.cat(
             [
-                geometric_product(lg, rg),
-                equi_join(lj, rj, reference),
+                c_ops.geometric_product_baseline(lg, rg),
+                # geometric_product(lg, rg),
+                c_ops.equi_join_baseline(lj, rj, reference),
+                # equi_join(lj, rj, reference),
             ],
             dim=-2,
         )
