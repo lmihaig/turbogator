@@ -68,18 +68,46 @@ namespace turbogator
                               size_t batch, size_t in_channels, size_t out_channels,
                               bool normalize_basis)
     {
-        (void)x;
-        (void)weight;
-        (void)bias;
 
         float basis[9][16][16];
-        memset(basis, 0, sizeof(basis));
+        std::memset(basis, 0, sizeof(basis));
         _compute_pin_equi_linear_basis(normalize_basis, basis);
 
-        for (size_t i = 0; i < n; ++i)
+        // torch.einsum
+        for (size_t b = 0; b < batch; ++b)
         {
-            out[i] = 0.0f;
+            for (size_t oc = 0; oc < out_channels; ++oc)
+            {
+                for (size_t d = 0; d < 16; ++d)
+                {
+                    float sum = 0.0f;
+                    for (size_t ic = 0; ic < in_channels; ++ic)
+                    {
+                        for (size_t w = 0; w < 9; ++w)
+                        {
+                            for (size_t s = 0; s < 16; ++s)
+                            {
+                                sum += weight[(oc * in_channels + ic) * 9 + w] * basis[w][d][s] * x[b * in_channels * 16 + ic * 16 + s];
+                            }
+                        }
+                    }
+                    out[b * out_channels * 16 + oc * 16 + d] = sum;
+                }
+            }
         }
-    }
 
-} // namespace turbogator
+        // add bias
+        if (bias != nullptr)
+        {
+            for (size_t b = 0; b < batch; ++b)
+            {
+                for (size_t oc = 0; oc < out_channels; ++oc)
+                {
+                    out[b * out_channels * 16 + oc * 16] += bias[oc];
+                }
+            }
+        }
+
+    } // namespace turbogator
+
+}
