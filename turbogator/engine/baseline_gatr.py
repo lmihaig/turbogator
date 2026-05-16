@@ -10,7 +10,6 @@ from einops import rearrange
 # still use the ezgatr config
 from ezgatr.nets.mv_only_gatr import MVOnlyGATrConfig
 from ezgatr.nn.functional.activation import scaler_gated_gelu
-from ezgatr.nn.functional.norm import equi_rms_norm
 
 from turbogator.engine import cpp_bindings as c_ops
 
@@ -100,7 +99,7 @@ class EquiRMSNorm(nn.Module):
             nn.init.ones_(self.weight)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return equi_rms_norm(x, self.weight, self.eps)
+        return c_ops.equi_rms_norm_baseline(x, self.weight, self.eps)
 
     def extra_repr(self) -> str:
         return (
@@ -195,7 +194,7 @@ class MVOnlyGATrMLP(nn.Module):
 
         x = self.layer_norm(x)
         x = self.equi_bil(x, reference)
-        x = self.proj_out(scaler_gated_gelu(x, self.config.gelu_approximate))
+        x = self.proj_out(c_ops.scaler_gated_gelu_baseline(x, self.config.gelu_approximate))
 
         return x + residual
 

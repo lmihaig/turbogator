@@ -209,22 +209,32 @@ PYBIND11_MODULE(turbogator_ext, m)
         "equi_rms_norm_baseline",
         [](torch::Tensor x, py::object weight, py::object eps)
         {
-            (void)eps;
+            x = x.contiguous();
             auto out = make_out_like(x);
+
             const float *weight_ptr = nullptr;
             if (!weight.is_none())
             {
-                auto weight_tensor = weight.cast<torch::Tensor>();
+                auto weight_tensor = weight.cast<torch::Tensor>().contiguous();
                 if (weight_tensor.numel())
-                {
                     weight_ptr = weight_tensor.data_ptr<float>();
-                }
             }
+
+            float eps_val = 1.1920929e-07f; // torch.finfo(float32).eps
+            if (!eps.is_none())
+                eps_val = eps.cast<float>();
+
+            // x: (..., n_channels, 16)
+            const auto& sz = x.sizes();
+            size_t n_channels = sz[sz.size() - 2];
+            size_t batch = 1;
+            for (size_t i = 0; i + 2 < sz.size(); ++i) batch *= sz[i];
+
             turbogator::equi_rms_norm_baseline(
                 x.data_ptr<float>(),
                 weight_ptr,
                 out.data_ptr<float>(),
-                out.numel());
+                batch, n_channels, eps_val);
             return out;
         },
         py::arg("x"),

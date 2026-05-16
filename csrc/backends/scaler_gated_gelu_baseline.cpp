@@ -5,16 +5,17 @@
 namespace turbogator {
 
 void scaler_gated_gelu_baseline(const float* x, float* out, size_t n) {
-    if (n == 0) {
-        return;
-    }
+    size_t num_mvs = n / 16;
+    for (size_t i = 0; i < num_mvs; ++i) {
+        const float* mv_in  = x   + i * 16;
+        float*       mv_out = out + i * 16;
 
-    const float gate_input = x[0];
-    const float inner = 0.7978845608028654f * (gate_input + 0.044715f * gate_input * gate_input * gate_input);
-    const float gate = 0.5f * gate_input * (1.0f + std::tanh(inner));
+        float g     = mv_in[0];
+        float inner = 0.7978845608028654f * (g + 0.044715f * g * g * g);
+        float gate  = 0.5f * g * (1.0f + std::tanh(inner));
 
-    for (size_t i = 0; i < n; ++i) {
-        out[i] = x[i] * gate;
+        for (int d = 0; d < 16; ++d)
+            mv_out[d] = mv_in[d] * gate;
     }
 }
 
