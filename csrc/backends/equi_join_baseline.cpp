@@ -179,7 +179,7 @@ namespace turbogator
         }
     };
 
-    inline const JoinKernel KERNEL;
+    inline static const JoinKernel KERNEL;
     // this breaks if D != 16 !!!!
     void equi_join_baseline(const float *a, const float *b, const float *ref, float *out, size_t n)
     {

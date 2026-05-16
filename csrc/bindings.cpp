@@ -157,11 +157,12 @@ PYBIND11_MODULE(turbogator_ext, m)
         [](torch::Tensor x, py::object approximate)
         {
             (void)approximate;
-            auto out = make_out_like(x);
+            auto x_contig = x.contiguous();
+            auto out = make_out_like(x_contig);
             turbogator::scaler_gated_gelu_baseline(
-                x.data_ptr<float>(),
+                x_contig.data_ptr<float>(),
                 out.data_ptr<float>(),
-                x.numel());
+                x_contig.numel());
             return out;
         },
         py::arg("x"),
@@ -174,10 +175,12 @@ PYBIND11_MODULE(turbogator_ext, m)
             x = x.contiguous();
             weight = weight.contiguous();
             auto out = make_equi_linear_out(x, weight);
+
+            torch::Tensor bias_tensor;
             const float *bias_ptr = nullptr;
             if (!bias.is_none())
             {
-                auto bias_tensor = bias.cast<torch::Tensor>();
+                bias_tensor = bias.cast<torch::Tensor>().contiguous();
                 if (bias_tensor.numel())
                 {
                     bias_ptr = bias_tensor.data_ptr<float>();
@@ -186,18 +189,15 @@ PYBIND11_MODULE(turbogator_ext, m)
 
             // x: (..., in_channels, 16); weight: (out_channels, in_channels, 9)
             const auto x_sizes = x.sizes();
-            size_t in_channels  = x_sizes[x_sizes.size() - 2];
+            size_t in_channels = x_sizes[x_sizes.size() - 2];
             size_t out_channels = weight.size(0);
             size_t batch = 1;
-            for (size_t i = 0; i + 2 < x_sizes.size(); ++i) batch *= x_sizes[i];
+            for (size_t i = 0; i + 2 < x_sizes.size(); ++i)
+                batch *= x_sizes[i];
 
             turbogator::equi_linear_baseline(
-                x.data_ptr<float>(),
-                weight.data_ptr<float>(),
-                bias_ptr,
-                out.data_ptr<float>(),
-                batch, in_channels, out_channels,
-                normalize_basis);
+                x.data_ptr<float>(), weight.data_ptr<float>(), bias_ptr,
+                out.data_ptr<float>(), batch, in_channels, out_channels, normalize_basis);
             return out;
         },
         py::arg("x"),
@@ -212,10 +212,11 @@ PYBIND11_MODULE(turbogator_ext, m)
             x = x.contiguous();
             auto out = make_out_like(x);
 
+            torch::Tensor weight_tensor;
             const float *weight_ptr = nullptr;
             if (!weight.is_none())
             {
-                auto weight_tensor = weight.cast<torch::Tensor>().contiguous();
+                weight_tensor = weight.cast<torch::Tensor>().contiguous();
                 if (weight_tensor.numel())
                     weight_ptr = weight_tensor.data_ptr<float>();
             }
@@ -225,15 +226,14 @@ PYBIND11_MODULE(turbogator_ext, m)
                 eps_val = eps.cast<float>();
 
             // x: (..., n_channels, 16)
-            const auto& sz = x.sizes();
+            const auto &sz = x.sizes();
             size_t n_channels = sz[sz.size() - 2];
             size_t batch = 1;
-            for (size_t i = 0; i + 2 < sz.size(); ++i) batch *= sz[i];
+            for (size_t i = 0; i + 2 < sz.size(); ++i)
+                batch *= sz[i];
 
             turbogator::equi_rms_norm_baseline(
-                x.data_ptr<float>(),
-                weight_ptr,
-                out.data_ptr<float>(),
+                x.data_ptr<float>(), weight_ptr, out.data_ptr<float>(),
                 batch, n_channels, eps_val);
             return out;
         },

@@ -8,44 +8,46 @@
 using BasisElement = std::variant<int, std::pair<int, int>>;
 
 namespace turbogator
-
 {
-    void _compute_pin_equi_linear_basis(bool normalize_basis, float basis[9][16][16])
+    struct LocalEquiLinearBasis
     {
-        const std::vector<std::vector<BasisElement>> basis_elements = {
-            {0},
-            {1, 2, 3, 4},
-            {5, 6, 7, 8, 9, 10},
-            {11, 12, 13, 14},
-            {15},
-            {std::pair<int, int>{1, 0}},
-            {std::pair<int, int>{5, 2}, std::pair<int, int>{6, 3}, std::pair<int, int>{7, 4}},
-            {std::pair<int, int>{11, 8}, std::pair<int, int>{12, 9}, std::pair<int, int>{13, 10}},
-            {std::pair<int, int>{15, 14}},
-        };
+        float unnorm_basis[9][16][16] = {};
+        float norm_basis[9][16][16] = {};
 
-        std::memset(basis, 0, sizeof(float) * 9 * 16 * 16);
-
-        for (size_t k = 0; k < basis_elements.size(); ++k)
+        LocalEquiLinearBasis()
         {
-            float w[16][16] = {};
+            const std::vector<std::vector<BasisElement>> basis_elements = {
+                {0},
+                {1, 2, 3, 4},
+                {5, 6, 7, 8, 9, 10},
+                {11, 12, 13, 14},
+                {15},
+                {std::pair<int, int>{1, 0}},
+                {std::pair<int, int>{5, 2}, std::pair<int, int>{6, 3}, std::pair<int, int>{7, 4}},
+                {std::pair<int, int>{11, 8}, std::pair<int, int>{12, 9}, std::pair<int, int>{13, 10}},
+                {std::pair<int, int>{15, 14}},
+            };
 
-            for (const auto &element : basis_elements[k])
+            for (size_t k = 0; k < basis_elements.size(); ++k)
             {
-                if (std::holds_alternative<int>(element))
-                {
-                    int index = std::get<int>(element);
-                    w[index][index] = 1.0f;
-                }
-                else
-                {
-                    auto [i, j] = std::get<std::pair<int, int>>(element);
-                    w[i][j] = 1.0f;
-                }
-            }
+                float w[16][16] = {};
 
-            if (normalize_basis)
-            {
+                for (const auto &element : basis_elements[k])
+                {
+                    if (std::holds_alternative<int>(element))
+                    {
+                        int index = std::get<int>(element);
+                        w[index][index] = 1.0f;
+                    }
+                    else
+                    {
+                        auto [i, j] = std::get<std::pair<int, int>>(element);
+                        w[i][j] = 1.0f;
+                    }
+                }
+
+                std::memcpy(unnorm_basis[k], w, sizeof(w));
+
                 float sum_sq = 0.0f;
                 for (int i = 0; i < 16; ++i)
                     for (int j = 0; j < 16; ++j)
@@ -58,22 +60,19 @@ namespace turbogator
                         for (int j = 0; j < 16; ++j)
                             w[i][j] /= norm;
                 }
+                std::memcpy(norm_basis[k], w, sizeof(w));
             }
-
-            std::memcpy(basis[k], w, sizeof(w));
         }
-    }
+    };
 
     void equi_linear_baseline(const float *x, const float *weight, const float *bias, float *out,
                               size_t batch, size_t in_channels, size_t out_channels,
                               bool normalize_basis)
     {
+        static const LocalEquiLinearBasis EQUI_BASIS;
 
-        float basis[9][16][16];
-        std::memset(basis, 0, sizeof(basis));
-        _compute_pin_equi_linear_basis(normalize_basis, basis);
+        const float (*basis)[16][16] = normalize_basis ? EQUI_BASIS.norm_basis : EQUI_BASIS.unnorm_basis;
 
-        // torch.einsum
         for (size_t b = 0; b < batch; ++b)
         {
             for (size_t oc = 0; oc < out_channels; ++oc)
@@ -81,13 +80,20 @@ namespace turbogator
                 for (size_t d = 0; d < 16; ++d)
                 {
                     float sum = 0.0f;
-                    for (size_t ic = 0; ic < in_channels; ++ic)
+                    // changed loop order to avoid loops where basis = 0
+                    // technically an optimisation but god damn this is too slow without it
+                    for (size_t w = 0; w < 9; ++w)
                     {
-                        for (size_t w = 0; w < 9; ++w)
+                        for (size_t s = 0; s < 16; ++s)
                         {
-                            for (size_t s = 0; s < 16; ++s)
+                            float b_val = basis[w][d][s];
+
+                            if (b_val != 0.0f)
                             {
-                                sum += weight[(oc * in_channels + ic) * 9 + w] * basis[w][d][s] * x[b * in_channels * 16 + ic * 16 + s];
+                                for (size_t ic = 0; ic < in_channels; ++ic)
+                                {
+                                    sum += weight[(oc * in_channels + ic) * 9 + w] * b_val * x[b * in_channels * 16 + ic * 16 + s];
+                                }
                             }
                         }
                     }
@@ -96,7 +102,6 @@ namespace turbogator
             }
         }
 
-        // add bias
         if (bias != nullptr)
         {
             for (size_t b = 0; b < batch; ++b)
@@ -107,7 +112,6 @@ namespace turbogator
                 }
             }
         }
+    }
 
-    } // namespace turbogator
-
-}
+} // namespace turbogator

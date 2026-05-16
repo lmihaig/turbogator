@@ -99,18 +99,24 @@ def benchmark(desc, T, C_in, seed, warmup, steps, profile, profile_out):
             return run_torch_profiler(model, x, profile_out)
 
         warmup_times_ns = []
-        for _ in range(warmup):
+        for i in range(warmup):
             t0 = time.perf_counter_ns()
             GATOR_FORWARD_PASS(model, x)
             t1 = time.perf_counter_ns()
+            print(
+                f"Completed warmup {i + 1}/{warmup} run in {(t1 - t0) / 1e9:.6f} seconds."
+            )
             warmup_times_ns.append(t1 - t0)
 
         step_times_ns = []
-        for _ in range(steps):
+        for i in range(steps):
             t0 = time.perf_counter_ns()
             with AdvisorRegion(profile):
                 GATOR_FORWARD_PASS(model, x)
             t1 = time.perf_counter_ns()
+            print(
+                f"Completed step {i + 1}/{steps} run in {(t1 - t0) / 1e9:.6f} seconds."
+            )
             step_times_ns.append(t1 - t0)
 
     analyze_runs(warmup_times_ns, step_times_ns)

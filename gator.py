@@ -110,7 +110,7 @@ def do_build():
 def cmd_debug(args):
     do_build()
     cmd_validate(args, build=False)
-    # cmd_microbench(args, build=False)
+    cmd_microbench(args, build=False)
 
 
 def cmd_validate(args, build=True):
