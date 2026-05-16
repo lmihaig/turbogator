@@ -104,7 +104,7 @@ def benchmark(desc, T, C_in, seed, warmup, steps, profile, profile_out):
             GATOR_FORWARD_PASS(model, x)
             t1 = time.perf_counter_ns()
             print(
-                f"Completed warmup {i + 1}/{warmup} run in {(t1 - t0) / 1e9:.6f} seconds."
+                f"Completed warmup step {i + 1}/{warmup} in {(t1 - t0) / 1e9:.6f} seconds."
             )
             warmup_times_ns.append(t1 - t0)
 
@@ -115,7 +115,7 @@ def benchmark(desc, T, C_in, seed, warmup, steps, profile, profile_out):
                 GATOR_FORWARD_PASS(model, x)
             t1 = time.perf_counter_ns()
             print(
-                f"Completed step {i + 1}/{steps} run in {(t1 - t0) / 1e9:.6f} seconds."
+                f"Completed real step {i + 1}/{steps} in {(t1 - t0) / 1e9:.6f} seconds."
             )
             step_times_ns.append(t1 - t0)
 

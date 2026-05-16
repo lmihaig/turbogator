@@ -80,20 +80,17 @@ namespace turbogator
                 for (size_t d = 0; d < 16; ++d)
                 {
                     float sum = 0.0f;
-                    // changed loop order to avoid loops where basis = 0
-                    // technically an optimisation but god damn this is too slow without it
-                    for (size_t w = 0; w < 9; ++w)
+                    for (size_t ic = 0; ic < in_channels; ++ic)
                     {
-                        for (size_t s = 0; s < 16; ++s)
+                        for (size_t w = 0; w < 9; ++w)
                         {
-                            float b_val = basis[w][d][s];
-
-                            if (b_val != 0.0f)
+                            for (size_t s = 0; s < 16; ++s)
                             {
-                                for (size_t ic = 0; ic < in_channels; ++ic)
-                                {
-                                    sum += weight[(oc * in_channels + ic) * 9 + w] * b_val * x[b * in_channels * 16 + ic * 16 + s];
-                                }
+                                /// OPTIMISATION TOOD: MEGA IMPORTANT!!!!!
+                                // opt L1 : wrap this in if (basis[w][d][s] != 0.0f)
+                                // opt L2 : change loop order to d -> w -> s -> check basis[w][d][s] != 0.0f -> ic
+                                //          so ic becomes innermost loop and we avoid all those nops
+                                sum += weight[(oc * in_channels + ic) * 9 + w] * basis[w][d][s] * x[b * in_channels * 16 + ic * 16 + s];
                             }
                         }
                     }
