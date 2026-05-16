@@ -38,3 +38,7 @@ results/history.jsonl
 workspace.tar.gz
 
 !results/reference/
+
+CMakeLists.txt
+pyproject.toml
+uv.lock
