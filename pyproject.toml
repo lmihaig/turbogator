@@ -18,7 +18,7 @@ dependencies = [
   "scikit-build-core<=0.12.2",
   "cmake>=3.15",
   "pybind11>=2.10",
-  "pyitt>=1.6.0; sys_platform != 'darwin'",
+  "pyitt>=1.6.0",
   "ninja",
   "wheel",
 ]

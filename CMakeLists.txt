@@ -58,12 +58,9 @@ target_include_directories(turbogator_ext PRIVATE
 
 target_link_libraries(turbogator_ext PRIVATE ${TORCH_LIBRARIES})
 target_link_libraries(turbogator_ext PRIVATE ${TORCH_PYTHON_LIBRARY})
+target_link_options(turbogator_ext PRIVATE "-Wl,--no-as-needed")
 
 # target_link_options(turbogator_ext PRIVATE "-fuse-ld=lld")
-
-if(UNIX AND NOT APPLE)
-    target_link_options(turbogator_ext PRIVATE "-Wl,--no-as-needed")
-endif()
 
 set_target_properties(turbogator_ext PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/turbogator"
