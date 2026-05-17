@@ -73,6 +73,29 @@ namespace turbogator
 
         const float (*basis)[16][16] = normalize_basis ? EQUI_BASIS.norm_basis : EQUI_BASIS.unnorm_basis;
 
+        // step 1: kernel[o,i,d,s] = sum_w weight[o,i,w] * basis[w,d,s]
+        std::vector<float> kernel(out_channels * in_channels * 16 * 16);
+
+        for (size_t oc = 0; oc < out_channels; ++oc)
+        {
+            for (size_t ic = 0; ic < in_channels; ++ic)
+            {
+                for (size_t d = 0; d < 16; ++d)
+                {
+                    for (size_t s = 0; s < 16; ++s)
+                    {
+                        float sum = 0.0f;
+                        for (size_t w = 0; w < 9; ++w)
+                        {
+                            sum += weight[(oc * in_channels + ic) * 9 + w] * basis[w][d][s];
+                        }
+                        kernel[((oc * in_channels + ic) * 16 + d) * 16 + s] = sum;
+                    }
+                }
+            }
+        }
+
+        // step 2: out[b,o,d] = sum_{i,s} kernel[o,i,d,s] * x[b,i,s]
         for (size_t b = 0; b < batch; ++b)
         {
             for (size_t oc = 0; oc < out_channels; ++oc)
@@ -82,16 +105,9 @@ namespace turbogator
                     float sum = 0.0f;
                     for (size_t ic = 0; ic < in_channels; ++ic)
                     {
-                        for (size_t w = 0; w < 9; ++w)
+                        for (size_t s = 0; s < 16; ++s)
                         {
-                            for (size_t s = 0; s < 16; ++s)
-                            {
-                                /// OPTIMISATION TOOD: MEGA IMPORTANT!!!!!
-                                // opt L1 : wrap this in if (basis[w][d][s] != 0.0f)
-                                // opt L2 : change loop order to d -> w -> s -> check basis[w][d][s] != 0.0f -> ic
-                                //          so ic becomes innermost loop and we avoid all those nops
-                                sum += weight[(oc * in_channels + ic) * 9 + w] * basis[w][d][s] * x[b * in_channels * 16 + ic * 16 + s];
-                            }
+                            sum += kernel[((oc * in_channels + ic) * 16 + d) * 16 + s] * x[b * in_channels * 16 + ic * 16 + s];
                         }
                     }
                     out[b * out_channels * 16 + oc * 16 + d] = sum;
@@ -110,5 +126,50 @@ namespace turbogator
             }
         }
     }
+
+    // 6-loop version
+    // void equi_linear_baseline_fused(const float *x, const float *weight, const float *bias, float *out,
+    //                                 size_t batch, size_t in_channels, size_t out_channels,
+    //                                 bool normalize_basis)
+    // {
+    //     static const LocalEquiLinearBasis EQUI_BASIS;
+    //     const float (*basis)[16][16] = normalize_basis ? EQUI_BASIS.norm_basis : EQUI_BASIS.unnorm_basis;
+    //
+    //     for (size_t b = 0; b < batch; ++b)
+    //     {
+    //         for (size_t oc = 0; oc < out_channels; ++oc)
+    //         {
+    //             for (size_t d = 0; d < 16; ++d)
+    //             {
+    //                 float sum = 0.0f;
+    //                 for (size_t ic = 0; ic < in_channels; ++ic)
+    //                 {
+    //                     for (size_t w = 0; w < 9; ++w)
+    //                     {
+    //                         for (size_t s = 0; s < 16; ++s)
+    //                         {
+    //                             // opt L1 : wrap this in if (basis[w][d][s] != 0.0f)
+    //                             // opt L2 : change loop order to d -> w -> s -> check basis[w][d][s] != 0.0f -> ic
+    //                             //          so ic becomes innermost loop and we avoid all those nops
+    //                             sum += weight[(oc * in_channels + ic) * 9 + w] * basis[w][d][s] * x[b * in_channels * 16 + ic * 16 + s];
+    //                         }
+    //                     }
+    //                 }
+    //                 out[b * out_channels * 16 + oc * 16 + d] = sum;
+    //             }
+    //         }
+    //     }
+    //
+    //     if (bias != nullptr)
+    //     {
+    //         for (size_t b = 0; b < batch; ++b)
+    //         {
+    //             for (size_t oc = 0; oc < out_channels; ++oc)
+    //             {
+    //                 out[b * out_channels * 16 + oc * 16] += bias[oc];
+    //             }
+    //         }
+    //     }
+    // }
 
 } // namespace turbogator
