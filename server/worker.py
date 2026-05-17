@@ -100,8 +100,8 @@ def run_intel_advisor(job_dir, env, log_file, app_config, desc):
         temp_out.unlink()
 
 
-def run_sweep(job_dir, env, log_file, app_config, desc):
-    metrics = []
+def run_sweep(job_dir, env, log_file, app_config, desc, metrics):
+    # metrics = []
     pinned_core = app_config.PINNED_CPU_CORE
     perf_events = [str(e) for e in getattr(app_config, "PERF_EVENTS", [])]
 
@@ -155,7 +155,7 @@ def run_sweep(job_dir, env, log_file, app_config, desc):
         if perf_out.exists():
             perf_out.unlink()
 
-    return metrics
+    # return metrics
 
 
 def main():
@@ -195,7 +195,7 @@ def main():
         build_project(job_dir, env, log_file)
         if ENABLE_INTEL_ADVISOR:
             run_intel_advisor(job_dir, env, log_file, app_config, desc)
-        metrics = run_sweep(job_dir, env, log_file, app_config, desc)
+        run_sweep(job_dir, env, log_file, app_config, desc, metrics)
 
     except Exception as e:
         print(f"\nERROR: {e}", file=log_file)

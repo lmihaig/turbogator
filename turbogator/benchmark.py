@@ -37,26 +37,43 @@ def GATOR_FORWARD_PASS(model, x):
 
 
 def analyze_runs(warmup_ns, step_ns):
-    times_ns = warmup_ns + step_ns
-    t = np.array(times_ns, dtype=np.float64) / 1e9
-    med, mn, mx = np.median(t), np.min(t), np.max(t)
+    w_sec = np.array(warmup_ns, dtype=np.float64) / 1e9
+    s_sec = np.array(step_ns, dtype=np.float64) / 1e9
 
-    labeled = []
-    for i, x in enumerate(t):
-        prefix = "W" if i < len(warmup_ns) else "S"
-        labeled.append(f"{prefix}{i:02d}={x:.6f}")
+    print("\n" + "=" * 50)
+    if len(w_sec) > 0:
+        print(f"[Warmup Phase] ({len(w_sec)} steps)")
+        for i, x in enumerate(w_sec):
+            print(f"  W{i + 1:02d}: {x:.6f} s")
+        if len(w_sec) > 1:
+            dropoff = w_sec[0] / w_sec[-1]
+            print(f"Warmup Drop-off: {dropoff:.2f}x")
+        print("-" * 50)
 
-    print(f"counts: warmup={len(warmup_ns)} steps={len(step_ns)}")
-    print(f"raw_s: {', '.join(labeled)}")
-    print(f"median_s: {med:.6f} | min_s: {mn:.6f} | max_s: {mx:.6f}")
-    print(f"cv: {np.std(t) / np.mean(t):.4f} | med/min: {med / mn:.4f}")
+    print(f"[Active Phase] ({len(s_sec)} steps)")
+    for i, x in enumerate(s_sec):
+        print(f"  S{i + 1:02d}: {x:.6f}s")
+    print("-" * 50)
 
-    print("rolling_median:")
-    for k in range(5, len(t) + 1):
-        r_med = float(np.median(t[:k]))
-        print(
-            f"k={k:02d} median={r_med:.6f}s rel_err={abs(r_med - med) / med * 100:.2f}%"
-        )
+    if len(s_sec) > 0:
+        mean_s = np.mean(s_sec)
+        std_s = np.std(s_sec)
+        median_s = np.median(s_sec)
+        min_s = np.min(s_sec)
+        max_s = np.max(s_sec)
+
+        q25, q75 = np.percentile(s_sec, [25, 75])
+        iqr_s = q75 - q25
+
+        cv_pct = (std_s / mean_s) * 100 if mean_s > 0 else 0
+
+        print("Metrics:")
+        print(f"  Mean   + StdDev : {mean_s:.6f}s + {std_s:.6f}s")
+        print(f"  Median + IQR/2  : {median_s:.6f}s + {iqr_s / 2:.6f}s")
+        print(f"  Min / Max       : {min_s:.6f}s / {max_s:.6f}s")
+        print(f" Var   : {cv_pct:.2f}%")
+
+    print("=" * 50 + "\n")
 
 
 def run_torch_profiler(model, x, out_path):
@@ -104,7 +121,7 @@ def benchmark(desc, T, C_in, seed, warmup, steps, profile, profile_out):
             GATOR_FORWARD_PASS(model, x)
             t1 = time.perf_counter_ns()
             print(
-                f"Completed warmup step {i + 1}/{warmup} in {(t1 - t0) / 1e9:.6f} seconds."
+                f"[Warmup {i + 1:02d}/{warmup:02d}] {(t1 - t0) / 1e9:.6f} s", flush=True
             )
             warmup_times_ns.append(t1 - t0)
 
@@ -115,7 +132,7 @@ def benchmark(desc, T, C_in, seed, warmup, steps, profile, profile_out):
                 GATOR_FORWARD_PASS(model, x)
             t1 = time.perf_counter_ns()
             print(
-                f"Completed real step {i + 1}/{steps} in {(t1 - t0) / 1e9:.6f} seconds."
+                f"[Active {i + 1:02d}/{steps:02d}] {(t1 - t0) / 1e9:.6f} s", flush=True
             )
             step_times_ns.append(t1 - t0)
 
@@ -139,8 +156,8 @@ if __name__ == "__main__":
     parser.add_argument("--t", type=int, required=True)
     parser.add_argument("--c", type=int, required=True)
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--warmup", type=int, default=3)
-    parser.add_argument("--steps", type=int, default=7)
+    parser.add_argument("--warmup", type=int, default=2)
+    parser.add_argument("--steps", type=int, default=3)
     parser.add_argument("--profile", type=str, default="none")
     parser.add_argument("--profile-out", type=str, default=None)
     parser.add_argument("--out", type=str, default=None)

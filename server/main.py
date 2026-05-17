@@ -58,6 +58,6 @@ def remove_artifact(file_path):
 async def download_artifact(job_id, background_tasks: BackgroundTasks):
     file_path = f"{ARTIFACT_DIR}/{job_id}.tar.gz"
 
-    background_tasks.add_task(remove_artifact, file_path)
+    # background_tasks.add_task(remove_artifact, file_path)
 
     return FileResponse(path=file_path, filename=f"results_{job_id}.tar.gz")

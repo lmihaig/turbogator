@@ -130,8 +130,11 @@ def cmd_microbench(args, build=True):
 
     desc = getattr(args, "description", "turbogator")
     t_dim, c_in = app_config.get_dimensions(app_config.REPRESENTATIVE_N)
+
     flamegraph_path = out_dir / "profile.speedscope.json"
     torch_profile_out = out_dir / "pytorch_profile.trace.json"
+    metrics_out = out_dir / f"{desc}_metrics.json"
+
     Log.info(f"Recording py-spy ({desc}): T={t_dim}, C_in={c_in}")
 
     cmd = [
@@ -176,9 +179,164 @@ def cmd_microbench(args, build=True):
         ]
     )
 
+    Log.info("Running clean benchmark pass for metrics...")
+    run_cmd(
+        [
+            sys.executable,
+            "turbogator/benchmark.py",
+            "--desc",
+            desc,
+            "--t",
+            str(t_dim),
+            "--c",
+            str(c_in),
+            "--profile",
+            "none",
+            "--out",
+            str(metrics_out),
+        ]
+    )
+
     Log.success(f"Microbenchmark complete. Outputs saved to {out_dir}")
+    Log.info(f"Metrics saved to {metrics_out.name}")
     Log.info("Open py-spy flamegraph to https://www.speedscope.app/")
     Log.info("Open torch trace in https://ui.perfetto.dev")
+    if build:
+        do_build()
+    out_dir = Path("results/microbench")
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    desc = getattr(args, "description", "turbogator")
+    t_dim, c_in = app_config.get_dimensions(app_config.REPRESENTATIVE_N)
+
+    flamegraph_path = out_dir / "profile.speedscope.json"
+    torch_profile_out = out_dir / "pytorch_profile.trace.json"
+    metrics_out = out_dir / f"{desc}_metrics.json"
+
+    Log.info(f"Recording py-spy ({desc}): T={t_dim}, C_in={c_in}")
+
+    cmd = [
+        "py-spy",
+        "record",
+        "-o",
+        str(flamegraph_path),
+        "--format",
+        "speedscope",
+        "--rate",
+        "100",
+        "--native",
+        "--",
+        sys.executable,
+        "turbogator/benchmark.py",
+        "--desc",
+        desc,
+        "--t",
+        str(t_dim),
+        "--c",
+        str(c_in),
+        "--profile",
+        "none",
+    ]
+    run_cmd(cmd)
+
+    Log.info("Running torch profiler...")
+    run_cmd(
+        [
+            sys.executable,
+            "turbogator/benchmark.py",
+            "--desc",
+            desc,
+            "--t",
+            str(t_dim),
+            "--c",
+            str(c_in),
+            "--profile",
+            "torch",
+            "--profile-out",
+            str(torch_profile_out),
+        ]
+    )
+
+    Log.info("Running clean benchmark pass for metrics...")
+    run_cmd(
+        [
+            sys.executable,
+            "turbogator/benchmark.py",
+            "--desc",
+            desc,
+            "--t",
+            str(t_dim),
+            "--c",
+            str(c_in),
+            "--profile",
+            "none",
+            "--out",
+            str(metrics_out),
+        ]
+    )
+
+    Log.success(f"Microbenchmark complete. Outputs saved to {out_dir}")
+    Log.info(f"Metrics saved to {metrics_out.name}")
+    Log.info("Open py-spy flamegraph to https://www.speedscope.app/")
+    Log.info("Open torch trace in https://ui.perfetto.dev")
+
+
+def cmd_fetch(args):
+    job_id = args.job_id
+    root = Path(".")
+
+    Log.info(f"Checking server for Job ID: {job_id}")
+
+    status_res = json.loads(_api_request(f"/status/{job_id}"))
+    status = status_res.get("status", "unknown")
+
+    if status != "completed":
+        Log.error(f"Job is currently: {status}")
+        Log.info("Fetching latest logs:")
+        logs = _api_request(f"/logs/{job_id}").decode().splitlines()
+        for line in logs:
+            if line.strip():
+                print(f"{Log.BLUE}[{Log._ts()}]{Log.RESET} {line}")
+        Log.info("Run fetch again later to check if it has completed.")
+        sys.exit(0)
+
+    out_dir = root / "results" / f"raw/{job_id}"
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    Log.info("Job completed! Downloading artifacts...")
+    tmp_archive = root / f"tmp_{job_id}.tar.gz"
+
+    max_attempts = 3
+    for attempt in range(1, max_attempts + 1):
+        try:
+            tar_data = _api_request(f"/download/{job_id}")
+            with open(tmp_archive, "wb") as f:
+                f.write(tar_data)
+
+            with tarfile.open(tmp_archive, "r:gz") as tf:
+                tf.extractall(path=out_dir)
+            break
+        except Exception as exc:
+            tmp_archive.unlink(missing_ok=True)
+            if attempt == max_attempts:
+                Log.error(f"Failed to extract artifacts: {exc}")
+                sys.exit(1)
+            Log.info("Artifacts incomplete; retrying download...")
+            time.sleep(2 * attempt)
+
+    tmp_archive.unlink(missing_ok=True)
+
+    metrics_file = out_dir / "metrics.json"
+    if metrics_file.exists():
+        data = json.loads(metrics_file.read_text())
+        if "error" in data:
+            Log.error("Server reported execution failure. Check run.log.")
+        else:
+            with open(root / "results/history.jsonl", "a") as f:
+                f.write(json.dumps(data) + "\n")
+            Log.success("Metrics appended to local history.")
+
+    Log.success(f"Recovery Complete! Data saved to {out_dir}")
 
 
 def cmd_clean(args):
@@ -332,6 +490,15 @@ def cmd_submit(args):
     if advisor_dir.exists():
         Log.success(f"Intel Advisor results saved to {advisor_dir}")
 
+    # server cleanup race condition missing lines
+    local_log = out_dir / "run.log"
+    if local_log.exists():
+        final_logs = local_log.read_text().splitlines()
+        if len(final_logs) > last_line:
+            for line in final_logs[last_line:]:
+                if line.strip():
+                    print(f"{Log.BLUE}[{Log._ts()}]{Log.RESET} {line}")
+
     Log.success(f"Job Complete! Data saved to {out_dir}")
 
 
@@ -362,6 +529,9 @@ def main():
         "description", help="Job description (use 'ezgatr' for reference)"
     )
 
+    p_fetch = subs.add_parser("fetch", help="Retrieve results for a disconnected job")
+    p_fetch.add_argument("job_id", help="The Job ID to retrieve (e.g., 17156942_lmg)")
+
     if len(sys.argv) == 1:
         parser.print_help()
         sys.exit(1)
@@ -379,6 +549,8 @@ def main():
         cmd_plot(args)
     elif args.cmd == "submit":
         cmd_submit(args)
+    elif args.cmd == "fetch":
+        cmd_fetch(args)
 
 
 if __name__ == "__main__":
