@@ -151,6 +151,50 @@ PYBIND11_MODULE(turbogator_ext, m)
                 B, H, T, C, kinds, weights, mask_ptr, is_causal);
             return py::make_tuple(out, py::none());
         });
+    m.def(
+        "equi_geometric_attention_optimized1",
+        [](torch::Tensor q, torch::Tensor k, torch::Tensor v, py::kwargs kwargs)
+        {
+            // q, k, v: (B, H, T, C, 16)
+            q = q.contiguous();
+            k = k.contiguous();
+            v = v.contiguous();
+            auto sz = q.sizes();
+            int64_t B = sz[0], H = sz[1], T = sz[2], C = sz[3];
+
+            std::vector<std::string> kinds;
+            if (kwargs.contains("kinds"))
+                for (auto item : kwargs["kinds"].cast<py::dict>())
+                    kinds.push_back(item.first.cast<std::string>());
+
+            // weights: one per kind, shape (H, 1, C, 1) → H*C floats, w[h*C + c]
+            std::vector<torch::Tensor> weight_storage;
+            std::vector<const float *> weights;
+            if (kwargs.contains("weight"))
+                for (auto w : kwargs["weight"].cast<py::list>())
+                {
+                    auto wt = w.cast<torch::Tensor>().contiguous();
+                    weight_storage.push_back(wt);
+                    weights.push_back(wt.data_ptr<float>());
+                }
+
+            torch::Tensor mask_storage;
+            const float *mask_ptr = nullptr;
+            if (kwargs.contains("attn_mask") && !kwargs["attn_mask"].is_none())
+            {
+                mask_storage = kwargs["attn_mask"].cast<torch::Tensor>().contiguous();
+                mask_ptr = mask_storage.data_ptr<float>();
+            }
+
+            bool is_causal = kwargs.contains("is_causal") && kwargs["is_causal"].cast<bool>();
+
+            auto out = torch::empty_like(v);
+            turbogator::equi_geometric_attention_optimized1(
+                q.data_ptr<float>(), k.data_ptr<float>(),
+                v.data_ptr<float>(), out.data_ptr<float>(),
+                B, H, T, C, kinds, weights, mask_ptr, is_causal);
+            return py::make_tuple(out, py::none());
+        });
 
     m.def(
         "scaler_gated_gelu_baseline",

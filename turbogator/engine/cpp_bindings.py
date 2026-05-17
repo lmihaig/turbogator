@@ -9,6 +9,7 @@ equi_join_baseline = turbogator_ext.equi_join_baseline
 equi_rms_norm_baseline = turbogator_ext.equi_rms_norm_baseline
 scaler_gated_gelu_baseline = turbogator_ext.scaler_gated_gelu_baseline
 equi_geometric_attention_baseline = turbogator_ext.equi_geometric_attention_baseline
+equi_geometric_attention_optimized1 = turbogator_ext.equi_geometric_attention_optimized1
 
 # vectorized impl
 geometric_product_vectorized = turbogator_ext.geometric_product_vectorized
