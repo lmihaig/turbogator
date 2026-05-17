@@ -24,5 +24,21 @@ void equi_linear_baseline(const float* x, const float* weight, const float* bias
                           bool normalize_basis = true);
 void equi_rms_norm_baseline(const float* x, const float* weight, float* out,
                             size_t batch, size_t n_channels, float eps);
+void equi_rms_norm_branchless_clamp(const float* x, const float* weight, float* out,
+                                    size_t batch, size_t n_channels, float eps);
+void equi_rms_norm_restrict(const float* x, const float* weight, float* out,
+                            size_t batch, size_t n_channels, float eps);
+void equi_rms_norm_unrolled_selector(const float* x, const float* weight,
+                                     float* out, size_t batch, size_t n_channels, float eps);
+void equi_rms_norm_reciprocal_div(const float* x, const float* weight, float* out,
+                                  size_t batch, size_t n_channels, float eps);
+void equi_rms_norm_prefetch(const float* x, const float* weight, float* out,
+                            size_t batch, size_t n_channels, float eps);
+void equi_rms_norm_unrolled_channels_4(const float* x, const float* weight, float* out,
+                                       size_t batch, size_t n_channels, float eps);
+void equi_rms_norm_assume_aligned(const float* x, const float* weight, float* out,
+                            size_t batch, size_t n_channels, float eps);
+void equi_rms_norm_combined(const float* x, const float* weight, float* out,
+                            size_t batch, size_t n_channels, float eps);
 
 }  // namespace turbogator
