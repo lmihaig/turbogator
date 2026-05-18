@@ -1,106 +1,41 @@
 #include "ops.hpp"
 #include <vector>
-#include <utility>
-#include <variant>
 #include <cmath>
-#include <cstring>
-
-using BasisElement = std::variant<int, std::pair<int, int>>;
 
 namespace turbogator
 {
-    namespace
-    {
-        struct LocalEquiLinearBasis
-        {
-            float unnorm_basis[9][16][16] = {};
-            float norm_basis[9][16][16] = {};
+    // opt v2: d/s loop unrolled with direct indexing;
+    // compute weights * x directly in inner loop
 
-            LocalEquiLinearBasis()
-            {
-                const std::vector<std::vector<BasisElement>> basis_elements = {
-                    {0},
-                    {1, 2, 3, 4},
-                    {5, 6, 7, 8, 9, 10},
-                    {11, 12, 13, 14},
-                    {15},
-                    {std::pair<int, int>{1, 0}},
-                    {std::pair<int, int>{5, 2}, std::pair<int, int>{6, 3}, std::pair<int, int>{7, 4}},
-                    {std::pair<int, int>{11, 8}, std::pair<int, int>{12, 9}, std::pair<int, int>{13, 10}},
-                    {std::pair<int, int>{15, 14}},
-                };
-
-                for (size_t k = 0; k < basis_elements.size(); ++k)
-                {
-                    float w[16][16] = {};
-
-                    for (const auto &element : basis_elements[k])
-                    {
-                        if (std::holds_alternative<int>(element))
-                        {
-                            int index = std::get<int>(element);
-                            w[index][index] = 1.0f;
-                        }
-                        else
-                        {
-                            auto [i, j] = std::get<std::pair<int, int>>(element);
-                            w[i][j] = 1.0f;
-                        }
-                    }
-
-                    std::memcpy(unnorm_basis[k], w, sizeof(w));
-
-                    float sum_sq = 0.0f;
-                    for (int i = 0; i < 16; ++i)
-                        for (int j = 0; j < 16; ++j)
-                            sum_sq += w[i][j] * w[i][j];
-
-                    float norm = std::sqrt(sum_sq);
-                    if (norm > 0.0f)
-                    {
-                        for (int i = 0; i < 16; ++i)
-                            for (int j = 0; j < 16; ++j)
-                                w[i][j] /= norm;
-                    }
-                    std::memcpy(norm_basis[k], w, sizeof(w));
-                }
-            }
-        };
-    } // anon namespace
-
-    void equi_linear_opt_v1(const float *x, const float *weight, const float *bias, float *out,
+    void equi_linear_opt_v2(const float *x, const float *weight, const float *bias, float *out,
                             size_t batch, size_t in_channels, size_t out_channels,
                             bool normalize_basis)
     {
-        static const LocalEquiLinearBasis EQUI_BASIS;
-        const float (*basis)[16][16] = normalize_basis ? EQUI_BASIS.norm_basis : EQUI_BASIS.unnorm_basis;
+        // number of non-zeros in basis[w]
+        static const int group_size[9] = {1, 4, 6, 4, 1, 1, 3, 3, 1};
 
-        // step 1: kernel[o, i, s, d] = sum_w weight[o,i,w] * basis[w,d,s]
-        std::vector<float> kernel(out_channels * in_channels * 16 * 16);
-
-        for (size_t oc = 0; oc < out_channels; ++oc)
+        // working weights: w_use[o,i,w] = weight[o,i,w] * scale[w]
+        // TODO: for normalize_basis=false, scale[w] = 1 could skip this
+        std::vector<float> w_use(out_channels * in_channels * 9);
+        float scale[9];
+        if (normalize_basis)
         {
-            for (size_t ic = 0; ic < in_channels; ++ic)
-            {
-                for (size_t s = 0; s < 16; ++s)
-                {
-                    for (size_t d = 0; d < 16; ++d)
-                    {
-                        float sum = 0.0f;
-                        for (size_t w = 0; w < 9; ++w)
-                        {
-                            sum += weight[(oc * in_channels + ic) * 9 + w] * basis[w][d][s];
-                        }
-                        kernel[((oc * in_channels + ic) * 16 + s) * 16 + d] = sum;
-                    }
-                }
-            }
+            for (int w = 0; w < 9; ++w)
+                scale[w] = 1.0f / std::sqrt(float(group_size[w]));
+        }
+        else
+        {
+            for (int w = 0; w < 9; ++w)
+                scale[w] = 1.0f;
+        }
+        for (size_t channel = 0; channel < out_channels * in_channels; ++channel)
+        {
+            const float *w_orig = weight + channel * 9;
+            float *w_scaled = w_use.data() + channel * 9;
+            for (int w = 0; w < 9; ++w)
+                w_scaled[w] = w_orig[w] * scale[w];
         }
 
-        // step 2: out[b,o,d] = sum_{ic,s} kernel[o,ic,s,d] * x[b,ic,s]
-        // OPT1:
-        // - register accumulator: acc[16] holds all d values for one (b, oc)
-        // - x[b,ic,s] is loaded once per (ic,s) and reused across all 16 d
         for (size_t b = 0; b < batch; ++b)
         {
             for (size_t oc = 0; oc < out_channels; ++oc)
@@ -109,20 +44,66 @@ namespace turbogator
 
                 for (size_t ic = 0; ic < in_channels; ++ic)
                 {
-                    for (size_t s = 0; s < 16; ++s)
-                    {
-                        float xv = x[b * in_channels * 16 + ic * 16 + s];
-                        for (size_t d = 0; d < 16; ++d)
-                        {
-                            acc[d] += kernel[((oc * in_channels + ic) * 16 + s) * 16 + d] * xv;
-                        }
-                    }
+                    const float *w_oi = w_use.data() + (oc * in_channels + ic) * 9;
+                    const float *x_bi = x + (b * in_channels + ic) * 16;
+
+                    // load weights for (oc, ic)
+                    const float w0 = w_oi[0];
+                    const float w1 = w_oi[1];
+                    const float w2 = w_oi[2];
+                    const float w3 = w_oi[3];
+                    const float w4 = w_oi[4];
+                    const float w5 = w_oi[5];
+                    const float w6 = w_oi[6];
+                    const float w7 = w_oi[7];
+                    const float w8 = w_oi[8];
+
+                    // w=0
+                    acc[0] += w0 * x_bi[0];
+
+                    // w=1
+                    acc[1] += w1 * x_bi[1];
+                    acc[2] += w1 * x_bi[2];
+                    acc[3] += w1 * x_bi[3];
+                    acc[4] += w1 * x_bi[4];
+
+                    // w=2
+                    acc[5] += w2 * x_bi[5];
+                    acc[6] += w2 * x_bi[6];
+                    acc[7] += w2 * x_bi[7];
+                    acc[8] += w2 * x_bi[8];
+                    acc[9] += w2 * x_bi[9];
+                    acc[10] += w2 * x_bi[10];
+
+                    // w=3
+                    acc[11] += w3 * x_bi[11];
+                    acc[12] += w3 * x_bi[12];
+                    acc[13] += w3 * x_bi[13];
+                    acc[14] += w3 * x_bi[14];
+
+                    // w=4
+                    acc[15] += w4 * x_bi[15];
+
+                    // w=5
+                    acc[1] += w5 * x_bi[0];
+
+                    // w=6
+                    acc[5] += w6 * x_bi[2];
+                    acc[6] += w6 * x_bi[3];
+                    acc[7] += w6 * x_bi[4];
+
+                    // w=7
+                    acc[11] += w7 * x_bi[8];
+                    acc[12] += w7 * x_bi[9];
+                    acc[13] += w7 * x_bi[10];
+
+                    // w=8
+                    acc[15] += w8 * x_bi[14];
                 }
 
+                float *out_bo = out + (b * out_channels + oc) * 16;
                 for (size_t d = 0; d < 16; ++d)
-                {
-                    out[b * out_channels * 16 + oc * 16 + d] = acc[d];
-                }
+                    out_bo[d] = acc[d];
             }
         }
 
