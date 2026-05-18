@@ -1,6 +1,7 @@
 #include "ops.hpp"
 #include <vector>
 #include <cmath>
+#include <cstring>
 
 namespace turbogator
 {
@@ -11,29 +12,38 @@ namespace turbogator
                             size_t batch, size_t in_channels, size_t out_channels,
                             bool normalize_basis)
     {
-        // number of non-zeros in basis[w]
-        static const int group_size[9] = {1, 4, 6, 4, 1, 1, 3, 3, 1};
-
-        // working weights: w_use[o,i,w] = weight[o,i,w] * scale[w]
-        // TODO: for normalize_basis=false, scale[w] = 1 could skip this
+        // pre-scale weights;
+        // scale[w] = 1/sqrt(group_size[w]) for normalize_basis, else 1;
+        // group_size = {1, 4, 6, 4, 1, 1, 3, 3, 1}, so 4 of the 9 scales
         std::vector<float> w_use(out_channels * in_channels * 9);
-        float scale[9];
+
         if (normalize_basis)
         {
-            for (int w = 0; w < 9; ++w)
-                scale[w] = 1.0f / std::sqrt(float(group_size[w]));
+            const float S1 = .5f;
+            const float S2 = 1.0f / std::sqrt(6.0f);
+            const float S3 = 1.0f / std::sqrt(4.0f);
+            const float S6 = 1.0f / std::sqrt(3.0f);
+            const float S7 = 1.0f / std::sqrt(3.0f);
+            // scales for w = 0, 4, 5, 8 are 1.0
+
+            for (size_t channel = 0; channel < out_channels * in_channels; ++channel)
+            {
+                const float *w_orig = weight + channel * 9;
+                float *w_scaled = w_use.data() + channel * 9;
+                w_scaled[0] = w_orig[0];
+                w_scaled[1] = w_orig[1] * S1;
+                w_scaled[2] = w_orig[2] * S2;
+                w_scaled[3] = w_orig[3] * S3;
+                w_scaled[4] = w_orig[4];
+                w_scaled[5] = w_orig[5];
+                w_scaled[6] = w_orig[6] * S6;
+                w_scaled[7] = w_orig[7] * S7;
+                w_scaled[8] = w_orig[8];
+            }
         }
         else
         {
-            for (int w = 0; w < 9; ++w)
-                scale[w] = 1.0f;
-        }
-        for (size_t channel = 0; channel < out_channels * in_channels; ++channel)
-        {
-            const float *w_orig = weight + channel * 9;
-            float *w_scaled = w_use.data() + channel * 9;
-            for (int w = 0; w < 9; ++w)
-                w_scaled[w] = w_orig[w] * scale[w];
+            std::memcpy(w_use.data(), weight, out_channels * in_channels * 9 * sizeof(float));
         }
 
         for (size_t b = 0; b < batch; ++b)
