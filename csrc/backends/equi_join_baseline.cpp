@@ -1,4 +1,5 @@
 #include "ops.hpp"
+#include "equi_join_constants.hpp"
 
 /*
 // actually this math can be ignored, we can just hardcode the kernel
@@ -60,7 +61,8 @@ namespace turbogator
 
                     equi_dual(x, dual_x);
                     equi_dual(y, dual_y);
-                    outer_prod(dual_x, dual_y, prod);
+                    // outer_prod(dual_x, dual_y, prod);
+                    outer_product_hardcoded(dual_x, dual_y, prod);
                     equi_dual(prod, final_out);
 
                     for (int k = 0; k < 16; k++)
@@ -177,6 +179,18 @@ namespace turbogator
                     for (int k = 0; k < 16; k++)
                         out[i] += OP_BASIS[i][j][k] * x[j] * y[k];
         }
+
+        inline void outer_product_hardcoded(const float* x, const float* y, float* out)
+        {
+            for (int i = 0; i < 16; i++)
+                out[i] = 0.0f;
+
+            for (size_t idx = 0; idx < kOpBasisEntryCount; idx++)
+            {
+                const SparseEntry& e = kOpBasisEntries[idx];
+                out[e.i] += e.v * x[e.j] * y[e.k];
+            }
+        }
     };
 
     inline const JoinKernel KERNEL;
@@ -213,6 +227,226 @@ namespace turbogator
 
                 for (int i = 0; i < 16; i++)
                     cur_out[i] *= scale;
+            }
+        }
+    }
+
+    void equi_join_optimized_hardcoded(const float* a, const float* b, const float* ref, float* out, size_t n)
+    {
+        for (size_t batch = 0; batch < n; batch++)
+        {
+            const float* cur_a = a + (batch * 16);
+            const float* cur_b = b + (batch * 16);
+            float* cur_out = out + (batch * 16);
+
+            for (int i = 0; i < 16; i++)
+                cur_out[i] = 0.0f;
+
+            for (size_t idx = 0; idx < kJoinKernelEntryCount; idx++)
+            {
+                const SparseEntry& e = kJoinKernelEntries[idx];
+                cur_out[e.i] += e.v * cur_a[e.j] * cur_b[e.k];
+            }
+
+            if (ref != nullptr)
+            {
+                const float* cur_ref = ref + (batch * 16);
+                float scale = cur_ref[14];
+
+                for (int i = 0; i < 16; i++)
+                    cur_out[i] *= scale;
+            }
+        }
+    }
+
+    void equi_join_optimized_sparse(const float *a, const float *b, const float *ref, float *out, size_t n)
+    {
+        struct SparseKernel
+        {
+            struct Entry
+            {
+                int i;
+                int j;
+                int k;
+                float v;
+            };
+
+            int count;
+            Entry entries[4096];
+
+            SparseKernel() : count(0)
+            {
+                for (int i = 0; i < 16; i++)
+                {
+                    for (int j = 0; j < 16; j++)
+                    {
+                        for (int k = 0; k < 16; k++)
+                        {
+                            float v = KERNEL.data[i][j][k];
+                            if (v != 0.0f)
+                            {
+                                entries[count++] = {i, j, k, v};
+                            }
+                        }
+                    }
+                }
+            }
+        };
+
+        static const SparseKernel sk;
+
+        for (size_t batch = 0; batch < n; batch++)
+        {
+            const float *cur_a = a + (batch * 16);
+            const float *cur_b = b + (batch * 16);
+            float *cur_out = out + (batch * 16);
+
+            for (int i = 0; i < 16; i++)
+                cur_out[i] = 0.0f;
+
+            for (int idx = 0; idx < sk.count; idx++)
+            {
+                const auto &e = sk.entries[idx];
+                cur_out[e.i] += e.v * cur_a[e.j] * cur_b[e.k];
+            }
+
+            if (ref != nullptr)
+            {
+                const float *cur_ref = ref + (batch * 16);
+                float scale = cur_ref[14];
+
+                for (int i = 0; i < 16; i++)
+                    cur_out[i] *= scale;
+            }
+        }
+    }
+
+    void equi_join_optimized_precompute_ab(const float *a, const float *b, const float *ref, float *out, size_t n)
+    {
+        for (size_t batch = 0; batch < n; batch++)
+        {
+            const float *cur_a = a + (batch * 16);
+            const float *cur_b = b + (batch * 16);
+            float *cur_out = out + (batch * 16);
+
+            float ab[16][16];
+            for (int j = 0; j < 16; j++)
+            {
+                float aj = cur_a[j];
+                for (int k = 0; k < 16; k++)
+                    ab[j][k] = aj * cur_b[k];
+            }
+
+            for (int i = 0; i < 16; i++)
+                cur_out[i] = 0.0f;
+
+            for (int i = 0; i < 16; i++)
+                for (int j = 0; j < 16; j++)
+                    for (int k = 0; k < 16; k++)
+                        cur_out[i] += KERNEL.data[i][j][k] * ab[j][k];
+
+            if (ref != nullptr)
+            {
+                const float *cur_ref = ref + (batch * 16);
+                float scale = cur_ref[14];
+
+                for (int i = 0; i < 16; i++)
+                    cur_out[i] *= scale;
+            }
+        }
+    }
+
+    void equi_join_optimized_unroll_k(const float *a, const float *b, const float *ref, float *out, size_t n)
+    {
+        for (size_t batch = 0; batch < n; batch++)
+        {
+            const float *cur_a = a + (batch * 16);
+            const float *cur_b = b + (batch * 16);
+            float *cur_out = out + (batch * 16);
+
+            for (int i = 0; i < 16; i++)
+                cur_out[i] = 0.0f;
+
+            for (int i = 0; i < 16; i++)
+            {
+                for (int j = 0; j < 16; j++)
+                {
+                    float aj = cur_a[j];
+                    cur_out[i] += KERNEL.data[i][j][0] * aj * cur_b[0];
+                    cur_out[i] += KERNEL.data[i][j][1] * aj * cur_b[1];
+                    cur_out[i] += KERNEL.data[i][j][2] * aj * cur_b[2];
+                    cur_out[i] += KERNEL.data[i][j][3] * aj * cur_b[3];
+                    cur_out[i] += KERNEL.data[i][j][4] * aj * cur_b[4];
+                    cur_out[i] += KERNEL.data[i][j][5] * aj * cur_b[5];
+                    cur_out[i] += KERNEL.data[i][j][6] * aj * cur_b[6];
+                    cur_out[i] += KERNEL.data[i][j][7] * aj * cur_b[7];
+                    cur_out[i] += KERNEL.data[i][j][8] * aj * cur_b[8];
+                    cur_out[i] += KERNEL.data[i][j][9] * aj * cur_b[9];
+                    cur_out[i] += KERNEL.data[i][j][10] * aj * cur_b[10];
+                    cur_out[i] += KERNEL.data[i][j][11] * aj * cur_b[11];
+                    cur_out[i] += KERNEL.data[i][j][12] * aj * cur_b[12];
+                    cur_out[i] += KERNEL.data[i][j][13] * aj * cur_b[13];
+                    cur_out[i] += KERNEL.data[i][j][14] * aj * cur_b[14];
+                    cur_out[i] += KERNEL.data[i][j][15] * aj * cur_b[15];
+                }
+            }
+
+            if (ref != nullptr)
+            {
+                const float *cur_ref = ref + (batch * 16);
+                float scale = cur_ref[14];
+
+                for (int i = 0; i < 16; i++)
+                    cur_out[i] *= scale;
+            }
+        }
+    }
+
+    #ifndef __has_builtin
+    #define __restrict__ __restrict
+    #endif
+
+    void equi_join_restrict_unswitch(const float* __restrict__ a, 
+                                    const float* __restrict__ b, 
+                                    const float* __restrict__ ref, 
+                                    float* __restrict__ out, 
+                                    size_t n)
+    {
+        if (ref != nullptr)
+        {
+            for (size_t batch = 0; batch < n; batch++)
+            {
+                const float *cur_a = a + (batch * 16);
+                const float *cur_b = b + (batch * 16);
+                float *cur_out = out + (batch * 16);
+                const float *cur_ref = ref + (batch * 16);
+
+                for (int i = 0; i < 16; i++) cur_out[i] = 0.0f;
+
+                for (int i = 0; i < 16; i++)
+                    for (int j = 0; j < 16; j++)
+                        for (int k = 0; k < 16; k++)
+                            cur_out[i] += turbogator::KERNEL.data[i][j][k] * cur_a[j] * cur_b[k];
+
+                float scale = cur_ref[14];
+                for (int i = 0; i < 16; i++)
+                    cur_out[i] *= scale;
+            }
+        }
+        else
+        {
+            for (size_t batch = 0; batch < n; batch++)
+            {
+                const float *cur_a = a + (batch * 16);
+                const float *cur_b = b + (batch * 16);
+                float *cur_out = out + (batch * 16);
+
+                for (int i = 0; i < 16; i++) cur_out[i] = 0.0f;
+
+                for (int i = 0; i < 16; i++)
+                    for (int j = 0; j < 16; j++)
+                        for (int k = 0; k < 16; k++)
+                            cur_out[i] += turbogator::KERNEL.data[i][j][k] * cur_a[j] * cur_b[k];
             }
         }
     }
