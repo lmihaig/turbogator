@@ -13,7 +13,7 @@ static constexpr int N_IPA     = 7;
 static constexpr int N_DAA     = 5;
 static constexpr float   DAA_EPS = 1e-3f;
 static constexpr int64_t BT      = 32;   // token tile size for score GEMM
-static constexpr int64_t BD      = 64;   // feature tile size for score GEMM
+static constexpr int64_t BD      = 96;   // feature tile size for score GEMM
 
 static constexpr int IPA_IDX[N_IPA] = {0, 2, 3, 4, 8, 9, 10};
 static constexpr int TRI_IDX[4]     = {11, 12, 13, 14};
