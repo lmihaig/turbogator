@@ -194,84 +194,8 @@ def cmd_microbench(args, build=True):
             "none",
             "--out",
             str(metrics_out),
-        ]
-    )
-
-    Log.success(f"Microbenchmark complete. Outputs saved to {out_dir}")
-    Log.info(f"Metrics saved to {metrics_out.name}")
-    Log.info("Open py-spy flamegraph to https://www.speedscope.app/")
-    Log.info("Open torch trace in https://ui.perfetto.dev")
-    if build:
-        do_build()
-    out_dir = Path("results/microbench")
-    out_dir.mkdir(parents=True, exist_ok=True)
-
-    desc = getattr(args, "description", "turbogator")
-    t_dim, c_in = app_config.get_dimensions(app_config.REPRESENTATIVE_N)
-
-    flamegraph_path = out_dir / "profile.speedscope.json"
-    torch_profile_out = out_dir / "pytorch_profile.trace.json"
-    metrics_out = out_dir / f"{desc}_metrics.json"
-
-    Log.info(f"Recording py-spy ({desc}): T={t_dim}, C_in={c_in}")
-
-    cmd = [
-        "py-spy",
-        "record",
-        "-o",
-        str(flamegraph_path),
-        "--format",
-        "speedscope",
-        "--rate",
-        "100",
-        "--native",
-        "--",
-        sys.executable,
-        "turbogator/benchmark.py",
-        "--desc",
-        desc,
-        "--t",
-        str(t_dim),
-        "--c",
-        str(c_in),
-        "--profile",
-        "none",
-    ]
-    run_cmd(cmd)
-
-    Log.info("Running torch profiler...")
-    run_cmd(
-        [
-            sys.executable,
-            "turbogator/benchmark.py",
-            "--desc",
-            desc,
-            "--t",
-            str(t_dim),
-            "--c",
-            str(c_in),
-            "--profile",
-            "torch",
-            "--profile-out",
-            str(torch_profile_out),
-        ]
-    )
-
-    Log.info("Running clean benchmark pass for metrics...")
-    run_cmd(
-        [
-            sys.executable,
-            "turbogator/benchmark.py",
-            "--desc",
-            desc,
-            "--t",
-            str(t_dim),
-            "--c",
-            str(c_in),
-            "--profile",
-            "none",
-            "--out",
-            str(metrics_out),
+            "--steps",
+            "20",
         ]
     )
 

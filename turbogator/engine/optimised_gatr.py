@@ -246,7 +246,7 @@ class MVOnlyGATrAttention(nn.Module):
             h=self.config.attn_num_heads,
             c=self.config.size_channels_hidden,
         )
-        x, _ = c_ops.equi_geometric_attention_baseline(
+        x, _ = c_ops.equi_geometric_attention_optimized1(
             q,
             k,
             v,
