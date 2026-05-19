@@ -106,6 +106,172 @@ PYBIND11_MODULE(turbogator_ext, m)
         );
         
         return out; });
+    
+    m.def("equi_join_optimized_hardcoded", [](torch::Tensor a, torch::Tensor b, torch::Tensor ref)
+          {
+        auto a_contig = a.contiguous();
+        auto b_contig = b.contiguous();
+
+        if (a_contig.numel() != b_contig.numel()) {
+            throw std::runtime_error("equi_join_optimized_hardcoded: size mismatch between a and b");
+        }
+        
+        if (a_contig.size(-1) != 16) {
+            throw std::runtime_error("equi_join_optimized_hardcoded: last dimension must be 16");
+        }
+
+        auto out = make_out_like(a_contig);
+        size_t num_multivectors = a_contig.numel() / 16;
+
+        const float* ref_ptr = nullptr;
+        torch::Tensor ref_contig; 
+        if (ref.defined()) {
+            ref_contig = ref.expand_as(a_contig).contiguous();
+            ref_ptr = ref_contig.data_ptr<float>();
+        }
+
+        turbogator::equi_join_optimized_hardcoded(
+            a_contig.data_ptr<float>(),
+            b_contig.data_ptr<float>(),
+            ref_ptr, 
+            out.data_ptr<float>(),
+            num_multivectors
+        );
+        
+        return out; });
+
+    m.def("equi_join_optimized_sparse", [](torch::Tensor a, torch::Tensor b, torch::Tensor ref)
+          {
+        auto a_contig = a.contiguous();
+        auto b_contig = b.contiguous();
+
+        if (a_contig.numel() != b_contig.numel()) {
+            throw std::runtime_error("equi_join_optimized_sparse: size mismatch between a and b");
+        }
+        
+        if (a_contig.size(-1) != 16) {
+            throw std::runtime_error("equi_join_optimized_sparse: last dimension must be 16");
+        }
+
+        auto out = make_out_like(a_contig);
+        size_t num_multivectors = a_contig.numel() / 16;
+
+        const float* ref_ptr = nullptr;
+        torch::Tensor ref_contig; 
+        if (ref.defined()) {
+            ref_contig = ref.expand_as(a_contig).contiguous();
+            ref_ptr = ref_contig.data_ptr<float>();
+        }
+
+        turbogator::equi_join_optimized_sparse(
+            a_contig.data_ptr<float>(),
+            b_contig.data_ptr<float>(),
+            ref_ptr, 
+            out.data_ptr<float>(),
+            num_multivectors
+        );
+        
+        return out; });
+    
+    m.def("equi_join_optimized_precompute_ab", [](torch::Tensor a, torch::Tensor b, torch::Tensor ref)
+          {
+        auto a_contig = a.contiguous();
+        auto b_contig = b.contiguous();
+
+        if (a_contig.numel() != b_contig.numel()) {
+            throw std::runtime_error("equi_join_optimized_precompute_ab: size mismatch between a and b");
+        }
+        
+        if (a_contig.size(-1) != 16) {
+            throw std::runtime_error("equi_join_optimized_precompute_ab: last dimension must be 16");
+        }
+
+        auto out = make_out_like(a_contig);
+        size_t num_multivectors = a_contig.numel() / 16;
+
+        const float* ref_ptr = nullptr;
+        torch::Tensor ref_contig; 
+        if (ref.defined()) {
+            ref_contig = ref.expand_as(a_contig).contiguous();
+            ref_ptr = ref_contig.data_ptr<float>();
+        }
+
+        turbogator::equi_join_optimized_precompute_ab(
+            a_contig.data_ptr<float>(),
+            b_contig.data_ptr<float>(),
+            ref_ptr, 
+            out.data_ptr<float>(),
+            num_multivectors
+        );
+        
+        return out; });
+
+    m.def("equi_join_optimized_unroll_k", [](torch::Tensor a, torch::Tensor b, torch::Tensor ref)
+          {
+        auto a_contig = a.contiguous();
+        auto b_contig = b.contiguous();
+
+        if (a_contig.numel() != b_contig.numel()) {
+            throw std::runtime_error("equi_join_optimized_unroll_k: size mismatch between a and b");
+        }
+        
+        if (a_contig.size(-1) != 16) {
+            throw std::runtime_error("equi_join_optimized_unroll_k: last dimension must be 16");
+        }
+
+        auto out = make_out_like(a_contig);
+        size_t num_multivectors = a_contig.numel() / 16;
+
+        const float* ref_ptr = nullptr;
+        torch::Tensor ref_contig; 
+        if (ref.defined()) {
+            ref_contig = ref.expand_as(a_contig).contiguous();
+            ref_ptr = ref_contig.data_ptr<float>();
+        }
+
+        turbogator::equi_join_optimized_unroll_k(
+            a_contig.data_ptr<float>(),
+            b_contig.data_ptr<float>(),
+            ref_ptr, 
+            out.data_ptr<float>(),
+            num_multivectors
+        );
+        
+        return out; });
+    
+    m.def("equi_join_restrict_unswitch", [](torch::Tensor a, torch::Tensor b, torch::Tensor ref)
+          {
+        auto a_contig = a.contiguous();
+        auto b_contig = b.contiguous();
+
+        if (a_contig.numel() != b_contig.numel()) {
+            throw std::runtime_error("equi_join_restrict_unswitch: size mismatch between a and b");
+        }
+        
+        if (a_contig.size(-1) != 16) {
+            throw std::runtime_error("equi_join_restrict_unswitch: last dimension must be 16");
+        }
+
+        auto out = make_out_like(a_contig);
+        size_t num_multivectors = a_contig.numel() / 16;
+
+        const float* ref_ptr = nullptr;
+        torch::Tensor ref_contig; 
+        if (ref.defined()) {
+            ref_contig = ref.expand_as(a_contig).contiguous();
+            ref_ptr = ref_contig.data_ptr<float>();
+        }
+
+        turbogator::equi_join_restrict_unswitch(
+            a_contig.data_ptr<float>(),
+            b_contig.data_ptr<float>(),
+            ref_ptr, 
+            out.data_ptr<float>(),
+            num_multivectors
+        );
+        
+        return out; });
+
 
     m.def(
         "equi_geometric_attention_baseline",
@@ -234,6 +400,286 @@ PYBIND11_MODULE(turbogator_ext, m)
 
             turbogator::equi_rms_norm_baseline(
                 x.data_ptr<float>(), weight_ptr, out.data_ptr<float>(),
+                batch, n_channels, eps_val);
+            return out;
+        },
+        py::arg("x"),
+        py::arg("weight") = py::none(),
+        py::arg("eps") = py::none());
+    
+    m.def(
+        "equi_rms_norm_branchless_clamp",
+        [](torch::Tensor x, py::object weight, py::object eps)
+        {
+            x = x.contiguous();
+            auto out = make_out_like(x);
+
+            const float *weight_ptr = nullptr;
+            if (!weight.is_none())
+            {
+                auto weight_tensor = weight.cast<torch::Tensor>().contiguous();
+                if (weight_tensor.numel())
+                    weight_ptr = weight_tensor.data_ptr<float>();
+            }
+
+            float eps_val = 1.1920929e-07f;
+            if (!eps.is_none())
+                eps_val = eps.cast<float>();
+
+            const auto& sz = x.sizes();
+            size_t n_channels = sz[sz.size() - 2];
+            size_t batch = 1;
+            for (size_t i = 0; i + 2 < sz.size(); ++i) batch *= sz[i];
+
+            turbogator::equi_rms_norm_branchless_clamp(
+                x.data_ptr<float>(),
+                weight_ptr,
+                out.data_ptr<float>(),
+                batch, n_channels, eps_val);
+            return out;
+        },
+        py::arg("x"),
+        py::arg("weight") = py::none(),
+        py::arg("eps") = py::none());
+
+    m.def(
+        "equi_rms_norm_restrict",
+        [](torch::Tensor x, py::object weight, py::object eps)
+        {
+            x = x.contiguous();
+            auto out = make_out_like(x);
+
+            const float *weight_ptr = nullptr;
+            if (!weight.is_none())
+            {
+                auto weight_tensor = weight.cast<torch::Tensor>().contiguous();
+                if (weight_tensor.numel())
+                    weight_ptr = weight_tensor.data_ptr<float>();
+            }
+
+            float eps_val = 1.1920929e-07f;
+            if (!eps.is_none())
+                eps_val = eps.cast<float>();
+
+            const auto& sz = x.sizes();
+            size_t n_channels = sz[sz.size() - 2];
+            size_t batch = 1;
+            for (size_t i = 0; i + 2 < sz.size(); ++i) batch *= sz[i];
+
+            turbogator::equi_rms_norm_restrict(
+                x.data_ptr<float>(),
+                weight_ptr,
+                out.data_ptr<float>(),
+                batch, n_channels, eps_val);
+            return out;
+        },
+        py::arg("x"),
+        py::arg("weight") = py::none(),
+        py::arg("eps") = py::none());
+
+    m.def(
+        "equi_rms_norm_unrolled_selector",
+        [](torch::Tensor x, py::object weight, py::object eps)
+        {
+            x = x.contiguous();
+            auto out = make_out_like(x);
+
+            const float *weight_ptr = nullptr;
+            if (!weight.is_none())
+            {
+                auto weight_tensor = weight.cast<torch::Tensor>().contiguous();
+                if (weight_tensor.numel())
+                    weight_ptr = weight_tensor.data_ptr<float>();
+            }
+
+            float eps_val = 1.1920929e-07f;
+            if (!eps.is_none())
+                eps_val = eps.cast<float>();
+
+            const auto& sz = x.sizes();
+            size_t n_channels = sz[sz.size() - 2];
+            size_t batch = 1;
+            for (size_t i = 0; i + 2 < sz.size(); ++i) batch *= sz[i];
+
+            turbogator::equi_rms_norm_unrolled_selector(
+                x.data_ptr<float>(),
+                weight_ptr,
+                out.data_ptr<float>(),
+                batch, n_channels, eps_val);
+            return out;
+        },
+        py::arg("x"),
+        py::arg("weight") = py::none(),
+        py::arg("eps") = py::none());
+    
+    m.def(
+        "equi_rms_norm_reciprocal_div",
+        [](torch::Tensor x, py::object weight, py::object eps)
+        {
+            x = x.contiguous();
+            auto out = make_out_like(x);
+
+            const float *weight_ptr = nullptr;
+            if (!weight.is_none())
+            {
+                auto weight_tensor = weight.cast<torch::Tensor>().contiguous();
+                if (weight_tensor.numel())
+                    weight_ptr = weight_tensor.data_ptr<float>();
+            }
+
+            float eps_val = 1.1920929e-07f;
+            if (!eps.is_none())
+                eps_val = eps.cast<float>();
+
+            const auto& sz = x.sizes();
+            size_t n_channels = sz[sz.size() - 2];
+            size_t batch = 1;
+            for (size_t i = 0; i + 2 < sz.size(); ++i) batch *= sz[i];
+
+            turbogator::equi_rms_norm_reciprocal_div(
+                x.data_ptr<float>(),
+                weight_ptr,
+                out.data_ptr<float>(),
+                batch, n_channels, eps_val);
+            return out;
+        },
+        py::arg("x"),
+        py::arg("weight") = py::none(),
+        py::arg("eps") = py::none());
+    
+    m.def(
+        "equi_rms_norm_prefetch",
+        [](torch::Tensor x, py::object weight, py::object eps)
+        {
+            x = x.contiguous();
+            auto out = make_out_like(x);
+
+            const float *weight_ptr = nullptr;
+            if (!weight.is_none())
+            {
+                auto weight_tensor = weight.cast<torch::Tensor>().contiguous();
+                if (weight_tensor.numel())
+                    weight_ptr = weight_tensor.data_ptr<float>();
+            }
+
+            float eps_val = 1.1920929e-07f;
+            if (!eps.is_none())
+                eps_val = eps.cast<float>();
+
+            const auto& sz = x.sizes();
+            size_t n_channels = sz[sz.size() - 2];
+            size_t batch = 1;
+            for (size_t i = 0; i + 2 < sz.size(); ++i) batch *= sz[i];
+
+            turbogator::equi_rms_norm_prefetch(
+                x.data_ptr<float>(),
+                weight_ptr,
+                out.data_ptr<float>(),
+                batch, n_channels, eps_val);
+            return out;
+        },
+        py::arg("x"),
+        py::arg("weight") = py::none(),
+        py::arg("eps") = py::none());
+
+    m.def(
+        "equi_rms_norm_unrolled_channels_4",
+        [](torch::Tensor x, py::object weight, py::object eps)
+        {
+            x = x.contiguous();
+            auto out = make_out_like(x);
+
+            const float *weight_ptr = nullptr;
+            if (!weight.is_none())
+            {
+                auto weight_tensor = weight.cast<torch::Tensor>().contiguous();
+                if (weight_tensor.numel())
+                    weight_ptr = weight_tensor.data_ptr<float>();
+            }
+
+            float eps_val = 1.1920929e-07f;
+            if (!eps.is_none())
+                eps_val = eps.cast<float>();
+
+            const auto& sz = x.sizes();
+            size_t n_channels = sz[sz.size() - 2];
+            size_t batch = 1;
+            for (size_t i = 0; i + 2 < sz.size(); ++i) batch *= sz[i];
+
+            turbogator::equi_rms_norm_unrolled_channels_4(
+                x.data_ptr<float>(),
+                weight_ptr,
+                out.data_ptr<float>(),
+                batch, n_channels, eps_val);
+            return out;
+        },
+        py::arg("x"),
+        py::arg("weight") = py::none(),
+        py::arg("eps") = py::none());
+    
+    m.def(
+        "equi_rms_norm_assume_aligned",
+        [](torch::Tensor x, py::object weight, py::object eps)
+        {
+            x = x.contiguous();
+            auto out = make_out_like(x);
+
+            const float *weight_ptr = nullptr;
+            if (!weight.is_none())
+            {
+                auto weight_tensor = weight.cast<torch::Tensor>().contiguous();
+                if (weight_tensor.numel())
+                    weight_ptr = weight_tensor.data_ptr<float>();
+            }
+
+            float eps_val = 1.1920929e-07f;
+            if (!eps.is_none())
+                eps_val = eps.cast<float>();
+
+            const auto& sz = x.sizes();
+            size_t n_channels = sz[sz.size() - 2];
+            size_t batch = 1;
+            for (size_t i = 0; i + 2 < sz.size(); ++i) batch *= sz[i];
+
+            turbogator::equi_rms_norm_assume_aligned(
+                x.data_ptr<float>(),
+                weight_ptr,
+                out.data_ptr<float>(),
+                batch, n_channels, eps_val);
+            return out;
+        },
+        py::arg("x"),
+        py::arg("weight") = py::none(),
+        py::arg("eps") = py::none());
+    
+    m.def(
+        "equi_rms_norm_combined",
+        [](torch::Tensor x, py::object weight, py::object eps)
+        {
+            x = x.contiguous();
+            auto out = make_out_like(x);
+
+            const float *weight_ptr = nullptr;
+            if (!weight.is_none())
+            {
+                auto weight_tensor = weight.cast<torch::Tensor>().contiguous();
+                if (weight_tensor.numel())
+                    weight_ptr = weight_tensor.data_ptr<float>();
+            }
+
+            float eps_val = 1.1920929e-07f;
+            if (!eps.is_none())
+                eps_val = eps.cast<float>();
+
+            const auto& sz = x.sizes();
+            size_t n_channels = sz[sz.size() - 2];
+            size_t batch = 1;
+            for (size_t i = 0; i + 2 < sz.size(); ++i) batch *= sz[i];
+
+            turbogator::equi_rms_norm_combined(
+                x.data_ptr<float>(),
+                weight_ptr,
+                out.data_ptr<float>(),
                 batch, n_channels, eps_val);
             return out;
         },
