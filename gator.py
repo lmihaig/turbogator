@@ -194,6 +194,8 @@ def cmd_microbench(args, build=True):
             "none",
             "--out",
             str(metrics_out),
+            "--steps",
+            "20",
         ]
     )
 

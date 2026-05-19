@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <cstring>
+#include <algorithm>
 #include <limits>
 #include <vector>
 
@@ -10,7 +11,9 @@ namespace turbogator {
 static constexpr int N_BLADES  = 16;
 static constexpr int N_IPA     = 7;
 static constexpr int N_DAA     = 5;
-static constexpr float DAA_EPS = 1e-3f;
+static constexpr float   DAA_EPS = 1e-3f;
+static constexpr int64_t BT      = 32;   // token tile size for score GEMM
+static constexpr int64_t BD      = 64;   // feature tile size for score GEMM
 
 static constexpr int IPA_IDX[N_IPA] = {0, 2, 3, 4, 8, 9, 10};
 static constexpr int TRI_IDX[4]     = {11, 12, 13, 14};
@@ -123,25 +126,42 @@ void equi_geometric_attention_optimized1(
                 }
             }
 
-            // scaled_dot_product_attention - Compute scores, softmax, weighted sum of v
-            for (int64_t t1 = 0; t1 < T; ++t1) {
-                const float* qf1     = q_flat.data() + t1 * qk_dim;
-                float        row_max = -std::numeric_limits<float>::infinity();
+            // Blocked GEMM score
+            const float neg_inf = -std::numeric_limits<float>::infinity();
+            for (int64_t t1 = 0; t1 < T; ++t1)
+                for (int64_t t2 = 0; t2 < T; ++t2)
+                    scores[t1 * T + t2] = (is_causal && t2 > t1) ? neg_inf : 0.f;
 
-                for (int64_t t2 = 0; t2 < T; ++t2) {
-                    float s;
-                    if (is_causal && t2 > t1) {
-                        s = -std::numeric_limits<float>::infinity();
-                    } else {
-                        const float* kf2 = k_flat.data() + t2 * qk_dim;
-                        s = 0.f;
-                        for (int64_t d = 0; d < qk_dim; ++d)
-                            s += qf1[d] * kf2[d];
-                        s *= scale;
-                        if (attn_mask)
-                            s += attn_mask[((b * H + h) * T + t1) * T + t2];
+            for (int64_t t1b = 0; t1b < T; t1b += BT) {
+                const int64_t t1_end = std::min(t1b + BT, T);
+                for (int64_t t2b = 0; t2b < T; t2b += BT) {
+                    if (is_causal && t2b >= t1_end) break;
+                    const int64_t t2_end = std::min(t2b + BT, T);
+                    for (int64_t db = 0; db < qk_dim; db += BD) {
+                        const int64_t d_len = std::min(db + BD, qk_dim) - db;
+                        for (int64_t t1 = t1b; t1 < t1_end; ++t1) {
+                            const float*  qf1    = q_flat.data() + t1 * qk_dim + db;
+                            const int64_t t2_lim = is_causal ? std::min(t2_end, t1 + 1) : t2_end;
+                            for (int64_t t2 = t2b; t2 < t2_lim; ++t2) {
+                                const float* kf2 = k_flat.data() + t2 * qk_dim + db;
+                                float s = 0.f;
+                                for (int64_t d = 0; d < d_len; ++d)
+                                    s += qf1[d] * kf2[d];
+                                scores[t1 * T + t2] += s;
+                            }
+                        }
                     }
-                    scores[t1 * T + t2] = s;
+                }
+            }
+
+            // Scale, mask, softmax, weighted value sum
+            for (int64_t t1 = 0; t1 < T; ++t1) {
+                float row_max = neg_inf;
+                for (int64_t t2 = 0; t2 < T; ++t2) {
+                    float& s = scores[t1 * T + t2];
+                    s *= scale;
+                    if (attn_mask)
+                        s += attn_mask[((b * H + h) * T + t1) * T + t2];
                     if (s > row_max) row_max = s;
                 }
 
