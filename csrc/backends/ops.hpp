@@ -7,6 +7,7 @@
 namespace turbogator {
 
 void geometric_product_baseline(const float* a, const float* b, float* out, size_t n);
+void geometric_product_opt_v1(const float* a, const float* b, float* out, size_t n);
 void geometric_product_vectorized(const float* a, const float* b, float* out, size_t n);
 
 void equi_join_baseline(const float* a, const float* b, const float* ref, float* out, size_t n);
@@ -35,6 +36,12 @@ void scaler_gated_gelu_baseline(const float* x, float* out, size_t n);
 void equi_linear_baseline(const float* x, const float* weight, const float* bias, float* out,
                           size_t batch, size_t in_channels, size_t out_channels,
                           bool normalize_basis = true);
+void equi_linear_opt_v1(const float* x, const float* weight, const float* bias, float* out,
+                        size_t batch, size_t in_channels, size_t out_channels,
+                        bool normalize_basis = true);
+void equi_linear_opt_v2(const float* x, const float* weight, const float* bias, float* out,
+                        size_t batch, size_t in_channels, size_t out_channels,
+                        bool normalize_basis = true);
 void equi_rms_norm_baseline(const float* x, const float* weight, float* out,
                             size_t batch, size_t n_channels, float eps);
 void equi_rms_norm_branchless_clamp(const float* x, const float* weight, float* out,

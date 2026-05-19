@@ -58,6 +58,32 @@ PYBIND11_MODULE(turbogator_ext, m)
         
         return out; });
 
+    m.def("geometric_product_opt_v1", [](torch::Tensor a, torch::Tensor b)
+          {
+        auto a_contig = a.contiguous();
+        auto b_contig = b.contiguous();
+        if (a_contig.numel() != b_contig.numel())
+        {
+            throw std::runtime_error("geometric_product_opt_v1: size mismatch between a and b");
+        }
+
+        if (a_contig.size(-1) != 16) {
+            throw std::runtime_error("geometric_product_opt_v1: last dimension must be 16");
+        }
+
+        auto out = make_out_like(a_contig);
+
+        size_t num_multivectors = a_contig.numel() / 16;
+
+        turbogator::geometric_product_opt_v1(
+            a_contig.data_ptr<float>(),
+            b_contig.data_ptr<float>(),
+            out.data_ptr<float>(),
+            num_multivectors
+        );
+
+        return out; });
+
     m.def("geometric_product_vectorized", [](torch::Tensor a, torch::Tensor b)
           {
         if (a.numel() != b.numel()) {
@@ -406,6 +432,40 @@ PYBIND11_MODULE(turbogator_ext, m)
                 batch *= x_sizes[i];
 
             turbogator::equi_linear_baseline(
+                x.data_ptr<float>(), weight.data_ptr<float>(), bias_ptr,
+                out.data_ptr<float>(), batch, in_channels, out_channels, normalize_basis);
+            return out;
+        },
+        py::arg("x"),
+        py::arg("weight"),
+        py::arg("bias") = py::none(),
+        py::arg("normalize_basis") = true);
+
+    m.def(
+        "equi_linear_opt_v2",
+        [](torch::Tensor x, torch::Tensor weight, py::object bias, bool normalize_basis)
+        {
+            x = x.contiguous();
+            weight = weight.contiguous();
+            auto out = make_equi_linear_out(x, weight);
+
+            torch::Tensor bias_tensor;
+            const float *bias_ptr = nullptr;
+            if (!bias.is_none())
+            {
+                bias_tensor = bias.cast<torch::Tensor>().contiguous();
+                if (bias_tensor.numel())
+                    bias_ptr = bias_tensor.data_ptr<float>();
+            }
+
+            const auto x_sizes = x.sizes();
+            size_t in_channels = x_sizes[x_sizes.size() - 2];
+            size_t out_channels = weight.size(0);
+            size_t batch = 1;
+            for (size_t i = 0; i + 2 < x_sizes.size(); ++i)
+                batch *= x_sizes[i];
+
+            turbogator::equi_linear_opt_v2(
                 x.data_ptr<float>(), weight.data_ptr<float>(), bias_ptr,
                 out.data_ptr<float>(), batch, in_channels, out_channels, normalize_basis);
             return out;
