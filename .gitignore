@@ -29,12 +29,14 @@ __pycache__/
 .DS_Store
 .idea/
 
+junk/
+
 results/microbench/
 results/raw/
 results/plots/
-results/history.jsonl
 *.tar.gz
 *.bin
 workspace.tar.gz
 
 !results/reference/
+!results/baseline/

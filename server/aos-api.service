@@ -3,11 +3,15 @@ Description=TurboGator ASL Benchmarking API
 After=network.target
 
 [Service]
-User=root
-WorkingDirectory=/opt/aos/api
-Environment="PATH=/root/.local/bin:/opt/aos/api/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-ExecStart=/opt/aos/api/.venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000
+# {{USER_LINE}} — root-mode deploys override; user-mode deploys leave User unset.
+WorkingDirectory={{ROOT_DIR}}/api
+Environment="PATH={{HOME}}/.local/bin:{{ROOT_DIR}}/api/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+Environment="AOS_ROOT_DIR={{ROOT_DIR}}"
+Environment="AOS_WORKSPACE_DIR={{ROOT_DIR}}/workspaces"
+Environment="AOS_ARTIFACT_DIR={{ROOT_DIR}}/artifacts"
+Environment="AOS_SCRIPTS_DIR={{ROOT_DIR}}/scripts"
+ExecStart={{ROOT_DIR}}/api/.venv/bin/uvicorn main:app --host {{LISTEN_HOST}} --port 8000
 Restart=always
 
 [Install]
-WantedBy=multi-user.target
+WantedBy={{WANTED_BY}}

@@ -1,7 +1,8 @@
 {
+  "server": "adam",
   "user": "lmg",
   "description": "ezgatr",
-  "job_id": "1778612066_lmg",
+  "job_id": "1779720406_lmg",
   "data": [
     {
       "X": {
@@ -10,20 +11,10 @@
         "C_in": 2,
         "D": 16
       },
-      "cycles": 1420867210.4,
+      "cycles": 740169008.75,
       "N": 1,
       "perf": {
-        "cycles": 20198034012.0,
-        "instructions": 31171768509.0,
-        "branches": 3172023814.0,
-        "branch-misses": 55331573.0,
-        "L1-dcache-loads": 13138110656.0,
-        "LLC-load-misses": 521626.0,
-        "dTLB-load-misses": 6173943.0,
-        "topdown-retiring": 45927331893.0,
-        "topdown-bad-spec": 8634942189.0,
-        "topdown-fe-bound": 17571682550.0,
-        "topdown-be-bound": 28802093920.0
+        "cycles": null
       }
     },
     {
@@ -33,20 +24,10 @@
         "C_in": 4,
         "D": 16
       },
-      "cycles": 2713354424.0,
+      "cycles": 1570144595.0,
       "N": 2,
       "perf": {
-        "cycles": 33109907958.0,
-        "instructions": 52239510612.0,
-        "branches": 4205912107.0,
-        "branch-misses": 58690723.0,
-        "L1-dcache-loads": 23616172632.0,
-        "LLC-load-misses": 884975.0,
-        "dTLB-load-misses": 316600351.0,
-        "topdown-retiring": 81023148129.0,
-        "topdown-bad-spec": 9388173187.0,
-        "topdown-fe-bound": 20181822783.0,
-        "topdown-be-bound": 54816991161.0
+        "cycles": null
       }
     },
     {
@@ -56,20 +37,10 @@
         "C_in": 6,
         "D": 16
       },
-      "cycles": 3954058072.0,
+      "cycles": 2387674976.25,
       "N": 3,
       "perf": {
-        "cycles": 45463016140.0,
-        "instructions": 72958295120.0,
-        "branches": 5153354261.0,
-        "branch-misses": 61699787.0,
-        "L1-dcache-loads": 34049310664.0,
-        "LLC-load-misses": 1282801.0,
-        "dTLB-load-misses": 9500358.0,
-        "topdown-retiring": 116109046391.0,
-        "topdown-bad-spec": 9956094034.0,
-        "topdown-fe-bound": 29406509335.0,
-        "topdown-be-bound": 71788155645.0
+        "cycles": null
       }
     },
     {
@@ -79,20 +50,10 @@
         "C_in": 8,
         "D": 16
       },
-      "cycles": 6061642151.2,
+      "cycles": 4163099972.4999995,
       "N": 4,
       "perf": {
-        "cycles": 65682628789.0,
-        "instructions": 100386190330.0,
-        "branches": 7134791420.0,
-        "branch-misses": 66292607.0,
-        "L1-dcache-loads": 46451470114.0,
-        "LLC-load-misses": 1884709.0,
-        "dTLB-load-misses": 661783598.0,
-        "topdown-retiring": 160135667776.0,
-        "topdown-bad-spec": 11346673191.0,
-        "topdown-fe-bound": 29131938081.0,
-        "topdown-be-bound": 127617802818.0
+        "cycles": null
       }
     },
     {
@@ -102,20 +63,10 @@
         "C_in": 12,
         "D": 16
       },
-      "cycles": 8962860922.4,
+      "cycles": 5519789387.5,
       "N": 6,
       "perf": {
-        "cycles": 94436248597.0,
-        "instructions": 149341844563.0,
-        "branches": 9816454155.0,
-        "branch-misses": 74642429.0,
-        "L1-dcache-loads": 70172630217.0,
-        "LLC-load-misses": 3749735.0,
-        "dTLB-load-misses": 1001294174.0,
-        "topdown-retiring": 241890818456.0,
-        "topdown-bad-spec": 13123615227.0,
-        "topdown-fe-bound": 40401663907.0,
-        "topdown-be-bound": 176361016405.0
+        "cycles": null
       }
     },
     {
@@ -125,20 +76,10 @@
         "C_in": 16,
         "D": 16
       },
-      "cycles": 12717603636.0,
+      "cycles": 8904562606.25,
       "N": 8,
       "perf": {
-        "cycles": 130342854280.0,
-        "instructions": 201092129420.0,
-        "branches": 12568421915.0,
-        "branch-misses": 81023171.0,
-        "L1-dcache-loads": 95428781214.0,
-        "LLC-load-misses": 5146317.0,
-        "dTLB-load-misses": 1342070036.0,
-        "topdown-retiring": 327936011956.0,
-        "topdown-bad-spec": 14715301314.0,
-        "topdown-fe-bound": 47780831934.0,
-        "topdown-be-bound": 260613197322.0
+        "cycles": null
       }
     },
     {
@@ -148,20 +89,10 @@
         "C_in": 24,
         "D": 16
       },
-      "cycles": 20126953757.6,
+      "cycles": 14019020015.0,
       "N": 12,
       "perf": {
-        "cycles": 203442082472.0,
-        "instructions": 311923584364.0,
-        "branches": 18316341555.0,
-        "branch-misses": 96716268.0,
-        "L1-dcache-loads": 149554240343.0,
-        "LLC-load-misses": 11894512.0,
-        "dTLB-load-misses": 2013615976.0,
-        "topdown-retiring": 513893420615.0,
-        "topdown-bad-spec": 18236850388.0,
-        "topdown-fe-bound": 67447498447.0,
-        "topdown-be-bound": 416703225892.0
+        "cycles": null
       }
     },
     {
@@ -171,20 +102,10 @@
         "C_in": 32,
         "D": 16
       },
-      "cycles": 28816744177.6,
+      "cycles": 19432496505.0,
       "N": 16,
       "perf": {
-        "cycles": 290088132747.0,
-        "instructions": 444245237561.0,
-        "branches": 26229843223.0,
-        "branch-misses": 120407464.0,
-        "L1-dcache-loads": 212199410355.0,
-        "LLC-load-misses": 16520430.0,
-        "dTLB-load-misses": 2720357904.0,
-        "topdown-retiring": 733325463837.0,
-        "topdown-bad-spec": 24157228554.0,
-        "topdown-fe-bound": 95648175036.0,
-        "topdown-be-bound": 595548623734.0
+        "cycles": null
       }
     }
   ]

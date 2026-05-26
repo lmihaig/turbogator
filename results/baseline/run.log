@@ -1,0 +1,50 @@
+
+$ uv sync --reinstall-package turbogator
+Resolved 48 packages in 1ms
+   Building turbogator @ file:///home/mihai/aos/workspaces/1779833030_lmg
+      Built turbogator @ file:///home/mihai/aos/workspaces/1779833030_lmg
+Prepared 1 package in 52.92s
+Uninstalled 1 package in 0.80ms
+Installed 1 package in 1ms
+ - turbogator==0.1.0 (from file:///home/mihai/aos/workspaces/1779832487_lmg)
+ + turbogator==0.1.0 (from file:///home/mihai/aos/workspaces/1779833030_lmg)
+
+sample compile command:
+  /usr/bin/c++  -pthread -DUSE_C10D_GLOO -DUSE_DISTRIBUTED -DUSE_RPC -DUSE_TENSORPIPE -Dturbogator_ext_EXPORTS -I/home/mihai/aos/workspaces/1779833030_lmg/csrc -isystem /home/mihai/aos/shared_venv/lib/python3.12/site-packages/torch/include -isystem /home/mihai/aos/shared_venv/lib/python3.12/site-packages/torch/include/torch/csrc/api/include -isystem /home/mihai/aos/shared_venv/lib/python3.12/site-packages/pybind11/include -isystem /home/mihai/.local/share/uv/python/cpython-3.12-linux-x86_64-gnu/include/python3.12 -O2 -g -DNDEBUG -std=gnu++17 -fPIC -fvisibility=hidden -Wall -Wextra -march=native -O3 -g -fno-tree-vectorize -fno-tree-slp-vectorize -D_GLIBCXX_USE_CXX11_ABI=0 -Winvalid-pch -include /home/mihai/aos/workspaces/1779833030_lmg/build/skbuild/CMakeFiles/turbogator_ext.dir/cmake_pch.hxx -o CMakeFiles/turbogator_ext.dir/csrc/bindings.cpp.o -c /home/mihai/aos/workspaces/1779833030_lmg/csrc/bindings.cpp
+turbogator_ext.cpython-312-x86_64-linux-gnu.so: ymm=244 xmm=3984 fma=363
+
+$ perf stat -a --no-big-num -x , -e unc_m_cas_count_rd,unc_m_cas_count_wr -o /home/mihai/aos/workspaces/1779833030_lmg/dram_1.csv -- taskset -c 4 uv run perf stat --control fd:4 --no-big-num -x , -e cpu_core/cycles/,cpu_core/instructions/,cpu_core/FP_ARITH_INST_RETIRED.256B_PACKED_SINGLE/,cpu_core/FP_ARITH_INST_RETIRED.SCALAR_SINGLE/,cpu_core/mem_load_retired.l3_miss/,cpu_core/L1-dcache-loads/ -o /home/mihai/aos/workspaces/1779833030_lmg/perf_1.csv -- python turbogator/benchmark.py --desc baseline --t 32 --c 2 --warmup 3 --steps 5 --out /home/mihai/aos/workspaces/1779833030_lmg/temp_1.json --perf-ctl-fd 5
+Events disabled
+[Warmup 01/03] 5.298691 s
+[Warmup 02/03] 4.836134 s
+[Warmup 03/03] 4.858268 s
+Events enabled
+[Active 01/05] 4.837811 s
+[Active 02/05] 4.838039 s
+[Active 03/05] 4.836401 s
+[Active 04/05] 4.835227 s
+[Active 05/05] 4.861408 s
+Events disabled
+
+==================================================
+[Warmup Phase] (3 steps)
+  W01: 5.298691 s
+  W02: 4.836134 s
+  W03: 4.858268 s
+Warmup Drop-off: 1.09x
+--------------------------------------------------
+[Active Phase] (5 steps)
+  S01: 4.837811s
+  S02: 4.838039s
+  S03: 4.836401s
+  S04: 4.835227s
+  S05: 4.861408s
+--------------------------------------------------
+Metrics:
+  Mean   + StdDev : 4.841777s + 0.009868s
+  Median + IQR/2  : 4.837811s + 0.000819s
+  Min / Max       : 4.835227s / 4.861408s
+ Var   : 0.20%
+==================================================
+
+{'X': {'B': 8, 'T': 32, 'C_in': 2, 'D': 16}, 'cycles': 12094526617.5}

@@ -1,5 +1,6 @@
 import argparse
 import json
+import os
 import time
 from pathlib import Path
 
@@ -10,25 +11,9 @@ from torch.profiler import record_function
 
 import config as app_config
 from turbogator.engine import TurboGatorModel
+from turbogator.engine.baseline_gatr import BaselineGATrModel
 
-# stupid stuff for intel advisor god
-try:
-    import pyitt
-except ImportError:
-    pyitt = None
-
-
-class AdvisorRegion:
-    def __init__(self, profile):
-        self.profile = profile
-
-    def __enter__(self):
-        if self.profile == "advisor" and pyitt is not None:
-            pyitt.resume()
-
-    def __exit__(self, *args):
-        if self.profile == "advisor" and pyitt is not None:
-            pyitt.pause()
+torch.set_num_threads(1)
 
 
 # wrapper for easier identification in traces
@@ -67,13 +52,15 @@ def analyze_runs(warmup_ns, step_ns):
 
         cv_pct = (std_s / mean_s) * 100 if mean_s > 0 else 0
 
+        # fmt: off
         print("Metrics:")
-        print(f"  Mean   + StdDev : {mean_s:.6f}s + {std_s:.6f}s")
-        print(f"  Median + IQR/2  : {median_s:.6f}s + {iqr_s / 2:.6f}s")
-        print(f"  Min / Max       : {min_s:.6f}s / {max_s:.6f}s")
-        print(f" Var   : {cv_pct:.2f}%")
+        print(f"  Mean   + StdDev : {mean_s:.6f}s + {std_s:.6f}s")              # should be < 1% delta
+        print(f"  Median + IQR/2  : {median_s:.6f}s + {iqr_s / 2:.6f}s")        # IQR/2 < 0.5% of median
+        print(f"  Min / Max       : {min_s:.6f}s / {max_s:.6f}s")               # Max = 1.1 * Min
+        print(f" Var   : {cv_pct:.2f}%")                                        # ~1% pls
 
     print("=" * 50 + "\n")
+    # fmt: on
 
 
 def run_torch_profiler(model, x, out_path):
@@ -100,20 +87,32 @@ def run_torch_profiler(model, x, out_path):
             prof.step()
 
 
-def benchmark(desc, T, C_in, seed, warmup, steps, profile, profile_out):
+def _perf_ctl(ctl_fd, cmd):
+    if ctl_fd is not None:
+        os.write(ctl_fd, f"{cmd}\n".encode())
+
+
+def benchmark(desc, T, C_in, seed, warmup, steps, profile, profile_out, perf_ctl_fd):
     torch.manual_seed(seed)
 
     B, D = app_config.BATCH_SIZE, app_config.VECTOR_DIM
     cfg = MVOnlyGATrConfig(size_channels_in=C_in)
 
-    model = (
-        MVOnlyGATrModel(cfg).eval() if desc == "ezgatr" else TurboGatorModel(cfg).eval()
-    )
+    if desc == "ezgatr":
+        model = MVOnlyGATrModel(cfg).eval()
+    elif desc == "baseline":
+        model = BaselineGATrModel(cfg).eval()
+    else:
+        model = TurboGatorModel(cfg).eval()
+
     x = torch.randn(B, T, C_in, D)
 
     with torch.no_grad():
         if profile == "torch":
             return run_torch_profiler(model, x, profile_out)
+
+        # disable perf stat --control to ignore warmup
+        _perf_ctl(perf_ctl_fd, "disable")
 
         warmup_times_ns = []
         for i in range(warmup):
@@ -125,16 +124,20 @@ def benchmark(desc, T, C_in, seed, warmup, steps, profile, profile_out):
             )
             warmup_times_ns.append(t1 - t0)
 
+        # Enable perf counting for the timed steps only.
+        _perf_ctl(perf_ctl_fd, "enable")
+
         step_times_ns = []
         for i in range(steps):
             t0 = time.perf_counter_ns()
-            with AdvisorRegion(profile):
-                GATOR_FORWARD_PASS(model, x)
+            GATOR_FORWARD_PASS(model, x)
             t1 = time.perf_counter_ns()
             print(
                 f"[Active {i + 1:02d}/{steps:02d}] {(t1 - t0) / 1e9:.6f} s", flush=True
             )
             step_times_ns.append(t1 - t0)
+
+        _perf_ctl(perf_ctl_fd, "disable")
 
     analyze_runs(warmup_times_ns, step_times_ns)
 
@@ -143,9 +146,6 @@ def benchmark(desc, T, C_in, seed, warmup, steps, profile, profile_out):
         "cycles": float(np.median(step_times_ns)) * app_config.CPU_FREQ / 1e9,
     }
     print(result)
-
-    if profile == "advisor":
-        time.sleep(1)
 
     return result
 
@@ -156,11 +156,12 @@ if __name__ == "__main__":
     parser.add_argument("--t", type=int, required=True)
     parser.add_argument("--c", type=int, required=True)
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--warmup", type=int, default=2)
-    parser.add_argument("--steps", type=int, default=3)
+    parser.add_argument("--warmup", type=int, default=3)
+    parser.add_argument("--steps", type=int, default=5)
     parser.add_argument("--profile", type=str, default="none")
     parser.add_argument("--profile-out", type=str, default=None)
     parser.add_argument("--out", type=str, default=None)
+    parser.add_argument("--perf-ctl-fd", type=int, default=None)
     args = parser.parse_args()
 
     result = benchmark(
@@ -172,6 +173,7 @@ if __name__ == "__main__":
         steps=args.steps,
         profile=args.profile,
         profile_out=args.profile_out,
+        perf_ctl_fd=args.perf_ctl_fd,
     )
 
     if args.out and result is not None:

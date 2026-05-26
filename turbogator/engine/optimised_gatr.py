@@ -9,7 +9,7 @@ from einops import rearrange
 
 # still use the ezgatr config
 from ezgatr.nets.mv_only_gatr import MVOnlyGATrConfig
-from turbogator.engine import cpp_bindings as c_ops
+from turbogator import cpp_bindings as c_ops
 
 class EquiLinear(nn.Module):
     __constants__ = ["in_channels", "out_channels", "normalize_basis"]

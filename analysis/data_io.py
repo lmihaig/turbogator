@@ -3,6 +3,16 @@ from pathlib import Path
 
 import pandas as pd
 
+# rows without server to default to mihai
+# in case we want to keep/plot smth
+LEGACY_SERVER = "mihai"
+
+
+def _annotate_server(row):
+    if isinstance(row, dict):
+        row.setdefault("server", LEGACY_SERVER)
+    return row
+
 
 def read_jsonl_records(path: Path):
     if not path.exists():
@@ -20,7 +30,7 @@ def read_jsonl_records(path: Path):
         except json.JSONDecodeError:
             continue
         if isinstance(row, dict):
-            records.append(row)
+            records.append(_annotate_server(row))
     return records
 
 
@@ -28,6 +38,21 @@ def load_history_dataframe(history_file: Path):
     return pd.DataFrame(
         row for row in read_jsonl_records(history_file) if "data" in row
     )
+
+
+def load_baseline_dataframe(baseline_file: Path):
+    if not baseline_file.exists():
+        return pd.DataFrame()
+    try:
+        payload = json.loads(baseline_file.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return pd.DataFrame()
+    if isinstance(payload, dict):
+        payload.setdefault("server", LEGACY_SERVER)
+        data = payload.get("data", [])
+    else:
+        data = []
+    return pd.DataFrame(data if isinstance(data, list) else [])
 
 
 def load_reference_dataframe(reference_file: Path):
@@ -39,5 +64,9 @@ def load_reference_dataframe(reference_file: Path):
     except (OSError, json.JSONDecodeError):
         return pd.DataFrame()
 
-    data = payload.get("data", []) if isinstance(payload, dict) else []
+    if isinstance(payload, dict):
+        payload.setdefault("server", LEGACY_SERVER)
+        data = payload.get("data", [])
+    else:
+        data = []
     return pd.DataFrame(data if isinstance(data, list) else [])

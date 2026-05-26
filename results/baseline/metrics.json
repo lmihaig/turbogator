@@ -1,0 +1,30 @@
+{
+  "server": "adam",
+  "user": "lmg",
+  "description": "baseline",
+  "job_id": "1779833030_lmg",
+  "data": [
+    {
+      "X": {
+        "B": 8,
+        "T": 32,
+        "C_in": 2,
+        "D": 16
+      },
+      "cycles": 12094526617.5,
+      "N": 1,
+      "perf": {
+        "cycles": 12629015472.4,
+        "instructions": 23742166212.4,
+        "FP_ARITH_INST_RETIRED.256B_PACKED_SINGLE": 294344.8,
+        "FP_ARITH_INST_RETIRED.SCALAR_SINGLE": 13860817236.2,
+        "mem_load_retired.l3_miss": 336231.2,
+        "L1-dcache-loads": 13893921864.2
+      },
+      "dram": {
+        "unc_m_cas_count_rd": 13280636.8,
+        "unc_m_cas_count_wr": 4583982.4
+      }
+    }
+  ]
+}

@@ -15,9 +15,15 @@ from pathlib import Path
 
 import config as app_config
 
-AUTH = "turbogator:TurboGator2026"
-URL = "https://aos.licu.dev"
+AUTH = app_config.AUTH
+URL = app_config.URL
 _BUILD_DONE = False
+
+
+PINNED_RESULTS = {
+    "ezgatr": "reference",
+    "baseline": "baseline",
+}
 
 
 class Log:
@@ -190,12 +196,14 @@ def cmd_microbench(args, build=True):
             str(t_dim),
             "--c",
             str(c_in),
+            "--warmup",
+            str(app_config.WARMUP),
+            "--steps",
+            str(app_config.STEPS),
             "--profile",
             "none",
             "--out",
             str(metrics_out),
-            "--steps",
-            "20",
         ]
     )
 
@@ -310,9 +318,14 @@ def cmd_plot(args):
 
 def cmd_submit(args):
     desc = args.description
-    is_ref = desc == "ezgatr"
+    pinned_dir = PINNED_RESULTS.get(desc)
     root = Path(".")
     tar_path = root / "workspace.tar.gz"
+
+    # sanity check
+    Log.info("Building and validating locally before submit...")
+    do_build()
+    cmd_validate(args, build=False)
 
     def filter_tar(info):
         name = info.name
@@ -373,7 +386,7 @@ def cmd_submit(args):
             break
         time.sleep(2)
 
-    out_dir = root / "results" / ("reference" if is_ref else f"raw/{job_id}")
+    out_dir = root / "results" / (pinned_dir if pinned_dir else f"raw/{job_id}")
     out_dir.mkdir(parents=True, exist_ok=True)
 
     Log.info("Downloading artifacts...")
@@ -406,7 +419,7 @@ def cmd_submit(args):
         if "error" in data:
             Log.error("Server reported execution failure. Check run.log.")
             sys.exit(1)
-        elif not is_ref:
+        elif not pinned_dir:
             with open(root / "results/history.jsonl", "a") as f:
                 f.write(json.dumps(data) + "\n")
             Log.success("Metrics appended to local history.")

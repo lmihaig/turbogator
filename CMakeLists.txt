@@ -49,7 +49,26 @@ target_compile_options(turbogator_ext PRIVATE
     -march=native
     -O3
     -g
+
+    -fno-tree-vectorize
+    -fno-tree-slp-vectorize
+
 )
+
+# TEST THESE LATER???
+# -funroll-loops 
+# -ffinite-math-only
+# -fno-math-errno         
+# -fno-trapping-math      
+# -fprefetch-loop-arrays 
+# -flto  
+
+target_precompile_headers(turbogator_ext PRIVATE
+    <torch/extension.h>
+    <pybind11/pybind11.h>
+)
+
+                
 
 target_include_directories(turbogator_ext PRIVATE 
     "${CMAKE_SOURCE_DIR}/csrc"
@@ -60,7 +79,13 @@ target_link_libraries(turbogator_ext PRIVATE ${TORCH_LIBRARIES})
 target_link_libraries(turbogator_ext PRIVATE ${TORCH_PYTHON_LIBRARY})
 target_link_options(turbogator_ext PRIVATE "-Wl,--no-as-needed")
 
-# target_link_options(turbogator_ext PRIVATE "-fuse-ld=lld")
+
+# optional mold linker
+include(CheckLinkerFlag)
+check_linker_flag(CXX "-fuse-ld=mold" LINKER_SUPPORTS_MOLD)
+if(LINKER_SUPPORTS_MOLD)
+    target_link_options(turbogator_ext PRIVATE "-fuse-ld=mold")
+endif()
 
 set_target_properties(turbogator_ext PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/turbogator"

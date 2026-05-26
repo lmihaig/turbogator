@@ -1,25 +1,85 @@
-MACHINE = "Intel N100 (1 Core, 800Mhz)"
+ACTIVE_SERVER = "adam"
 
-# 800 Mhz
-CPU_FREQ = 8e8
+WARMUP = 3
+STEPS = 5
+SIZES = [1]
+# SIZES = [1, 2, 3, 4, 6, 8, 12, 16]
+REPRESENTATIVE_N = 8
 
-ROOFLINE_BETA = 32
-ROOFLINE_PI_SCALAR = 3.33
-# single precision = 16, double precision = 8
-ROOFLINE_PI_VECTOR = 16
-
-# probably don't need to change these
+## Do not worry about things below this line :)
+########################################################################
 BATCH_SIZE = 8
 VECTOR_DIM = 16
-BUILD_JOBS = 4
-PINNED_CPU_CORE = 2
 
-# these are NOT N, these are sizes
-SIZES = [1, 2, 3, 4, 6, 8, 12, 16]
-# SIZES = [1]
+URL = "https://aos.licu.dev"
+AUTH = "turbogator:TurboGator2026"
 
-# this is used by the validation pipeline and also microbenchmarks
-REPRESENTATIVE_N = 8
+
+SERVERS = {
+    "adam": {
+        "ssh": "mihai@100.104.223.34",
+        "root_dir": "/home/mihai/aos",
+        "user_systemd": True,
+        "listen_host": "127.0.0.1",
+        "machine": "Intel Core 7 240H (P-core, 2.5GHz)",
+        "cpu_freq": 2.5e9,
+        "pinned_core": "4",
+        "build_jobs": 12,
+        "roofline_beta": 32,
+        "roofline_pi_scalar": 3.33,
+        "roofline_pi_vector": 16,
+        "perf_events": [
+            "cycles",
+            "instructions",
+            "FP_ARITH_INST_RETIRED.256B_PACKED_SINGLE",
+            "FP_ARITH_INST_RETIRED.SCALAR_SINGLE",
+            "mem_load_retired.l3_miss",
+            "L1-dcache-loads",
+        ],
+        "dram_events": [
+            "unc_m_cas_count_rd",
+            "unc_m_cas_count_wr",
+        ],
+    },
+    "mihai": {
+        "ssh": "root@192.168.1.130",
+        "root_dir": "/opt/aos",
+        "user_systemd": False,
+        "listen_host": "0.0.0.0",
+        "machine": "Intel N100 (E-Core, 800Mhz)",
+        "cpu_freq": 8e8,
+        "pinned_core": "2",
+        "build_jobs": 4,
+        "roofline_beta": 32,
+        "roofline_pi_scalar": 3.33,
+        "roofline_pi_vector": 16,
+        "perf_events": [
+            "cycles",
+            "instructions",
+            "branches",
+            "branch-misses",
+            "L1-dcache-loads",
+            "LLC-load-misses",
+            "dTLB-load-misses",
+            "topdown-retiring",
+            "topdown-bad-spec",
+            "topdown-fe-bound",
+            "topdown-be-bound",
+        ],
+        "dram_events": [],
+    },
+}
+
+_ACTIVE = SERVERS[ACTIVE_SERVER]
+MACHINE = _ACTIVE["machine"]
+CPU_FREQ = _ACTIVE["cpu_freq"]
+PINNED_CPU_CORE = _ACTIVE["pinned_core"]
+PERF_EVENTS = _ACTIVE["perf_events"]
+DRAM_EVENTS = _ACTIVE.get("dram_events", [])
+ROOFLINE_BETA = _ACTIVE["roofline_beta"]
+ROOFLINE_PI_SCALAR = _ACTIVE["roofline_pi_scalar"]
+ROOFLINE_PI_VECTOR = _ACTIVE["roofline_pi_vector"]
+BUILD_JOBS = _ACTIVE["build_jobs"]
 
 
 def get_dimensions(N):
@@ -27,36 +87,6 @@ def get_dimensions(N):
     T = 32 * N
     C_in = 2 * N
     return T, C_in
-
-
-PERF_EVENTS = [
-    "cycles",
-    "instructions",
-    "branches",
-    "branch-misses",
-    "L1-dcache-loads",
-    "LLC-load-misses",
-    "dTLB-load-misses",
-    "topdown-retiring",
-    "topdown-bad-spec",
-    "topdown-fe-bound",
-    "topdown-be-bound",
-]
-
-
-# LLVM_MCA_FLAGS = [
-#     "-mtriple=x86_64-unknown-unknown",
-#     "-mcpu=skylake",  # tool doesn't support gracemont particularly, but skylake e-cores should satisfy
-#     "-dispatch=6",
-#     "-lqueue=64",
-#     "-squeue=40",
-#     "-iterations=1000",
-#     "-bottleneck-analysis",
-#     "-timeline",
-#     "-timeline-max-cycles=100",
-#     "-all-stats",
-#     "-output-asm-variant=1",
-# ]
 
 
 def calculate_total_flops(B, T, C_in, D):
