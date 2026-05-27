@@ -3,48 +3,33 @@ import sys
 from pathlib import Path
 
 import numpy as np
-import pandas as pd
-from data_io import load_history_dataframe, load_reference_dataframe
+from data_io import description_order, load_history
 from matplotlib.ticker import LogLocator
-from style import PALETTE, add_series, new_single_axes, place_line_labels, save_figure
+from style import (
+    PALETTE,
+    PRIMARY_DESC,
+    add_series,
+    new_single_axes,
+    place_line_labels,
+    save_figure,
+    series_palette,
+)
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 import config as app_config
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 HISTORY_FILE = REPO_ROOT / "results" / "history.jsonl"
-REFERENCE_FILE = REPO_ROOT / "results" / "reference" / "metrics.json"
 PLOT_DIR = REPO_ROOT / "results" / "plots"
 
-
-def _roofline_points(df):
-    if "X" not in df.columns or "cycles" not in df.columns:
-        return pd.DataFrame(columns=["I", "perf"])
-
-    cycles = pd.to_numeric(df["cycles"], errors="coerce")
-    flops = df["X"].apply(
-        lambda x: (
-            app_config.calculate_total_flops(
-                x.get("B"), x.get("T"), x.get("C_in"), x.get("D")
-            )
-            if isinstance(x, dict)
-            else float("nan")
-        )
-    )
-    bytes_total = df["X"].apply(
-        lambda x: (
-            app_config.calculate_total_bytes(
-                x.get("B"), x.get("T"), x.get("C_in"), x.get("D")
-            )
-            if isinstance(x, dict)
-            else float("nan")
-        )
-    )
-
-    points = pd.DataFrame({"I": flops / bytes_total, "perf": flops / cycles})
-    valid = np.isfinite(points["I"]) & np.isfinite(points["perf"])
-    valid &= (points["I"] > 0) & (points["perf"] > 0)
-    return points[valid]
+# X: operational intensity (flops / byte).  Y: perf (flops / cycle).
+Y_COL = "perf"
+ROOFLINES = [
+    ("oi_dram", "roofline_dram", "Roofline (DRAM)"),
+    ("oi_l3", "roofline_l3", "Roofline (L3 warm-cache)"),
+    ("oi_l2", "roofline_l2", "Roofline (L2 warm-cache)"),
+    ("oi_l1", "roofline_l1", "Roofline (L1 warm-cache)"),
+]
 
 
 def _log_bounds(values, pad_powers=0.5, floor=1e-3):
@@ -52,25 +37,27 @@ def _log_bounds(values, pad_powers=0.5, floor=1e-3):
     arr = arr[np.isfinite(arr) & (arr > 0)]
     if arr.size == 0:
         return floor, 1.0
-
     span = 2**pad_powers
     lo = max(arr.min() / span, floor)
     hi = max(arr.max() * span, lo * 1.01)
     return lo, hi
 
 
-def _draw_roofline(ax, xlim, ylim):
-    beta = app_config.ROOFLINE_BETA
+def _draw_roofline(ax, xlim, ylim, beta, title):
+    x_min, x_max = xlim
+    y_min, y_max = ylim
     roofs = [
         ("π_s", app_config.ROOFLINE_PI_SCALAR, PALETTE["green"]),
         ("π_v", app_config.ROOFLINE_PI_VECTOR, PALETTE["blue"]),
     ]
 
-    x_min, x_max = xlim
-    y_min, y_max = ylim
-
-    x_mem = np.array([x_min, x_max], dtype=float)
-    ax.plot(x_mem, beta * x_mem, color="black", linestyle="-", linewidth=1.5)
+    ax.plot(
+        [x_min, x_max],
+        [beta * x_min, beta * x_max],
+        color="black",
+        linestyle="-",
+        linewidth=1.5,
+    )
 
     for label, peak, color in roofs:
         ridge = peak / beta
@@ -88,10 +75,9 @@ def _draw_roofline(ax, xlim, ylim):
         )
 
     x_anchor = min(x_min * 2.0, x_max / 2.0)
-    y_anchor = beta * x_anchor
     ax.annotate(
         f"β = {beta}",
-        xy=(x_anchor, y_anchor),
+        xy=(x_anchor, beta * x_anchor),
         xytext=(0, 0),
         textcoords="offset points",
         fontsize=9,
@@ -101,13 +87,7 @@ def _draw_roofline(ax, xlim, ylim):
         va="bottom",
     )
 
-    ax.set_title(
-        f"Roofline Model: {app_config.MACHINE}",
-        fontsize=13,
-        fontweight="bold",
-        loc="left",
-        pad=16,
-    )
+    ax.set_title(title, fontsize=13, fontweight="bold", loc="left", pad=16)
     ax.text(
         0.0,
         1.0,
@@ -120,75 +100,63 @@ def _draw_roofline(ax, xlim, ylim):
     )
     ax.set_ylabel("")
     ax.set_xlabel("Operational Intensity [flops / byte]")
-
     ax.set_xscale("log", base=2)
     ax.set_yscale("log", base=2)
     ax.set_xlim(x_min, x_max)
     ax.set_ylim(y_min, y_max)
-
     ax.xaxis.set_major_locator(LogLocator(base=2, subs=(1.0,), numticks=1000))
     ax.yaxis.set_major_locator(LogLocator(base=2, subs=(1.0,), numticks=1000))
-
     ax.grid(True, which="major", linewidth=0.6, color="white", alpha=1.0)
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
     ax.spines["left"].set_visible(False)
 
 
-def generate_roofline_plot():
-    history_df = load_history_dataframe(HISTORY_FILE)
-    reference_df = load_reference_dataframe(REFERENCE_FILE)
-
-    PLOT_DIR.mkdir(parents=True, exist_ok=True)
+def _generate_one(df, palette, oi_col, output_name, title_base):
     fig, ax = new_single_axes(figsize=(10, 6))
+    lines = []
 
-    plot_lines = []
-
-    reference_points = _roofline_points(reference_df)
-    plot_lines.append(
-        add_series(
-            ax,
-            x=reference_points["I"],
-            y=reference_points["perf"],
-            label="ezgatr",
-            primary=True,
-            linestyle="--",
-            linewidth=3.0,
-            marker="o",
-        )
-    )
-
-    for _, run in history_df.iterrows():
-        desc = str(run.get("description", "run")).strip()
-        points = run.get("data", [])
-
-        run_points = _roofline_points(pd.DataFrame(points))
-
-        plot_lines.append(
+    for desc in description_order(df):
+        g = df[df["description"] == desc].dropna(subset=[oi_col, Y_COL])
+        g = g[
+            (g[oi_col] > 0)
+            & (g[Y_COL] > 0)
+            & np.isfinite(g[oi_col])
+            & np.isfinite(g[Y_COL])
+        ]
+        if g.empty:
+            continue
+        is_primary = desc == PRIMARY_DESC
+        lines.append(
             add_series(
                 ax,
-                x=run_points["I"],
-                y=run_points["perf"],
+                x=g[oi_col],
+                y=g[Y_COL],
                 label=desc,
-                linewidth=2,
-                marker="s",
+                primary=is_primary,
+                color=palette[desc],
+                linestyle="--" if is_primary else "-",
+                linewidth=3.0 if is_primary else 2,
+                marker="o" if is_primary else "s",
             )
         )
 
+    if not lines:
+        return
+
     beta = app_config.ROOFLINE_BETA
     peaks = [app_config.ROOFLINE_PI_SCALAR, app_config.ROOFLINE_PI_VECTOR]
-    ridges = [peak / beta for peak in peaks]
+    ridges = [p / beta for p in peaks]
 
     all_x = list(ridges)
     all_y = list(peaks)
-    for line in plot_lines:
+    for line in lines:
         all_x.extend(line.get_xdata(orig=False))
         all_y.extend(line.get_ydata(orig=False))
 
     xlim = _log_bounds(all_x, pad_powers=0.6)
     ylim = _log_bounds(all_y, pad_powers=0.4)
 
-    # Match log spans to axes
     x_min, x_max = xlim
     y_min, y_max = ylim
     x_span = np.log2(x_max / x_min)
@@ -196,34 +164,35 @@ def generate_roofline_plot():
 
     bbox = ax.get_position()
     fig_w, fig_h = ax.figure.get_size_inches()
-    axes_w = bbox.width * fig_w
-    axes_h = bbox.height * fig_h
-    target_ratio = axes_h / axes_w
+    target_ratio = (bbox.height * fig_h) / (bbox.width * fig_w)
     current_ratio = y_span / x_span
 
-    # Expand ranges to match axes aspect
     if current_ratio < target_ratio:
         y_mid = np.sqrt(y_min * y_max)
         half = x_span * target_ratio / 2
-        y_min = y_mid / (2**half)
-        y_max = y_mid * (2**half)
+        y_min, y_max = y_mid / (2**half), y_mid * (2**half)
     elif current_ratio > target_ratio:
         x_mid = np.sqrt(x_min * x_max)
         half = y_span / target_ratio / 2
-        x_min = x_mid / (2**half)
-        x_max = x_mid * (2**half)
+        x_min, x_max = x_mid / (2**half), x_mid * (2**half)
 
-    xlim = (x_min, x_max)
-    ylim = (y_min, y_max)
-
-    _draw_roofline(ax, xlim, ylim)
-
-    place_line_labels(plot_lines)
-
-    output_path = PLOT_DIR / "roofline"
-    save_figure(fig, output_path)
-    print(f"Roofline plot successfully generated at: {output_path}")
+    _draw_roofline(
+        ax, (x_min, x_max), (y_min, y_max), beta, f"{title_base}: {app_config.MACHINE}"
+    )
+    place_line_labels(lines)
+    save_figure(fig, PLOT_DIR / output_name)
+    print(f"Plot saved: {PLOT_DIR / output_name}")
 
 
-if __name__ == "__main__":
-    generate_roofline_plot()
+def generate_roofline_plot():
+    df = load_history(HISTORY_FILE)
+    if df.empty:
+        print("No data in history.jsonl - skipping roofline plots.")
+        return
+
+    PLOT_DIR.mkdir(parents=True, exist_ok=True)
+    palette = series_palette(description_order(df))
+    for oi_col, name, title in ROOFLINES:
+        if oi_col not in df.columns:
+            continue
+        _generate_one(df, palette, oi_col, name, title)

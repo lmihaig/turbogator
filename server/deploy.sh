@@ -30,7 +30,6 @@ LISTEN_HOST="${CFG[4]}"
 
 echo "==> Deploying to '${ACTIVE}' (${REMOTE}), root_dir=${ROOT_DIR}, user_systemd=${USER_SYSTEMD}"
 
-# Render the unit file locally so we don't need sed-fu on the remote side.
 UNIT_TMPL="$SCRIPT_DIR/aos-api.service"
 UNIT_OUT="$(mktemp)"
 trap 'rm -f "$UNIT_OUT"' EXIT
@@ -38,7 +37,7 @@ trap 'rm -f "$UNIT_OUT"' EXIT
 if [[ "$USER_SYSTEMD" == "1" ]]; then
   REMOTE_USER="${REMOTE%@*}"
   HOME_DIR="/home/${REMOTE_USER}"
-  USER_LINE=""        # user units don't need User=
+  USER_LINE=""
   WANTED_BY="default.target"
 else
   HOME_DIR="/root"
@@ -54,7 +53,6 @@ sed \
   -e "s|# {{USER_LINE}}.*|${USER_LINE}|" \
   "$UNIT_TMPL" > "$UNIT_OUT"
 
-# Stage files in /tmp first, then move into place. Same approach for both modes.
 ssh "$REMOTE" "mkdir -p /tmp/aos_setup/server"
 rsync -avz --exclude 'deploy.sh' --exclude 'aos-api.service' "$SCRIPT_DIR/" "${REMOTE}:/tmp/aos_setup/server/"
 rsync -avz "$ROOT_DIR_LOCAL/pyproject.toml" "$ROOT_DIR_LOCAL/uv.lock" "$ROOT_DIR_LOCAL/config.py" "${REMOTE}:/tmp/aos_setup/"
@@ -63,8 +61,7 @@ scp "$UNIT_OUT" "${REMOTE}:/tmp/aos_setup/aos-api.service"
 if [[ "$USER_SYSTEMD" == "1" ]]; then
   ssh "$REMOTE" "ROOT_DIR='${ROOT_DIR}' bash -s" <<'REMOTE_EOF'
     set -euo pipefail
-    # Non-interactive SSH skips .bashrc / .profile, so PATH lacks ~/.local/bin
-    # where uv lives. Make it explicit.
+    # Non-interactive SSH skips .bashrc / .profile, so PATH lacks ~/.local/bin where uv lives.
     export PATH="$HOME/.local/bin:$PATH"
     export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 
@@ -80,7 +77,6 @@ if [[ "$USER_SYSTEMD" == "1" ]]; then
       exit 1
     fi
 
-    echo "Placing files under $ROOT_DIR..."
     mkdir -p "$ROOT_DIR"/{api,scripts,workspaces,artifacts}
 
     cp /tmp/aos_setup/server/main.py        "$ROOT_DIR/api/"
@@ -94,11 +90,9 @@ if [[ "$USER_SYSTEMD" == "1" ]]; then
     mkdir -p "$HOME/.config/systemd/user"
     cp /tmp/aos_setup/aos-api.service       "$HOME/.config/systemd/user/aos-api.service"
 
-    echo "Syncing Python environment (uv)..."
     cd "$ROOT_DIR/api"
     uv sync --group server --no-install-project
 
-    echo "Restarting aos-api (user unit)..."
     systemctl --user daemon-reload
     systemctl --user enable --now aos-api.service
     systemctl --user restart aos-api.service

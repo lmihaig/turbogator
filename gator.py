@@ -419,7 +419,7 @@ def cmd_submit(args):
         if "error" in data:
             Log.error("Server reported execution failure. Check run.log.")
             sys.exit(1)
-        elif not pinned_dir:
+        else:
             with open(root / "results/history.jsonl", "a") as f:
                 f.write(json.dumps(data) + "\n")
             Log.success("Metrics appended to local history.")

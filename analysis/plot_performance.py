@@ -2,13 +2,15 @@ import os
 import sys
 from pathlib import Path
 
-import pandas as pd
-from data_io import load_history_dataframe, load_reference_dataframe
+import numpy as np
+from data_io import description_order, load_history
 from style import (
+    PRIMARY_DESC,
     add_series,
     new_single_axes,
     place_line_labels,
     save_figure,
+    series_palette,
     style_axes,
 )
 
@@ -17,220 +19,167 @@ import config as app_config
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 HISTORY_FILE = REPO_ROOT / "results" / "history.jsonl"
-REFERENCE_FILE = REPO_ROOT / "results" / "reference" / "metrics.json"
 PLOT_DIR = REPO_ROOT / "results" / "plots"
 
-# move overlapping labels: "exact label string": (x_offset, y_offset)
-# offsets are roughly % of the axis span (+ is right/up, - is left/down).
-MANUAL_LABEL_ADJUSTMENTS = {
-    "test2 (scalar)": (-12.0, 1.2),
-}
+# T * C_in
+X_COL = "size"  
+
+# columns plotted by each subplot - change here to re-route the Y axis
+PERF_Y_COL    = "perf"     
+RUNTIME_Y_COL = "gcycles"  
+OI_Y_COL      = "oi_dram" 
+
+MANUAL_LABEL_ADJUSTMENTS = {}
 
 
-def _frame_from_points(points):
-    df = pd.DataFrame(points)
-    x = df["X"]
-    size = x.apply(lambda v: float(v["T"]) * float(v["C_in"]))
-    ar = x.apply(lambda v: float(v["T"]) / float(v["C_in"]))
-    cycles = df["cycles"].astype(float)
-    flops = x.apply(
-        lambda v: app_config.calculate_total_flops(v["B"], v["T"], v["C_in"], v["D"])
-    )
-    perf = flops / cycles
-    frame = pd.DataFrame({"size": size, "ar": ar, "cycles": cycles, "perf": perf})
-    return frame.sort_values("size", kind="mergesort")
+def _draw_lines(ax, df, palette, y_col, dropna=True):
+    lines, all_y = [], []
+    for desc in description_order(df):
+        g = df[df["description"] == desc].sort_values(X_COL)
+        if dropna:
+            g = g.dropna(subset=[X_COL, y_col])
+        g = g[np.isfinite(g[y_col])]
+        if g.empty:
+            continue
+        is_primary = desc == PRIMARY_DESC
+        lines.append(add_series(
+            ax,
+            x=g[X_COL], y=g[y_col],
+            label=desc,
+            primary=is_primary,
+            color=palette[desc],
+            linestyle="--" if is_primary else "-",
+            linewidth=3.2 if is_primary else 2,
+            marker="o" if is_primary else "s",
+        ))
+        all_y.extend(float(v) for v in g[y_col])
+    return lines, all_y
 
 
-def plot_performance_inputsize(history_df, reference_df):
+def plot_performance_inputsize(df, palette):
     fig, ax = new_single_axes(figsize=(10, 6))
-    plot_lines = []
-    all_y = []
-
-    if not reference_df.empty:
-        ref = _frame_from_points(reference_df.to_dict("records"))
-        plot_lines.append(
-            add_series(
-                ax,
-                x=ref["size"],
-                y=ref["perf"],
-                label="ezgatr",
-                primary=True,
-                linestyle="--",
-                linewidth=3.2,
-                marker="o",
-            )
-        )
-        all_y.extend(float(v) for v in ref["perf"])
-
-    if not history_df.empty:
-        latest = history_df.drop_duplicates(subset=["description"], keep="last")
-        for _, run in latest.iterrows():
-            desc = str(run["description"]).strip() or "run"
-            frame = _frame_from_points(run["data"])
-            plot_lines.append(
-                add_series(
-                    ax,
-                    x=frame["size"],
-                    y=frame["perf"],
-                    label=desc,
-                    linewidth=2,
-                    marker="s",
-                )
-            )
-            all_y.extend(float(v) for v in frame["perf"])
-
+    lines, all_y = _draw_lines(ax, df, palette, PERF_Y_COL)
     y_max = max(all_y) if all_y else 1.0
     style_axes(
         ax,
         title=f"Performance: {app_config.MACHINE}",
         y_unit_text="Performance [flops / cycle]",
-        x_label="Input Size n = log2(T*C_in)",
+        x_label="Input Size (TxC_in)",
         x_scale="log2",
         grid_axis="y",
         ylim=(0, max(1.0, y_max * 1.2)),
         hide_left_spine=True,
     )
-
-    place_line_labels(
-        plot_lines,
-        label_adjustments=MANUAL_LABEL_ADJUSTMENTS,
-    )
-
-    output_path = PLOT_DIR / "performance_inputsize"
-    save_figure(fig, output_path, tight_rect=(0, 0, 1.0, 1.0))
-    print(f"Plot successfully generated at: {output_path}")
+    place_line_labels(lines, label_adjustments=MANUAL_LABEL_ADJUSTMENTS)
+    save_figure(fig, PLOT_DIR / "performance_inputsize", tight_rect=(0, 0, 1.0, 1.0))
+    print(f"Plot saved: {PLOT_DIR / 'performance_inputsize'}")
 
 
-def plot_performance_ar(history_df, reference_df):
+def plot_runtime_inputsize(df, palette):
     fig, ax = new_single_axes(figsize=(10, 6))
-    plot_lines = []
-    all_y = []
-
-    if not reference_df.empty:
-        ref = _frame_from_points(reference_df.to_dict("records"))
-        plot_lines.append(
-            add_series(
-                ax,
-                x=ref["ar"],
-                y=ref["perf"],
-                label="ezgatr",
-                primary=True,
-                linestyle="--",
-                linewidth=3.2,
-                marker="o",
-            )
-        )
-        all_y.extend(float(v) for v in ref["perf"])
-
-    if not history_df.empty:
-        latest = history_df.drop_duplicates(subset=["description"], keep="last")
-        for _, run in latest.iterrows():
-            desc = str(run["description"]).strip() or "run"
-            frame = _frame_from_points(run["data"])
-            plot_lines.append(
-                add_series(
-                    ax,
-                    x=frame["ar"],
-                    y=frame["perf"],
-                    label=desc,
-                    linewidth=2,
-                    marker="s",
-                )
-            )
-            all_y.extend(float(v) for v in frame["perf"])
-
-    y_max = max(all_y) if all_y else 1.0
-    style_axes(
-        ax,
-        title=f"Performance (Aspect Ratio): {app_config.MACHINE}",
-        y_unit_text="Performance [flops / cycle]",
-        x_label="Tensor Aspect Ratio (T/C_in)",
-        x_scale="linear",
-        grid_axis="y",
-        ylim=(0, max(1.0, y_max * 1.2)),
-        hide_left_spine=True,
-    )
-
-    place_line_labels(
-        plot_lines,
-        label_adjustments=MANUAL_LABEL_ADJUSTMENTS,
-    )
-
-    output_path = PLOT_DIR / "performance_ar"
-    save_figure(fig, output_path, tight_rect=(0, 0, 1.0, 1.0))
-    print(f"Plot successfully generated at: {output_path}")
-
-
-def plot_runtime_inputsize(history_df, reference_df):
-    fig, ax = new_single_axes(figsize=(10, 6))
-    plot_lines = []
-    all_y = []
-
-    if not reference_df.empty:
-        ref = _frame_from_points(reference_df.to_dict("records"))
-        plot_lines.append(
-            add_series(
-                ax,
-                x=ref["size"],
-                y=ref["cycles"] / 1e9,
-                label="ezgatr",
-                primary=True,
-                linestyle="--",
-                linewidth=3.2,
-                marker="o",
-            )
-        )
-        all_y.extend(float(v) for v in (ref["cycles"] / 1e9))
-
-    if not history_df.empty:
-        latest = history_df.drop_duplicates(subset=["description"], keep="last")
-        for _, run in latest.iterrows():
-            desc = str(run["description"]).strip() or "run"
-            frame = _frame_from_points(run["data"])
-            plot_lines.append(
-                add_series(
-                    ax,
-                    x=frame["size"],
-                    y=frame["cycles"] / 1e9,
-                    label=desc,
-                    linewidth=2,
-                    marker="s",
-                )
-            )
-            all_y.extend(float(v) for v in (frame["cycles"] / 1e9))
-
+    lines, all_y = _draw_lines(ax, df, palette, RUNTIME_Y_COL)
     y_max = max(all_y) if all_y else 1.0
     style_axes(
         ax,
         title=f"Runtime: {app_config.MACHINE}",
         y_unit_text="Time [Gcycles]",
-        x_label="Input Size (T*C_in)",
+        x_label="Input Size (TxC_in)",
         x_scale="log2",
         grid_axis="y",
         ylim=(0, max(1.0, y_max * 1.2)),
         hide_left_spine=True,
     )
+    place_line_labels(lines, label_adjustments=MANUAL_LABEL_ADJUSTMENTS)
+    save_figure(fig, PLOT_DIR / "runtime_inputsize", tight_rect=(0, 0, 1.0, 1.0))
+    print(f"Plot saved: {PLOT_DIR / 'runtime_inputsize'}")
 
-    place_line_labels(
-        plot_lines,
-        label_adjustments=MANUAL_LABEL_ADJUSTMENTS,
+
+def plot_speedup_inputsize(df, palette):
+    ref = df[df["description"] == PRIMARY_DESC]
+    if ref.empty:
+        print(f"No {PRIMARY_DESC} run in history - skipping speedup plot.")
+        return
+    ref_perf = ref.set_index(X_COL)[PERF_Y_COL]
+
+    fig, ax = new_single_axes(figsize=(10, 6))
+    ax.axhline(1.0, color="gray", linestyle="--", linewidth=1.5, zorder=1)
+    lines, all_y = [], [1.0]
+
+    for desc in description_order(df):
+        if desc == PRIMARY_DESC:
+            continue
+        g = df[df["description"] == desc].sort_values(X_COL)
+        g = g.dropna(subset=[X_COL, PERF_Y_COL])
+        if g.empty:
+            continue
+        sizes = g[X_COL].values
+        common = [s for s in sizes if s in ref_perf.index]
+        if not common:
+            continue
+        speedup = g.set_index(X_COL).loc[common, PERF_Y_COL] / ref_perf.loc[common]
+        lines.append(add_series(
+            ax,
+            x=common, y=speedup.values,
+            label=desc,
+            color=palette[desc],
+            linestyle=":" if desc == "baseline" else "-",
+            linewidth=2, marker="s",
+        ))
+        all_y.extend(float(v) for v in speedup)
+
+    if not lines:
+        return
+
+    style_axes(
+        ax,
+        title=f"Speedup vs {PRIMARY_DESC}: {app_config.MACHINE}",
+        y_unit_text="Speedup [x]",
+        x_label="Input Size (TxC_in)",
+        x_scale="log2",
+        grid_axis="y",
+        ylim=(0, max(1.5, max(all_y) * 1.2)),
+        hide_left_spine=True,
     )
+    place_line_labels(lines, label_adjustments=MANUAL_LABEL_ADJUSTMENTS)
+    save_figure(fig, PLOT_DIR / "speedup_inputsize", tight_rect=(0, 0, 1.0, 1.0))
+    print(f"Plot saved: {PLOT_DIR / 'speedup_inputsize'}")
 
-    output_path = PLOT_DIR / "runtime_inputsize"
-    save_figure(fig, output_path, tight_rect=(0, 0, 1.0, 1.0))
-    print(f"Plot successfully generated at: {output_path}")
+
+def plot_oi_inputsize(df, palette):
+    fig, ax = new_single_axes(figsize=(10, 6))
+    ridge = app_config.ROOFLINE_PI_VECTOR / app_config.ROOFLINE_BETA
+    ax.axhline(ridge, color="gray", linestyle="--", linewidth=1.2, zorder=1,
+               label=f"ridge = {ridge:.2f}")
+
+    lines, all_y = _draw_lines(ax, df, palette, OI_Y_COL)
+    if not lines:
+        return
+
+    style_axes(
+        ax,
+        title=f"Operational Intensity (L3): {app_config.MACHINE}",
+        y_unit_text="Flops / byte",
+        x_label="Input Size (TxC_in)",
+        x_scale="log2",
+        grid_axis="y",
+        ylim=(0, max(1.0, max(all_y) * 1.3)),
+        hide_left_spine=True,
+    )
+    place_line_labels(lines, label_adjustments=MANUAL_LABEL_ADJUSTMENTS)
+    save_figure(fig, PLOT_DIR / "oi_inputsize", tight_rect=(0, 0, 1.0, 1.0))
+    print(f"Plot saved: {PLOT_DIR / 'oi_inputsize'}")
 
 
 def generate_performance_plot():
-    history_df = load_history_dataframe(HISTORY_FILE)
-    reference_df = load_reference_dataframe(REFERENCE_FILE)
+    df = load_history(HISTORY_FILE)
+    if df.empty:
+        print("No data in history.jsonl - skipping performance plots.")
+        return
 
     PLOT_DIR.mkdir(parents=True, exist_ok=True)
+    palette = series_palette(description_order(df))
 
-    plot_performance_inputsize(history_df, reference_df)
-    plot_performance_ar(history_df, reference_df)
-    plot_runtime_inputsize(history_df, reference_df)
-
-
-if __name__ == "__main__":
-    generate_performance_plot()
+    plot_performance_inputsize(df, palette)
+    plot_runtime_inputsize(df, palette)
+    plot_speedup_inputsize(df, palette)
+    plot_oi_inputsize(df, palette)

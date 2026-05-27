@@ -111,7 +111,6 @@ def benchmark(desc, T, C_in, seed, warmup, steps, profile, profile_out, perf_ctl
         if profile == "torch":
             return run_torch_profiler(model, x, profile_out)
 
-        # disable perf stat --control to ignore warmup
         _perf_ctl(perf_ctl_fd, "disable")
 
         warmup_times_ns = []
@@ -125,19 +124,17 @@ def benchmark(desc, T, C_in, seed, warmup, steps, profile, profile_out, perf_ctl
             warmup_times_ns.append(t1 - t0)
 
         # Enable perf counting for the timed steps only.
-        _perf_ctl(perf_ctl_fd, "enable")
-
         step_times_ns = []
         for i in range(steps):
+            _perf_ctl(perf_ctl_fd, "enable")
             t0 = time.perf_counter_ns()
             GATOR_FORWARD_PASS(model, x)
             t1 = time.perf_counter_ns()
+            _perf_ctl(perf_ctl_fd, "disable")
             print(
                 f"[Active {i + 1:02d}/{steps:02d}] {(t1 - t0) / 1e9:.6f} s", flush=True
             )
             step_times_ns.append(t1 - t0)
-
-        _perf_ctl(perf_ctl_fd, "disable")
 
     analyze_runs(warmup_times_ns, step_times_ns)
 

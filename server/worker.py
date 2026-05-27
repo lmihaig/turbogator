@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -10,20 +11,33 @@ from pathlib import Path
 
 ENABLE_INTEL_ADVISOR = False
 
+# perf prints these on every --control enable/disable; drop them from logs
+_PERF_CTL_NOISE = re.compile(r"^Events (enabled|disabled)\s*$")
+
 
 def run_cmd(cmd, job_dir, env, log_file, pass_fds=()):
     cmd_str = [str(x) for x in cmd]
-
     print(f"\n$ {' '.join(cmd_str)}", file=log_file, flush=True)
-    subprocess.run(
+
+    proc = subprocess.Popen(
         cmd_str,
         cwd=job_dir,
         env=env,
-        stdout=log_file,
-        stderr=log_file,
-        check=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
         pass_fds=pass_fds,
+        bufsize=1,
+        text=True,
     )
+    assert proc.stdout is not None
+    for line in proc.stdout:
+        if _PERF_CTL_NOISE.match(line.strip()):
+            continue
+        log_file.write(line)
+        log_file.flush()
+    rc = proc.wait()
+    if rc != 0:
+        raise subprocess.CalledProcessError(rc, cmd_str)
 
 
 def build_project(job_dir, env, log_file):
@@ -34,9 +48,7 @@ def verify_build(job_dir, env, log_file):
     ccdb = job_dir / "build" / "skbuild" / "compile_commands.json"
     if ccdb.exists():
         cpp = [
-            e
-            for e in json.loads(ccdb.read_text())
-            if e.get("file", "").endswith(".cpp")
+            e for e in json.loads(ccdb.read_text()) if e.get("file", "").endswith(".cpp")
         ]
         if cpp:
             print(f"\nsample compile command:\n  {cpp[0]['command']}", file=log_file)
@@ -59,7 +71,7 @@ def verify_build(job_dir, env, log_file):
 
 
 def parse_perf_csv(perf_path, events):
-    results: dict[str, float | None] = {e: None for e in events}
+    results = {e: None for e in events}
     if not perf_path.exists():
         return results
 
@@ -73,7 +85,7 @@ def parse_perf_csv(perf_path, events):
 
         raw_event = parts[2]
         if raw_event.startswith("cpu_atom/"):
-            # e-core we dont care about
+            # e-core, ignore
             continue
         event = raw_event.removeprefix("cpu_core/").rstrip("/")
 
@@ -107,9 +119,7 @@ def run_intel_advisor(job_dir, env, log_file, app_config, desc):
     shutil.rmtree(advisor_dir, ignore_errors=True)
 
     cmd = [
-        "taskset",
-        "-c",
-        pinned_core,
+        "taskset", "-c", pinned_core,
         advisor_bin,
         "-collect=roofline",
         "-start-paused",
@@ -117,18 +127,12 @@ def run_intel_advisor(job_dir, env, log_file, app_config, desc):
         "--",
         python_exe,
         "turbogator/benchmark.py",
-        "--desc",
-        desc,
-        "--t",
-        str(t_val),
-        "--c",
-        str(c_val),
-        "--profile",
-        "advisor",
-        "--steps",
-        str(50),
-        "--out",
-        str(temp_out),
+        "--desc", desc,
+        "--t", str(t_val),
+        "--c", str(c_val),
+        "--profile", "advisor",
+        "--steps", str(50),
+        "--out", str(temp_out),
     ]
     run_cmd(cmd, job_dir, env, log_file)
     if temp_out.exists():
@@ -157,57 +161,36 @@ def run_sweep(job_dir, env, log_file, app_config, desc, metrics):
         if perf_events:
             pcore_events = ",".join(f"cpu_core/{e}/" for e in perf_events)
             inner += [
-                "uv",
-                "run",
-                "perf",
-                "stat",
-                "--control",
-                f"fd:{ctl_r}",
+                "uv", "run", "perf", "stat",
+                "--control", f"fd:{ctl_r}",
                 "--no-big-num",
-                "-x",
-                ",",
-                "-e",
-                pcore_events,
-                "-o",
-                str(perf_out),
+                "-x", ",",
+                "-e", pcore_events,
+                "-o", str(perf_out),
                 "--",
             ]
         else:
             inner += ["uv", "run"]
 
         bench = [
-            "python",
-            "turbogator/benchmark.py",
-            "--desc",
-            desc,
-            "--t",
-            str(t_val),
-            "--c",
-            str(c_val),
-            "--warmup",
-            str(warmup),
-            "--steps",
-            str(steps),
-            "--out",
-            str(temp_out),
+            "python", "turbogator/benchmark.py",
+            "--desc", desc,
+            "--t", str(t_val),
+            "--c", str(c_val),
+            "--warmup", str(warmup),
+            "--steps", str(steps),
+            "--out", str(temp_out),
         ]
         if ctl_w is not None:
             bench += ["--perf-ctl-fd", str(ctl_w)]
         inner += bench
 
-        # wrap with outer DRAM perf
         if dram_events:
             full_cmd = [
-                "perf",
-                "stat",
-                "-a",
-                "--no-big-num",
-                "-x",
-                ",",
-                "-e",
-                ",".join(dram_events),
-                "-o",
-                str(dram_out),
+                "perf", "stat", "-C", pinned_core, "--no-big-num",
+                "-x", ",",
+                "-e", ",".join(dram_events),
+                "-o", str(dram_out),
                 "--",
             ] + inner
         else:
@@ -220,14 +203,12 @@ def run_sweep(job_dir, env, log_file, app_config, desc, metrics):
             os.close(ctl_r)
             os.close(ctl_w)
 
-        # Collect results
         if temp_out.exists():
             run_data = json.loads(temp_out.read_text())
             run_data["N"] = n_val
 
             if perf_events:
                 raw = parse_perf_csv(perf_out, perf_events)
-                # per step average
                 run_data["perf"] = {
                     k: (v / steps if v is not None else None) for k, v in raw.items()
                 }

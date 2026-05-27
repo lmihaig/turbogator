@@ -1,5 +1,4 @@
-"""Shared plotting style utilities for analysis scripts."""
-
+import hashlib
 from pathlib import Path
 
 import matplotlib
@@ -15,6 +14,10 @@ PALETTE = {
     "magenta": "#b06d8f",
     "blue": "#5c85a6",
     "red": "#b24a4a",
+    "teal": "#3f8a8a",
+    "olive": "#8a8a3f",
+    "indigo": "#5a5aa6",
+    "salmon": "#cc7a6a",
     "primary": "#8B0000",
     "gray_text": "0.4",
 }
@@ -26,7 +29,33 @@ SERIES_COLORS = [
     PALETTE["purple"],
     PALETTE["magenta"],
     PALETTE["red"],
+    PALETTE["teal"],
+    PALETTE["olive"],
+    PALETTE["indigo"],
+    PALETTE["salmon"],
 ]
+
+PRIMARY_DESC = "ezgatr"
+
+
+def _normalize_desc(desc):
+    return "".join(str(desc).lower().split())
+
+
+def series_palette(descriptions, primary=PRIMARY_DESC):
+    primary_norm = _normalize_desc(primary)
+    out = {}
+    for d in descriptions:
+        if d in out:
+            continue
+        nd = _normalize_desc(d)
+        if nd == primary_norm:
+            out[d] = PALETTE["primary"]
+        else:
+            h = int.from_bytes(hashlib.md5(nd.encode()).digest()[:4], "big")
+            out[d] = SERIES_COLORS[h % len(SERIES_COLORS)]
+    return out
+
 
 DEFAULT_FIGSIZE = (10, 6)
 DEFAULT_DPI = 180
@@ -357,15 +386,18 @@ def save_figure(
     tight_rect=(0, 0, 1.0, 0.95),
 ):
     output = Path(output_path)
-    base = output.with_suffix("")
-
-    output.parent.mkdir(parents=True, exist_ok=True)
+    base_name = output.with_suffix("").name
+    parent_dir = output.parent
 
     fig.tight_layout(rect=tight_rect)
 
     saved = []
     for f in DEFAULT_SAVE_FMTS:
-        out = base.with_suffix(f".{f}")
+        fmt_dir = parent_dir / f
+        fmt_dir.mkdir(parents=True, exist_ok=True)
+
+        out = fmt_dir / f"{base_name}.{f}"
+
         fig.savefig(out, dpi=dpi, bbox_inches="tight", format=f)
         saved.append(out)
 

@@ -3,7 +3,7 @@ Description=TurboGator ASL Benchmarking API
 After=network.target
 
 [Service]
-# {{USER_LINE}} — root-mode deploys override; user-mode deploys leave User unset.
+# {{USER_LINE}} - root-mode deploys override; user-mode deploys leave User unset.
 WorkingDirectory={{ROOT_DIR}}/api
 Environment="PATH={{HOME}}/.local/bin:{{ROOT_DIR}}/api/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 Environment="AOS_ROOT_DIR={{ROOT_DIR}}"

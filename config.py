@@ -2,7 +2,7 @@ ACTIVE_SERVER = "adam"
 
 WARMUP = 3
 STEPS = 5
-SIZES = [1]
+SIZES = [1, 2, 3, 4, 6]
 # SIZES = [1, 2, 3, 4, 6, 8, 12, 16]
 REPRESENTATIVE_N = 8
 
@@ -31,10 +31,14 @@ SERVERS = {
         "perf_events": [
             "cycles",
             "instructions",
-            "FP_ARITH_INST_RETIRED.256B_PACKED_SINGLE",
             "FP_ARITH_INST_RETIRED.SCALAR_SINGLE",
-            "mem_load_retired.l3_miss",
+            "FP_ARITH_INST_RETIRED.128B_PACKED_SINGLE",
+            "FP_ARITH_INST_RETIRED.256B_PACKED_SINGLE",
             "L1-dcache-loads",
+            "L1-dcache-stores",
+            "l2_rqsts.references",
+            "l2_rqsts.miss",
+            "mem_load_retired.l3_miss",
         ],
         "dram_events": [
             "unc_m_cas_count_rd",

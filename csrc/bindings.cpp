@@ -315,7 +315,7 @@ PYBIND11_MODULE(turbogator_ext, m)
                 for (auto item : kwargs["kinds"].cast<py::dict>())
                     kinds.push_back(item.first.cast<std::string>());
 
-            // weights: one per kind, shape (H, 1, C, 1) → H*C floats, w[h*C + c]
+            // weights: one per kind, shape (H, 1, C, 1) -> H*C floats, w[h*C + c]
             std::vector<torch::Tensor> weight_storage;
             std::vector<const float *> weights;
             if (kwargs.contains("weight"))
@@ -359,7 +359,7 @@ PYBIND11_MODULE(turbogator_ext, m)
                 for (auto item : kwargs["kinds"].cast<py::dict>())
                     kinds.push_back(item.first.cast<std::string>());
 
-            // weights: one per kind, shape (H, 1, C, 1) → H*C floats, w[h*C + c]
+            // weights: one per kind, shape (H, 1, C, 1) -> H*C floats, w[h*C + c]
             std::vector<torch::Tensor> weight_storage;
             std::vector<const float *> weights;
             if (kwargs.contains("weight"))

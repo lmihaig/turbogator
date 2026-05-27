@@ -1,546 +1,179 @@
 
 $ uv sync --reinstall-package turbogator
 Resolved 48 packages in 1ms
-   Building turbogator @ file:///home/mihai/aos/workspaces/1779720406_lmg
-      Built turbogator @ file:///home/mihai/aos/workspaces/1779720406_lmg
-Prepared 1 package in 31.10s
-Uninstalled 1 package in 0.46ms
+   Building turbogator @ file:///home/mihai/aos/workspaces/1779872492_lmg
+      Built turbogator @ file:///home/mihai/aos/workspaces/1779872492_lmg
+Prepared 1 package in 52.65s
+Uninstalled 1 package in 0.90ms
 Installed 1 package in 1ms
- - turbogator==0.1.0 (from file:///home/mihai/aos/workspaces/1779720228_lmg)
- + turbogator==0.1.0 (from file:///home/mihai/aos/workspaces/1779720406_lmg)
+ - turbogator==0.1.0 (from file:///home/mihai/aos/workspaces/1779869953_lmg)
+ + turbogator==0.1.0 (from file:///home/mihai/aos/workspaces/1779872492_lmg)
 
-$ taskset -c 4 uv run perf stat --no-big-num -x , -e cycles -o /home/mihai/aos/workspaces/1779720406_lmg/perf_1.csv -- python turbogator/benchmark.py --desc ezgatr --t 32 --c 2 --out /home/mihai/aos/workspaces/1779720406_lmg/temp_1.json
-[Warmup 01/05] 0.775374 s
-[Warmup 02/05] 0.297689 s
-[Warmup 03/05] 0.294364 s
-[Warmup 04/05] 0.300440 s
-[Warmup 05/05] 0.297845 s
-[Active 01/20] 0.302888 s
-[Active 02/20] 0.295942 s
-[Active 03/20] 0.293991 s
-[Active 04/20] 0.293772 s
-[Active 05/20] 0.296241 s
-[Active 06/20] 0.295664 s
-[Active 07/20] 0.294962 s
-[Active 08/20] 0.296065 s
-[Active 09/20] 0.296857 s
-[Active 10/20] 0.295742 s
-[Active 11/20] 0.297007 s
-[Active 12/20] 0.296198 s
-[Active 13/20] 0.296070 s
-[Active 14/20] 0.296704 s
-[Active 15/20] 0.295903 s
-[Active 16/20] 0.298296 s
-[Active 17/20] 0.294485 s
-[Active 18/20] 0.292418 s
-[Active 19/20] 0.308817 s
-[Active 20/20] 0.317062 s
+sample compile command:
+  /usr/bin/c++  -pthread -DUSE_C10D_GLOO -DUSE_DISTRIBUTED -DUSE_RPC -DUSE_TENSORPIPE -Dturbogator_ext_EXPORTS -I/home/mihai/aos/workspaces/1779872492_lmg/csrc -isystem /home/mihai/aos/shared_venv/lib/python3.12/site-packages/torch/include -isystem /home/mihai/aos/shared_venv/lib/python3.12/site-packages/torch/include/torch/csrc/api/include -isystem /home/mihai/aos/shared_venv/lib/python3.12/site-packages/pybind11/include -isystem /home/mihai/.local/share/uv/python/cpython-3.12-linux-x86_64-gnu/include/python3.12 -O2 -g -DNDEBUG -std=gnu++17 -fPIC -fvisibility=hidden -Wall -Wextra -march=native -O3 -g -fno-tree-vectorize -fno-tree-slp-vectorize -D_GLIBCXX_USE_CXX11_ABI=0 -Winvalid-pch -include /home/mihai/aos/workspaces/1779872492_lmg/build/skbuild/CMakeFiles/turbogator_ext.dir/cmake_pch.hxx -o CMakeFiles/turbogator_ext.dir/csrc/bindings.cpp.o -c /home/mihai/aos/workspaces/1779872492_lmg/csrc/bindings.cpp
+turbogator_ext.cpython-312-x86_64-linux-gnu.so: ymm=244 xmm=3984 fma=363
+
+$ perf stat -C 4 --no-big-num -x , -e unc_m_cas_count_rd,unc_m_cas_count_wr -o /home/mihai/aos/workspaces/1779872492_lmg/dram_1.csv -- taskset -c 4 uv run perf stat --control fd:4 --no-big-num -x , -e cpu_core/cycles/,cpu_core/instructions/,cpu_core/FP_ARITH_INST_RETIRED.SCALAR_SINGLE/,cpu_core/FP_ARITH_INST_RETIRED.128B_PACKED_SINGLE/,cpu_core/FP_ARITH_INST_RETIRED.256B_PACKED_SINGLE/,cpu_core/L1-dcache-loads/,cpu_core/L1-dcache-stores/,cpu_core/l2_rqsts.references/,cpu_core/l2_rqsts.miss/,cpu_core/mem_load_retired.l3_miss/ -o /home/mihai/aos/workspaces/1779872492_lmg/perf_1.csv -- python turbogator/benchmark.py --desc ezgatr --t 32 --c 2 --warmup 3 --steps 5 --out /home/mihai/aos/workspaces/1779872492_lmg/temp_1.json --perf-ctl-fd 5
+[Warmup 01/03] 0.777608 s
+[Warmup 02/03] 0.301696 s
+[Warmup 03/03] 0.300322 s
+[Active 01/05] 0.318037 s
+[Active 02/05] 0.323174 s
+[Active 03/05] 0.313670 s
+[Active 04/05] 0.323957 s
+[Active 05/05] 0.289456 s
 
 ==================================================
-[Warmup Phase] (5 steps)
-  W01: 0.775374 s
-  W02: 0.297689 s
-  W03: 0.294364 s
-  W04: 0.300440 s
-  W05: 0.297845 s
-Warmup Drop-off: 2.60x
+[Warmup Phase] (3 steps)
+  W01: 0.777608 s
+  W02: 0.301696 s
+  W03: 0.300322 s
+Warmup Drop-off: 2.59x
 --------------------------------------------------
-[Active Phase] (20 steps)
-  S01: 0.302888s
-  S02: 0.295942s
-  S03: 0.293991s
-  S04: 0.293772s
-  S05: 0.296241s
-  S06: 0.295664s
-  S07: 0.294962s
-  S08: 0.296065s
-  S09: 0.296857s
-  S10: 0.295742s
-  S11: 0.297007s
-  S12: 0.296198s
-  S13: 0.296070s
-  S14: 0.296704s
-  S15: 0.295903s
-  S16: 0.298296s
-  S17: 0.294485s
-  S18: 0.292418s
-  S19: 0.308817s
-  S20: 0.317062s
+[Active Phase] (5 steps)
+  S01: 0.318037s
+  S02: 0.323174s
+  S03: 0.313670s
+  S04: 0.323957s
+  S05: 0.289456s
 --------------------------------------------------
 Metrics:
-  Mean   + StdDev : 0.297754s + 0.005598s
-  Median + IQR/2  : 0.296068s + 0.000703s
-  Min / Max       : 0.292418s / 0.317062s
- Var   : 1.88%
+  Mean   + StdDev : 0.313659s + 0.012661s
+  Median + IQR/2  : 0.318037s + 0.004752s
+  Min / Max       : 0.289456s / 0.323957s
+ Var   : 4.04%
 ==================================================
 
-{'X': {'B': 8, 'T': 32, 'C_in': 2, 'D': 16}, 'cycles': 740169008.75}
+{'X': {'B': 8, 'T': 32, 'C_in': 2, 'D': 16}, 'cycles': 795092057.5}
 
-$ taskset -c 4 uv run perf stat --no-big-num -x , -e cycles -o /home/mihai/aos/workspaces/1779720406_lmg/perf_2.csv -- python turbogator/benchmark.py --desc ezgatr --t 64 --c 4 --out /home/mihai/aos/workspaces/1779720406_lmg/temp_2.json
-[Warmup 01/05] 1.116381 s
-[Warmup 02/05] 0.631939 s
-[Warmup 03/05] 0.626171 s
-[Warmup 04/05] 0.630327 s
-[Warmup 05/05] 0.624303 s
-[Active 01/20] 0.626812 s
-[Active 02/20] 0.631071 s
-[Active 03/20] 0.604968 s
-[Active 04/20] 0.628925 s
-[Active 05/20] 0.627386 s
-[Active 06/20] 0.626417 s
-[Active 07/20] 0.631102 s
-[Active 08/20] 0.629232 s
-[Active 09/20] 0.631099 s
-[Active 10/20] 0.628215 s
-[Active 11/20] 0.628167 s
-[Active 12/20] 0.627416 s
-[Active 13/20] 0.631120 s
-[Active 14/20] 0.627959 s
-[Active 15/20] 0.624387 s
-[Active 16/20] 0.624290 s
-[Active 17/20] 0.628856 s
-[Active 18/20] 0.624773 s
-[Active 19/20] 0.627750 s
-[Active 20/20] 0.628157 s
+$ perf stat -C 4 --no-big-num -x , -e unc_m_cas_count_rd,unc_m_cas_count_wr -o /home/mihai/aos/workspaces/1779872492_lmg/dram_2.csv -- taskset -c 4 uv run perf stat --control fd:4 --no-big-num -x , -e cpu_core/cycles/,cpu_core/instructions/,cpu_core/FP_ARITH_INST_RETIRED.SCALAR_SINGLE/,cpu_core/FP_ARITH_INST_RETIRED.128B_PACKED_SINGLE/,cpu_core/FP_ARITH_INST_RETIRED.256B_PACKED_SINGLE/,cpu_core/L1-dcache-loads/,cpu_core/L1-dcache-stores/,cpu_core/l2_rqsts.references/,cpu_core/l2_rqsts.miss/,cpu_core/mem_load_retired.l3_miss/ -o /home/mihai/aos/workspaces/1779872492_lmg/perf_2.csv -- python turbogator/benchmark.py --desc ezgatr --t 64 --c 4 --warmup 3 --steps 5 --out /home/mihai/aos/workspaces/1779872492_lmg/temp_2.json --perf-ctl-fd 5
+[Warmup 01/03] 1.121400 s
+[Warmup 02/03] 0.621290 s
+[Warmup 03/03] 0.629013 s
+[Active 01/05] 0.628332 s
+[Active 02/05] 0.656403 s
+[Active 03/05] 0.631166 s
+[Active 04/05] 0.628931 s
+[Active 05/05] 0.629604 s
 
 ==================================================
-[Warmup Phase] (5 steps)
-  W01: 1.116381 s
-  W02: 0.631939 s
-  W03: 0.626171 s
-  W04: 0.630327 s
-  W05: 0.624303 s
-Warmup Drop-off: 1.79x
+[Warmup Phase] (3 steps)
+  W01: 1.121400 s
+  W02: 0.621290 s
+  W03: 0.629013 s
+Warmup Drop-off: 1.78x
 --------------------------------------------------
-[Active Phase] (20 steps)
-  S01: 0.626812s
-  S02: 0.631071s
-  S03: 0.604968s
-  S04: 0.628925s
-  S05: 0.627386s
-  S06: 0.626417s
-  S07: 0.631102s
-  S08: 0.629232s
-  S09: 0.631099s
-  S10: 0.628215s
-  S11: 0.628167s
-  S12: 0.627416s
-  S13: 0.631120s
-  S14: 0.627959s
-  S15: 0.624387s
-  S16: 0.624290s
-  S17: 0.628856s
-  S18: 0.624773s
-  S19: 0.627750s
-  S20: 0.628157s
+[Active Phase] (5 steps)
+  S01: 0.628332s
+  S02: 0.656403s
+  S03: 0.631166s
+  S04: 0.628931s
+  S05: 0.629604s
 --------------------------------------------------
 Metrics:
-  Mean   + StdDev : 0.626905s + 0.005431s
-  Median + IQR/2  : 0.628058s + 0.001144s
-  Min / Max       : 0.604968s / 0.631120s
- Var   : 0.87%
+  Mean   + StdDev : 0.634887s + 0.010799s
+  Median + IQR/2  : 0.629604s + 0.001117s
+  Min / Max       : 0.628332s / 0.656403s
+ Var   : 1.70%
 ==================================================
 
-{'X': {'B': 8, 'T': 64, 'C_in': 4, 'D': 16}, 'cycles': 1570144595.0}
+{'X': {'B': 8, 'T': 64, 'C_in': 4, 'D': 16}, 'cycles': 1574010017.5}
 
-$ taskset -c 4 uv run perf stat --no-big-num -x , -e cycles -o /home/mihai/aos/workspaces/1779720406_lmg/perf_3.csv -- python turbogator/benchmark.py --desc ezgatr --t 96 --c 6 --out /home/mihai/aos/workspaces/1779720406_lmg/temp_3.json
-[Warmup 01/05] 1.443859 s
-[Warmup 02/05] 0.951346 s
-[Warmup 03/05] 0.948371 s
-[Warmup 04/05] 0.966458 s
-[Warmup 05/05] 0.948802 s
-[Active 01/20] 0.954996 s
-[Active 02/20] 0.959822 s
-[Active 03/20] 0.955144 s
-[Active 04/20] 0.942379 s
-[Active 05/20] 0.974106 s
-[Active 06/20] 0.960413 s
-[Active 07/20] 0.959761 s
-[Active 08/20] 0.956877 s
-[Active 09/20] 0.954610 s
-[Active 10/20] 0.955462 s
-[Active 11/20] 0.949565 s
-[Active 12/20] 0.947154 s
-[Active 13/20] 0.959732 s
-[Active 14/20] 0.949152 s
-[Active 15/20] 0.955356 s
-[Active 16/20] 0.953247 s
-[Active 17/20] 0.966812 s
-[Active 18/20] 0.943356 s
-[Active 19/20] 0.948038 s
-[Active 20/20] 0.953786 s
+$ perf stat -C 4 --no-big-num -x , -e unc_m_cas_count_rd,unc_m_cas_count_wr -o /home/mihai/aos/workspaces/1779872492_lmg/dram_3.csv -- taskset -c 4 uv run perf stat --control fd:4 --no-big-num -x , -e cpu_core/cycles/,cpu_core/instructions/,cpu_core/FP_ARITH_INST_RETIRED.SCALAR_SINGLE/,cpu_core/FP_ARITH_INST_RETIRED.128B_PACKED_SINGLE/,cpu_core/FP_ARITH_INST_RETIRED.256B_PACKED_SINGLE/,cpu_core/L1-dcache-loads/,cpu_core/L1-dcache-stores/,cpu_core/l2_rqsts.references/,cpu_core/l2_rqsts.miss/,cpu_core/mem_load_retired.l3_miss/ -o /home/mihai/aos/workspaces/1779872492_lmg/perf_3.csv -- python turbogator/benchmark.py --desc ezgatr --t 96 --c 6 --warmup 3 --steps 5 --out /home/mihai/aos/workspaces/1779872492_lmg/temp_3.json --perf-ctl-fd 5
+[Warmup 01/03] 1.445251 s
+[Warmup 02/03] 0.943932 s
+[Warmup 03/03] 0.970278 s
+[Active 01/05] 0.954844 s
+[Active 02/05] 0.957028 s
+[Active 03/05] 0.923236 s
+[Active 04/05] 0.961178 s
+[Active 05/05] 0.960501 s
 
 ==================================================
-[Warmup Phase] (5 steps)
-  W01: 1.443859 s
-  W02: 0.951346 s
-  W03: 0.948371 s
-  W04: 0.966458 s
-  W05: 0.948802 s
-Warmup Drop-off: 1.52x
+[Warmup Phase] (3 steps)
+  W01: 1.445251 s
+  W02: 0.943932 s
+  W03: 0.970278 s
+Warmup Drop-off: 1.49x
 --------------------------------------------------
-[Active Phase] (20 steps)
-  S01: 0.954996s
-  S02: 0.959822s
-  S03: 0.955144s
-  S04: 0.942379s
-  S05: 0.974106s
-  S06: 0.960413s
-  S07: 0.959761s
-  S08: 0.956877s
-  S09: 0.954610s
-  S10: 0.955462s
-  S11: 0.949565s
-  S12: 0.947154s
-  S13: 0.959732s
-  S14: 0.949152s
-  S15: 0.955356s
-  S16: 0.953247s
-  S17: 0.966812s
-  S18: 0.943356s
-  S19: 0.948038s
-  S20: 0.953786s
+[Active Phase] (5 steps)
+  S01: 0.954844s
+  S02: 0.957028s
+  S03: 0.923236s
+  S04: 0.961178s
+  S05: 0.960501s
 --------------------------------------------------
 Metrics:
-  Mean   + StdDev : 0.954988s + 0.007346s
-  Median + IQR/2  : 0.955070s + 0.005139s
-  Min / Max       : 0.942379s / 0.974106s
- Var   : 0.77%
+  Mean   + StdDev : 0.951358s + 0.014249s
+  Median + IQR/2  : 0.957028s + 0.002829s
+  Min / Max       : 0.923236s / 0.961178s
+ Var   : 1.50%
 ==================================================
 
-{'X': {'B': 8, 'T': 96, 'C_in': 6, 'D': 16}, 'cycles': 2387674976.25}
+{'X': {'B': 8, 'T': 96, 'C_in': 6, 'D': 16}, 'cycles': 2392571137.5000005}
 
-$ taskset -c 4 uv run perf stat --no-big-num -x , -e cycles -o /home/mihai/aos/workspaces/1779720406_lmg/perf_4.csv -- python turbogator/benchmark.py --desc ezgatr --t 128 --c 8 --out /home/mihai/aos/workspaces/1779720406_lmg/temp_4.json
-[Warmup 01/05] 2.191415 s
-[Warmup 02/05] 1.662872 s
-[Warmup 03/05] 1.661955 s
-[Warmup 04/05] 1.665233 s
-[Warmup 05/05] 1.669931 s
-[Active 01/20] 1.671300 s
-[Active 02/20] 1.662520 s
-[Active 03/20] 1.667456 s
-[Active 04/20] 1.672865 s
-[Active 05/20] 1.588253 s
-[Active 06/20] 1.701118 s
-[Active 07/20] 1.668464 s
-[Active 08/20] 1.661508 s
-[Active 09/20] 1.664745 s
-[Active 10/20] 1.692432 s
-[Active 11/20] 1.668437 s
-[Active 12/20] 1.658865 s
-[Active 13/20] 1.668385 s
-[Active 14/20] 1.664047 s
-[Active 15/20] 1.660896 s
-[Active 16/20] 1.668783 s
-[Active 17/20] 1.665008 s
-[Active 18/20] 1.659857 s
-[Active 19/20] 1.665472 s
-[Active 20/20] 1.663816 s
+$ perf stat -C 4 --no-big-num -x , -e unc_m_cas_count_rd,unc_m_cas_count_wr -o /home/mihai/aos/workspaces/1779872492_lmg/dram_4.csv -- taskset -c 4 uv run perf stat --control fd:4 --no-big-num -x , -e cpu_core/cycles/,cpu_core/instructions/,cpu_core/FP_ARITH_INST_RETIRED.SCALAR_SINGLE/,cpu_core/FP_ARITH_INST_RETIRED.128B_PACKED_SINGLE/,cpu_core/FP_ARITH_INST_RETIRED.256B_PACKED_SINGLE/,cpu_core/L1-dcache-loads/,cpu_core/L1-dcache-stores/,cpu_core/l2_rqsts.references/,cpu_core/l2_rqsts.miss/,cpu_core/mem_load_retired.l3_miss/ -o /home/mihai/aos/workspaces/1779872492_lmg/perf_4.csv -- python turbogator/benchmark.py --desc ezgatr --t 128 --c 8 --warmup 3 --steps 5 --out /home/mihai/aos/workspaces/1779872492_lmg/temp_4.json --perf-ctl-fd 5
+[Warmup 01/03] 2.160169 s
+[Warmup 02/03] 1.684721 s
+[Warmup 03/03] 1.690430 s
+[Active 01/05] 1.687507 s
+[Active 02/05] 1.677968 s
+[Active 03/05] 1.610866 s
+[Active 04/05] 1.671887 s
+[Active 05/05] 1.658112 s
 
 ==================================================
-[Warmup Phase] (5 steps)
-  W01: 2.191415 s
-  W02: 1.662872 s
-  W03: 1.661955 s
-  W04: 1.665233 s
-  W05: 1.669931 s
-Warmup Drop-off: 1.31x
+[Warmup Phase] (3 steps)
+  W01: 2.160169 s
+  W02: 1.684721 s
+  W03: 1.690430 s
+Warmup Drop-off: 1.28x
 --------------------------------------------------
-[Active Phase] (20 steps)
-  S01: 1.671300s
-  S02: 1.662520s
-  S03: 1.667456s
-  S04: 1.672865s
-  S05: 1.588253s
-  S06: 1.701118s
-  S07: 1.668464s
-  S08: 1.661508s
-  S09: 1.664745s
-  S10: 1.692432s
-  S11: 1.668437s
-  S12: 1.658865s
-  S13: 1.668385s
-  S14: 1.664047s
-  S15: 1.660896s
-  S16: 1.668783s
-  S17: 1.665008s
-  S18: 1.659857s
-  S19: 1.665472s
-  S20: 1.663816s
+[Active Phase] (5 steps)
+  S01: 1.687507s
+  S02: 1.677968s
+  S03: 1.610866s
+  S04: 1.671887s
+  S05: 1.658112s
 --------------------------------------------------
 Metrics:
-  Mean   + StdDev : 1.664711s + 0.020254s
-  Median + IQR/2  : 1.665240s + 0.003139s
-  Min / Max       : 1.588253s / 1.701118s
- Var   : 1.22%
+  Mean   + StdDev : 1.661268s + 0.026946s
+  Median + IQR/2  : 1.671887s + 0.009928s
+  Min / Max       : 1.610866s / 1.687507s
+ Var   : 1.62%
 ==================================================
 
-{'X': {'B': 8, 'T': 128, 'C_in': 8, 'D': 16}, 'cycles': 4163099972.4999995}
+{'X': {'B': 8, 'T': 128, 'C_in': 8, 'D': 16}, 'cycles': 4179716800.0}
 
-$ taskset -c 4 uv run perf stat --no-big-num -x , -e cycles -o /home/mihai/aos/workspaces/1779720406_lmg/perf_6.csv -- python turbogator/benchmark.py --desc ezgatr --t 192 --c 12 --out /home/mihai/aos/workspaces/1779720406_lmg/temp_6.json
-[Warmup 01/05] 2.681943 s
-[Warmup 02/05] 2.231824 s
-[Warmup 03/05] 2.210766 s
-[Warmup 04/05] 2.175246 s
-[Warmup 05/05] 2.223819 s
-[Active 01/20] 2.181344 s
-[Active 02/20] 2.235736 s
-[Active 03/20] 2.197941 s
-[Active 04/20] 2.209061 s
-[Active 05/20] 2.201573 s
-[Active 06/20] 2.138053 s
-[Active 07/20] 2.231964 s
-[Active 08/20] 2.250868 s
-[Active 09/20] 2.203196 s
-[Active 10/20] 2.176432 s
-[Active 11/20] 2.208454 s
-[Active 12/20] 2.207377 s
-[Active 13/20] 2.237286 s
-[Active 14/20] 2.206753 s
-[Active 15/20] 2.223979 s
-[Active 16/20] 2.228550 s
-[Active 17/20] 2.194065 s
-[Active 18/20] 2.221271 s
-[Active 19/20] 2.233318 s
-[Active 20/20] 2.174142 s
+$ perf stat -C 4 --no-big-num -x , -e unc_m_cas_count_rd,unc_m_cas_count_wr -o /home/mihai/aos/workspaces/1779872492_lmg/dram_6.csv -- taskset -c 4 uv run perf stat --control fd:4 --no-big-num -x , -e cpu_core/cycles/,cpu_core/instructions/,cpu_core/FP_ARITH_INST_RETIRED.SCALAR_SINGLE/,cpu_core/FP_ARITH_INST_RETIRED.128B_PACKED_SINGLE/,cpu_core/FP_ARITH_INST_RETIRED.256B_PACKED_SINGLE/,cpu_core/L1-dcache-loads/,cpu_core/L1-dcache-stores/,cpu_core/l2_rqsts.references/,cpu_core/l2_rqsts.miss/,cpu_core/mem_load_retired.l3_miss/ -o /home/mihai/aos/workspaces/1779872492_lmg/perf_6.csv -- python turbogator/benchmark.py --desc ezgatr --t 192 --c 12 --warmup 3 --steps 5 --out /home/mihai/aos/workspaces/1779872492_lmg/temp_6.json --perf-ctl-fd 5
+[Warmup 01/03] 2.741621 s
+[Warmup 02/03] 2.201790 s
+[Warmup 03/03] 2.216622 s
+[Active 01/05] 2.243174 s
+[Active 02/05] 2.256955 s
+[Active 03/05] 2.215153 s
+[Active 04/05] 2.175899 s
+[Active 05/05] 2.225969 s
 
 ==================================================
-[Warmup Phase] (5 steps)
-  W01: 2.681943 s
-  W02: 2.231824 s
-  W03: 2.210766 s
-  W04: 2.175246 s
-  W05: 2.223819 s
-Warmup Drop-off: 1.21x
+[Warmup Phase] (3 steps)
+  W01: 2.741621 s
+  W02: 2.201790 s
+  W03: 2.216622 s
+Warmup Drop-off: 1.24x
 --------------------------------------------------
-[Active Phase] (20 steps)
-  S01: 2.181344s
-  S02: 2.235736s
-  S03: 2.197941s
-  S04: 2.209061s
-  S05: 2.201573s
-  S06: 2.138053s
-  S07: 2.231964s
-  S08: 2.250868s
-  S09: 2.203196s
-  S10: 2.176432s
-  S11: 2.208454s
-  S12: 2.207377s
-  S13: 2.237286s
-  S14: 2.206753s
-  S15: 2.223979s
-  S16: 2.228550s
-  S17: 2.194065s
-  S18: 2.221271s
-  S19: 2.233318s
-  S20: 2.174142s
+[Active Phase] (5 steps)
+  S01: 2.243174s
+  S02: 2.256955s
+  S03: 2.215153s
+  S04: 2.175899s
+  S05: 2.225969s
 --------------------------------------------------
 Metrics:
-  Mean   + StdDev : 2.208068s + 0.026118s
-  Median + IQR/2  : 2.207916s + 0.016216s
-  Min / Max       : 2.138053s / 2.250868s
- Var   : 1.18%
+  Mean   + StdDev : 2.223430s + 0.027741s
+  Median + IQR/2  : 2.225969s + 0.014010s
+  Min / Max       : 2.175899s / 2.256955s
+ Var   : 1.25%
 ==================================================
 
-{'X': {'B': 8, 'T': 192, 'C_in': 12, 'D': 16}, 'cycles': 5519789387.5}
-
-$ taskset -c 4 uv run perf stat --no-big-num -x , -e cycles -o /home/mihai/aos/workspaces/1779720406_lmg/perf_8.csv -- python turbogator/benchmark.py --desc ezgatr --t 256 --c 16 --out /home/mihai/aos/workspaces/1779720406_lmg/temp_8.json
-[Warmup 01/05] 4.048849 s
-[Warmup 02/05] 3.546941 s
-[Warmup 03/05] 3.534481 s
-[Warmup 04/05] 3.566415 s
-[Warmup 05/05] 3.549948 s
-[Active 01/20] 3.551987 s
-[Active 02/20] 3.544989 s
-[Active 03/20] 3.603631 s
-[Active 04/20] 3.597553 s
-[Active 05/20] 3.547033 s
-[Active 06/20] 3.579468 s
-[Active 07/20] 3.531049 s
-[Active 08/20] 3.563904 s
-[Active 09/20] 3.542191 s
-[Active 10/20] 3.616792 s
-[Active 11/20] 3.602676 s
-[Active 12/20] 3.688204 s
-[Active 13/20] 3.630669 s
-[Active 14/20] 3.556553 s
-[Active 15/20] 3.559746 s
-[Active 16/20] 3.551526 s
-[Active 17/20] 3.539415 s
-[Active 18/20] 3.532715 s
-[Active 19/20] 3.594858 s
-[Active 20/20] 3.571435 s
-
-==================================================
-[Warmup Phase] (5 steps)
-  W01: 4.048849 s
-  W02: 3.546941 s
-  W03: 3.534481 s
-  W04: 3.566415 s
-  W05: 3.549948 s
-Warmup Drop-off: 1.14x
---------------------------------------------------
-[Active Phase] (20 steps)
-  S01: 3.551987s
-  S02: 3.544989s
-  S03: 3.603631s
-  S04: 3.597553s
-  S05: 3.547033s
-  S06: 3.579468s
-  S07: 3.531049s
-  S08: 3.563904s
-  S09: 3.542191s
-  S10: 3.616792s
-  S11: 3.602676s
-  S12: 3.688204s
-  S13: 3.630669s
-  S14: 3.556553s
-  S15: 3.559746s
-  S16: 3.551526s
-  S17: 3.539415s
-  S18: 3.532715s
-  S19: 3.594858s
-  S20: 3.571435s
---------------------------------------------------
-Metrics:
-  Mean   + StdDev : 3.575320s + 0.038537s
-  Median + IQR/2  : 3.561825s + 0.026156s
-  Min / Max       : 3.531049s / 3.688204s
- Var   : 1.08%
-==================================================
-
-{'X': {'B': 8, 'T': 256, 'C_in': 16, 'D': 16}, 'cycles': 8904562606.25}
-
-$ taskset -c 4 uv run perf stat --no-big-num -x , -e cycles -o /home/mihai/aos/workspaces/1779720406_lmg/perf_12.csv -- python turbogator/benchmark.py --desc ezgatr --t 384 --c 24 --out /home/mihai/aos/workspaces/1779720406_lmg/temp_12.json
-[Warmup 01/05] 6.108752 s
-[Warmup 02/05] 5.607100 s
-[Warmup 03/05] 5.627039 s
-[Warmup 04/05] 5.588116 s
-[Warmup 05/05] 5.579423 s
-[Active 01/20] 5.580544 s
-[Active 02/20] 5.613662 s
-[Active 03/20] 5.606031 s
-[Active 04/20] 5.614887 s
-[Active 05/20] 5.566100 s
-[Active 06/20] 5.594852 s
-[Active 07/20] 5.603936 s
-[Active 08/20] 5.646919 s
-[Active 09/20] 5.612231 s
-[Active 10/20] 5.598186 s
-[Active 11/20] 5.608272 s
-[Active 12/20] 5.584206 s
-[Active 13/20] 5.585847 s
-[Active 14/20] 5.644367 s
-[Active 15/20] 5.627828 s
-[Active 16/20] 5.588089 s
-[Active 17/20] 5.645665 s
-[Active 18/20] 5.606944 s
-[Active 19/20] 5.614819 s
-[Active 20/20] 5.643547 s
-
-==================================================
-[Warmup Phase] (5 steps)
-  W01: 6.108752 s
-  W02: 5.607100 s
-  W03: 5.627039 s
-  W04: 5.588116 s
-  W05: 5.579423 s
-Warmup Drop-off: 1.09x
---------------------------------------------------
-[Active Phase] (20 steps)
-  S01: 5.580544s
-  S02: 5.613662s
-  S03: 5.606031s
-  S04: 5.614887s
-  S05: 5.566100s
-  S06: 5.594852s
-  S07: 5.603936s
-  S08: 5.646919s
-  S09: 5.612231s
-  S10: 5.598186s
-  S11: 5.608272s
-  S12: 5.584206s
-  S13: 5.585847s
-  S14: 5.644367s
-  S15: 5.627828s
-  S16: 5.588089s
-  S17: 5.645665s
-  S18: 5.606944s
-  S19: 5.614819s
-  S20: 5.643547s
---------------------------------------------------
-Metrics:
-  Mean   + StdDev : 5.609347s + 0.022665s
-  Median + IQR/2  : 5.607608s + 0.012480s
-  Min / Max       : 5.566100s / 5.646919s
- Var   : 0.40%
-==================================================
-
-{'X': {'B': 8, 'T': 384, 'C_in': 24, 'D': 16}, 'cycles': 14019020015.0}
-
-$ taskset -c 4 uv run perf stat --no-big-num -x , -e cycles -o /home/mihai/aos/workspaces/1779720406_lmg/perf_16.csv -- python turbogator/benchmark.py --desc ezgatr --t 512 --c 32 --out /home/mihai/aos/workspaces/1779720406_lmg/temp_16.json
-[Warmup 01/05] 8.365628 s
-[Warmup 02/05] 7.851275 s
-[Warmup 03/05] 7.845115 s
-[Warmup 04/05] 7.803229 s
-[Warmup 05/05] 7.793925 s
-[Active 01/20] 7.756644 s
-[Active 02/20] 7.901097 s
-[Active 03/20] 7.784599 s
-[Active 04/20] 7.740447 s
-[Active 05/20] 7.661620 s
-[Active 06/20] 7.690139 s
-[Active 07/20] 7.690622 s
-[Active 08/20] 7.834136 s
-[Active 09/20] 7.740759 s
-[Active 10/20] 7.724942 s
-[Active 11/20] 7.887970 s
-[Active 12/20] 7.689714 s
-[Active 13/20] 7.786472 s
-[Active 14/20] 7.922718 s
-[Active 15/20] 7.812549 s
-[Active 16/20] 7.796303 s
-[Active 17/20] 7.714207 s
-[Active 18/20] 7.804636 s
-[Active 19/20] 7.761399 s
-[Active 20/20] 7.904308 s
-
-==================================================
-[Warmup Phase] (5 steps)
-  W01: 8.365628 s
-  W02: 7.851275 s
-  W03: 7.845115 s
-  W04: 7.803229 s
-  W05: 7.793925 s
-Warmup Drop-off: 1.07x
---------------------------------------------------
-[Active Phase] (20 steps)
-  S01: 7.756644s
-  S02: 7.901097s
-  S03: 7.784599s
-  S04: 7.740447s
-  S05: 7.661620s
-  S06: 7.690139s
-  S07: 7.690622s
-  S08: 7.834136s
-  S09: 7.740759s
-  S10: 7.724942s
-  S11: 7.887970s
-  S12: 7.689714s
-  S13: 7.786472s
-  S14: 7.922718s
-  S15: 7.812549s
-  S16: 7.796303s
-  S17: 7.714207s
-  S18: 7.804636s
-  S19: 7.761399s
-  S20: 7.904308s
---------------------------------------------------
-Metrics:
-  Mean   + StdDev : 7.780264s + 0.076371s
-  Median + IQR/2  : 7.772999s + 0.047844s
-  Min / Max       : 7.661620s / 7.922718s
- Var   : 0.98%
-==================================================
-
-{'X': {'B': 8, 'T': 512, 'C_in': 32, 'D': 16}, 'cycles': 19432496505.0}
+{'X': {'B': 8, 'T': 192, 'C_in': 12, 'D': 16}, 'cycles': 5564921340.0}
