@@ -126,11 +126,11 @@ def benchmark(desc, T, C_in, seed, warmup, steps, profile, profile_out, perf_ctl
         # Enable perf counting for the timed steps only.
         step_times_ns = []
         for i in range(steps):
-            _perf_ctl(perf_ctl_fd, "enable")
             t0 = time.perf_counter_ns()
+            _perf_ctl(perf_ctl_fd, "enable")
             GATOR_FORWARD_PASS(model, x)
-            t1 = time.perf_counter_ns()
             _perf_ctl(perf_ctl_fd, "disable")
+            t1 = time.perf_counter_ns()
             print(
                 f"[Active {i + 1:02d}/{steps:02d}] {(t1 - t0) / 1e9:.6f} s", flush=True
             )
