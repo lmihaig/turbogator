@@ -93,6 +93,7 @@ def _perf_ctl(ctl_fd, cmd):
 
 
 def benchmark(desc, T, C_in, seed, warmup, steps, profile, profile_out, perf_ctl_fd):
+    _perf_ctl(perf_ctl_fd, "disable")
     torch.manual_seed(seed)
 
     B, D = app_config.BATCH_SIZE, app_config.VECTOR_DIM
@@ -110,8 +111,6 @@ def benchmark(desc, T, C_in, seed, warmup, steps, profile, profile_out, perf_ctl
     with torch.no_grad():
         if profile == "torch":
             return run_torch_profiler(model, x, profile_out)
-
-        _perf_ctl(perf_ctl_fd, "disable")
 
         warmup_times_ns = []
         for i in range(warmup):
