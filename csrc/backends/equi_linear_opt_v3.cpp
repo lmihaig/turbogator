@@ -53,29 +53,21 @@ namespace turbogator
         const float w6 = WR[6], w7 = WR[7]; \
         const float w8 = WR[8];             \
         ACC[0] += w0 * x0;                  \
-        ACC[1] += w1 * x1;                  \
+        ACC[1] += w1 * x1 + w5 * x0;        \
         ACC[2] += w1 * x2;                  \
         ACC[3] += w1 * x3;                  \
         ACC[4] += w1 * x4;                  \
-        ACC[5] += w2 * x5;                  \
-        ACC[6] += w2 * x6;                  \
-        ACC[7] += w2 * x7;                  \
+        ACC[5] += w2 * x5 + w6 * x2;        \
+        ACC[6] += w2 * x6 + w6 * x3;        \
+        ACC[7] += w2 * x7 + w6 * x4;        \
         ACC[8] += w2 * x8;                  \
         ACC[9] += w2 * x9;                  \
         ACC[10] += w2 * x10;                \
-        ACC[11] += w3 * x11;                \
-        ACC[12] += w3 * x12;                \
-        ACC[13] += w3 * x13;                \
+        ACC[11] += w3 * x11 + w7 * x8;      \
+        ACC[12] += w3 * x12 + w7 * x9;      \
+        ACC[13] += w3 * x13 + w7 * x10;     \
         ACC[14] += w3 * x14;                \
-        ACC[15] += w4 * x15;                \
-        ACC[1] += w5 * x0;                  \
-        ACC[5] += w6 * x2;                  \
-        ACC[6] += w6 * x3;                  \
-        ACC[7] += w6 * x4;                  \
-        ACC[11] += w7 * x8;                 \
-        ACC[12] += w7 * x9;                 \
-        ACC[13] += w7 * x10;                \
-        ACC[15] += w8 * x14;                \
+        ACC[15] += w4 * x15 + w8 * x14;     \
     }
 
             EQ_FMA_V3(w0r, acc0)
