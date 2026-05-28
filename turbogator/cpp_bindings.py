@@ -25,6 +25,7 @@ equi_rms_norm_combined = turbogator_ext.equi_rms_norm_combined
 scaler_gated_gelu_baseline = turbogator_ext.scaler_gated_gelu_baseline
 equi_geometric_attention_baseline = turbogator_ext.equi_geometric_attention_baseline
 equi_geometric_attention_optimized1 = turbogator_ext.equi_geometric_attention_optimized1
+equi_geometric_attention_optimized2 = turbogator_ext.equi_geometric_attention_optimized2
 
 # vectorized impl
 geometric_product_vectorized = turbogator_ext.geometric_product_vectorized
