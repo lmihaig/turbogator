@@ -166,39 +166,6 @@ PYBIND11_MODULE(turbogator_ext, m)
         
         return out; });
 
-    m.def("equi_join_optimized_avx2", [](torch::Tensor a, torch::Tensor b, torch::Tensor ref)
-          {
-        auto a_contig = a.contiguous();
-        auto b_contig = b.contiguous();
-
-        if (a_contig.numel() != b_contig.numel()) {
-            throw std::runtime_error("equi_join_optimized_avx2: size mismatch between a and b");
-        }
-
-        if (a_contig.size(-1) != 16) {
-            throw std::runtime_error("equi_join_optimized_avx2: last dimension must be 16");
-        }
-
-        auto out = make_out_like(a_contig);
-        size_t num_multivectors = a_contig.numel() / 16;
-
-        const float* ref_ptr = nullptr;
-        torch::Tensor ref_contig;
-        if (ref.defined()) {
-            ref_contig = ref.expand_as(a_contig).contiguous();
-            ref_ptr = ref_contig.data_ptr<float>();
-        }
-
-        turbogator::equi_join_optimized_avx2(
-            a_contig.data_ptr<float>(),
-            b_contig.data_ptr<float>(),
-            ref_ptr,
-            out.data_ptr<float>(),
-            num_multivectors
-        );
-
-        return out; });
-
     m.def("equi_join_optimized_sparse", [](torch::Tensor a, torch::Tensor b, torch::Tensor ref)
           {
         auto a_contig = a.contiguous();

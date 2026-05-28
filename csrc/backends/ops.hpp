@@ -12,7 +12,6 @@ void geometric_product_vectorized(const float* a, const float* b, float* out, si
 
 void equi_join_baseline(const float* a, const float* b, const float* ref, float* out, size_t n);
 void equi_join_optimized_hardcoded(const float* a, const float* b, const float* ref, float* out, size_t n);
-void equi_join_optimized_avx2(const float* a, const float* b, const float* ref, float* out, size_t n);
 void equi_join_optimized_sparse(const float* a, const float* b, const float* ref, float* out, size_t n);
 void equi_join_optimized_precompute_ab(const float* a, const float* b, const float* ref, float* out, size_t n);
 void equi_join_optimized_unroll_k(const float* a, const float* b, const float* ref, float* out, size_t n);
