@@ -32,6 +32,14 @@ void equi_geometric_attention_optimized1(
     const float* attn_mask,
     bool is_causal
 );
+void equi_geometric_attention_optimized2(
+    const float* q, const float* k, const float* v, float* out,
+    int64_t B, int64_t H, int64_t T, int64_t C,
+    const std::vector<std::string>& kinds,
+    const std::vector<const float*>& weights,
+    const float* attn_mask,
+    bool is_causal
+);
 void scaler_gated_gelu_baseline(const float* x, float* out, size_t n);
 void equi_linear_baseline(const float* x, const float* weight, const float* bias, float* out,
                           size_t batch, size_t in_channels, size_t out_channels,

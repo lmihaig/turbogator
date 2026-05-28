@@ -1,5 +1,6 @@
 #include "ops.hpp"
 
+#include <immintrin.h>
 #include <cmath>
 #include <cstring>
 #include <algorithm>
@@ -18,21 +19,17 @@ static constexpr int64_t BD      = 288;  // feature tile: 32×288×4 = 36 KiB K 
 static constexpr int IPA_IDX[N_IPA] = {0, 2, 3, 4, 8, 9, 10};
 static constexpr int TRI_IDX[4]     = {11, 12, 13, 14};
 
-// Select 7 IPA blades from one multivector (16 floats -> 7 floats).
 static void project_ipa(const float* mv, float* out) {
     for (int i = 0; i < N_IPA; ++i)
         out[i] = mv[IPA_IDX[i]];
 }
 
-// Normalize trivector by e123 using linear-square normalizer.
 static void normalize_tri(const float* mv, float* r) {
-    float r3 = mv[TRI_IDX[3]];
+    float r3   = mv[TRI_IDX[3]];
     float norm = r3 / (r3 * r3 + DAA_EPS);
     for (int i = 0; i < 4; ++i) r[i] = mv[TRI_IDX[i]] * norm;
 }
 
-// O1: Optimized Basis projections for DAA
-// Sparse BQ form, reducing to only meaningful components and removing loops over i, j and k
 static void project_daa_bq(const float* mv, float* out) {
     float r[4];
     normalize_tri(mv, r);
@@ -43,7 +40,6 @@ static void project_daa_bq(const float* mv, float* out) {
     out[4] = r[2]*r[3];
 }
 
-// Sparse BK form, reducing to only meaningful components and removing loops over i, j and k
 static void project_daa_bk(const float* mv, float* out) {
     float r[4];
     normalize_tri(mv, r);
@@ -54,7 +50,48 @@ static void project_daa_bk(const float* mv, float* out) {
     out[4] = 2.f * r[2]*r[3];
 }
 
-void equi_geometric_attention_optimized1(
+// Dual-accumulator AVX FMA dot product.
+// Two independent acc registers keep the FMA units on both execution ports busy:
+static inline float dot_avx_dual(const float* __restrict__ a,
+                                  const float* __restrict__ b,
+                                  int64_t n) {
+    __m256 acc0 = _mm256_setzero_ps();
+    __m256 acc1 = _mm256_setzero_ps();
+
+    int64_t d = 0;
+    // Main loop: 16 floats per iteration -> two independent FMAs per cycle
+    for (; d + 16 <= n; d += 16) {
+        acc0 = _mm256_fmadd_ps(_mm256_loadu_ps(a + d),
+                               _mm256_loadu_ps(b + d),
+                               acc0);
+        acc1 = _mm256_fmadd_ps(_mm256_loadu_ps(a + d + 8),
+                               _mm256_loadu_ps(b + d + 8),
+                               acc1);
+    }
+    // 8-float remainder chunk
+    for (; d + 8 <= n; d += 8) {
+        acc0 = _mm256_fmadd_ps(_mm256_loadu_ps(a + d),
+                               _mm256_loadu_ps(b + d),
+                               acc0);
+    }
+
+    // Horizontal reduction: merge acc0 + acc1, then reduce 8->1
+    __m256 acc   = _mm256_add_ps(acc0, acc1);
+    __m128 lo    = _mm256_castps256_ps128(acc);
+    __m128 hi    = _mm256_extractf128_ps(acc, 1);
+    __m128 sum4  = _mm_add_ps(lo, hi);
+    __m128 sum2  = _mm_add_ps(sum4, _mm_movehl_ps(sum4, sum4));
+    __m128 sum1  = _mm_add_ss(sum2, _mm_shuffle_ps(sum2, sum2, 0x1));
+    float  result = _mm_cvtss_f32(sum1);
+
+    // Scalar tail (< 8 elements) to be safe for any n:
+    for (; d < n; ++d)
+        result += a[d] * b[d];
+
+    return result;
+}
+
+void equi_geometric_attention_optimized2(
     const float* q, const float* k, const float* v, float* out,
     int64_t B, int64_t H, int64_t T, int64_t C,
     const std::vector<std::string>& kinds,
@@ -62,7 +99,6 @@ void equi_geometric_attention_optimized1(
     const float* attn_mask,
     bool is_causal
 ) {
-    // Total flattened q/k dim: C*7 per IPA kind + C*5 per DAA kind
     int64_t qk_dim = 0;
     for (auto& kind : kinds) {
         if      (kind == "ipa") qk_dim += C * N_IPA;
@@ -83,7 +119,6 @@ void equi_geometric_attention_optimized1(
             const float* v_bh = v   + (b * H + h) * T * mv_stride;
             float*       o_bh = out + (b * H + h) * T * mv_stride;
 
-            // Build flattened q/k projections for all tokens
             for (int64_t t = 0; t < T; ++t) {
                 float*  qf  = q_flat.data() + t * qk_dim;
                 float*  kf  = k_flat.data() + t * qk_dim;
@@ -99,7 +134,6 @@ void equi_geometric_attention_optimized1(
                             float pq[N_IPA], pk[N_IPA];
                             project_ipa(mv_q, pq);
                             project_ipa(mv_k, pk);
-                            // weight shape (H, 1, C, 1): w[h*C + c] broadcasts over T and blades
                             float w = wptr ? wptr[h * C + c] : 1.f;
                             for (int j = 0; j < N_IPA; ++j) {
                                 qf[off + c * N_IPA + j] = pq[j] * w;
@@ -126,7 +160,6 @@ void equi_geometric_attention_optimized1(
                 }
             }
 
-            // Blocked GEMM score
             const float neg_inf = -std::numeric_limits<float>::infinity();
             for (int64_t t1 = 0; t1 < T; ++t1)
                 for (int64_t t2 = 0; t2 < T; ++t2)
@@ -144,17 +177,13 @@ void equi_geometric_attention_optimized1(
                             const int64_t t2_lim = is_causal ? std::min(t2_end, t1 + 1) : t2_end;
                             for (int64_t t2 = t2b; t2 < t2_lim; ++t2) {
                                 const float* kf2 = k_flat.data() + t2 * qk_dim + db;
-                                float s = 0.f;
-                                for (int64_t d = 0; d < d_len; ++d)
-                                    s += qf1[d] * kf2[d];
-                                scores[t1 * T + t2] += s;
+                                scores[t1 * T + t2] += dot_avx_dual(qf1, kf2, d_len);
                             }
                         }
                     }
                 }
             }
 
-            // Scale, mask, softmax, weighted value sum
             for (int64_t t1 = 0; t1 < T; ++t1) {
                 float row_max = neg_inf;
                 for (int64_t t2 = 0; t2 < T; ++t2) {
@@ -165,7 +194,6 @@ void equi_geometric_attention_optimized1(
                     if (s > row_max) row_max = s;
                 }
 
-                // Numerically stable softmax
                 float sum_exp = 0.f;
                 for (int64_t t2 = 0; t2 < T; ++t2) {
                     float e = std::exp(scores[t1 * T + t2] - row_max);
@@ -175,7 +203,6 @@ void equi_geometric_attention_optimized1(
                 for (int64_t t2 = 0; t2 < T; ++t2)
                     scores[t1 * T + t2] /= sum_exp;
 
-                // Weighted sum of values
                 float* o_t1 = o_bh + t1 * mv_stride;
                 std::memset(o_t1, 0, mv_stride * sizeof(float));
                 for (int64_t t2 = 0; t2 < T; ++t2) {

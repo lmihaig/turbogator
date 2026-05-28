@@ -165,7 +165,13 @@ def cmd_microbench(args, build=True):
         "--profile",
         "none",
     ]
-    run_cmd(cmd)
+    Log.info(f"Running: {' '.join(cmd)}")
+    # py-spy exits with code 1 on Linux due to a ECHILD race after the profiled
+    # process exits normally; treat it as success if the output file was written.
+    result = subprocess.run(cmd)
+    if result.returncode != 0 and not flamegraph_path.exists():
+        Log.error(f"py-spy failed with code {result.returncode}")
+        sys.exit(result.returncode)
 
     Log.info("Running torch profiler...")
     run_cmd(

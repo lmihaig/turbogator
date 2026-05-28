@@ -1,7 +1,7 @@
 ACTIVE_SERVER = "adam"
 
-WARMUP = 3
-STEPS = 5
+WARMUP = 20
+STEPS = 20
 SIZES = [1, 2, 3, 4, 6]
 # SIZES = [1, 2, 3, 4, 6, 8, 12, 16]
 REPRESENTATIVE_N = 8
@@ -26,8 +26,8 @@ SERVERS = {
         "pinned_core": "4",
         "build_jobs": 12,
         "roofline_beta": 32,
-        "roofline_pi_scalar": 3.33,
-        "roofline_pi_vector": 16,
+        "roofline_pi_scalar": 5,
+        "roofline_pi_vector": 40,
         "perf_events": [
             "cycles",
             "instructions",
