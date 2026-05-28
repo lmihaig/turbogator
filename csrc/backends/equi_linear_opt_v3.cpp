@@ -5,9 +5,10 @@
 
 namespace turbogator
 {
-    // opt v3: oc-tiling (blocking by 4) on top of v2
+    // opt v3: oc-tiling + b-tiling on top of v2
 
     static constexpr size_t OC_BLOCK = 4;
+    static constexpr size_t B_BLOCK = 4;
 
     static inline void equi_linear_v3_block4(const float *x_b, const float *w_base,
                                              float *out_base, size_t in_channels,
@@ -126,8 +127,90 @@ namespace turbogator
 
         const size_t oc_tiles = out_channels / OC_BLOCK;
         const size_t oc_tail_start = oc_tiles * OC_BLOCK;
+        const size_t b_tiles = batch / B_BLOCK;
+        const size_t b_tail_start = b_tiles * B_BLOCK;
 
-        for (size_t b = 0; b < batch; ++b)
+        // b-tiling: reuse weights across B_BLOCK batches
+        for (size_t bt = 0; bt < b_tiles; ++bt)
+        {
+            const size_t b_base = bt * B_BLOCK;
+
+            for (size_t t = 0; t < oc_tiles; ++t)
+            {
+                const size_t oc_base = t * OC_BLOCK;
+                const float *w_base = w_use.data() + oc_base * in_channels * 9;
+
+                const float b0 = (bias != nullptr) ? bias[oc_base + 0] : 0.0f;
+                const float b1 = (bias != nullptr) ? bias[oc_base + 1] : 0.0f;
+                const float b2 = (bias != nullptr) ? bias[oc_base + 2] : 0.0f;
+                const float b3 = (bias != nullptr) ? bias[oc_base + 3] : 0.0f;
+
+                for (size_t bb = 0; bb < B_BLOCK; ++bb)
+                {
+                    const size_t b = b_base + bb;
+                    const float *x_b = x + b * in_channels * 16;
+                    float *out_base = out + b * out_channels * 16 + oc_base * 16;
+                    // oc-tiling
+                    equi_linear_v3_block4(x_b, w_base, out_base, in_channels, b0, b1, b2, b3);
+                }
+            }
+
+            // oc tail within b-tile
+            for (size_t bb = 0; bb < B_BLOCK; ++bb)
+            {
+                const size_t b = b_base + bb;
+                const float *x_b = x + b * in_channels * 16;
+                float *out_b = out + b * out_channels * 16;
+
+                for (size_t oc = oc_tail_start; oc < out_channels; ++oc)
+                {
+                    float acc[16];
+                    acc[0] = (bias != nullptr) ? bias[oc] : 0.0f;
+                    for (int d = 1; d < 16; ++d)
+                        acc[d] = 0.0f;
+
+                    for (size_t ic = 0; ic < in_channels; ++ic)
+                    {
+                        const float *w_oi = w_use.data() + (oc * in_channels + ic) * 9;
+                        const float *x_bi = x_b + ic * 16;
+
+                        const float w0 = w_oi[0];
+                        const float w1 = w_oi[1];
+                        const float w2 = w_oi[2];
+                        const float w3 = w_oi[3];
+                        const float w4 = w_oi[4];
+                        const float w5 = w_oi[5];
+                        const float w6 = w_oi[6];
+                        const float w7 = w_oi[7];
+                        const float w8 = w_oi[8];
+
+                        acc[0] += w0 * x_bi[0];
+                        acc[1] += w1 * x_bi[1] + w5 * x_bi[0];
+                        acc[2] += w1 * x_bi[2];
+                        acc[3] += w1 * x_bi[3];
+                        acc[4] += w1 * x_bi[4];
+                        acc[5] += w2 * x_bi[5] + w6 * x_bi[2];
+                        acc[6] += w2 * x_bi[6] + w6 * x_bi[3];
+                        acc[7] += w2 * x_bi[7] + w6 * x_bi[4];
+                        acc[8] += w2 * x_bi[8];
+                        acc[9] += w2 * x_bi[9];
+                        acc[10] += w2 * x_bi[10];
+                        acc[11] += w3 * x_bi[11] + w7 * x_bi[8];
+                        acc[12] += w3 * x_bi[12] + w7 * x_bi[9];
+                        acc[13] += w3 * x_bi[13] + w7 * x_bi[10];
+                        acc[14] += w3 * x_bi[14];
+                        acc[15] += w4 * x_bi[15] + w8 * x_bi[14];
+                    }
+
+                    float *out_bo = out_b + oc * 16;
+                    for (int d = 0; d < 16; ++d)
+                        out_bo[d] = acc[d];
+                }
+            }
+        }
+
+        // batch tail: leftover batches (< B_BLOCK)
+        for (size_t b = b_tail_start; b < batch; ++b)
         {
             const float *x_b = x + b * in_channels * 16;
             float *out_b = out + b * out_channels * 16;
