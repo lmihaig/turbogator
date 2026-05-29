@@ -13,6 +13,9 @@ import urllib.request
 from datetime import datetime
 from pathlib import Path
 
+os.environ.setdefault("FORCE_COLOR", "1")
+from termcolor import colored
+
 import config as app_config
 
 AUTH = app_config.AUTH
@@ -26,37 +29,77 @@ PINNED_RESULTS = {
 }
 
 
-class Log:
-    RED = "\033[91m"
-    GREEN = "\033[92m"
-    YELLOW = "\033[93m"
-    BLUE = "\033[94m"
-    RESET = "\033[0m"
+_RAW_RED = "\033[91m"
+_RAW_RESET = "\033[0m"
 
+
+class Log:
     @classmethod
     def _ts(cls):
         return datetime.now().strftime("%H:%M:%S")
 
     @classmethod
+    def _stamp(cls):
+        return colored(f"[{cls._ts()}]", "blue", force_color=True)
+
+    @classmethod
     def info(cls, msg):
-        print(f"[{cls._ts()}] {cls.BLUE} {msg}{cls.RESET}")
+        print(f"{cls._stamp()} {colored(msg, 'blue', force_color=True)}")
 
     @classmethod
     def success(cls, msg):
-        print(f"[{cls._ts()}] {cls.GREEN} {msg}{cls.RESET}")
+        print(f"{cls._stamp()} {colored(msg, 'green', force_color=True)}")
 
     @classmethod
     def error(cls, msg):
-        print(f"[{cls._ts()}] {cls.RED} {msg}{cls.RESET}")
+        print(f"{cls._stamp()} {colored(msg, 'red', force_color=True)}")
 
 
-def run_cmd(cmd):
+def run_cmd(cmd, env=None):
     Log.info(f"Running: {' '.join(cmd)}")
     try:
-        subprocess.run(cmd, check=True)
+        subprocess.run(cmd, check=True, env=env)
     except subprocess.CalledProcessError as e:
         Log.error(f"Process exited with code {e.returncode}")
         sys.exit(e.returncode)
+
+
+# pytorch/numpy thread isolation
+BENCH_SINGLE_THREAD_ENV = {
+    "PYTHONUNBUFFERED": "1",
+    "OMP_NUM_THREADS": "1",
+    "MKL_NUM_THREADS": "1",
+    "OPENBLAS_NUM_THREADS": "1",
+    "NUMEXPR_NUM_THREADS": "1",
+}
+
+
+def _unreliable_banner():
+    bar = "=" * 80
+    print(bar)
+    print("DO NOT RELY ON THESE ANYMORE - THEY ARE NOT FACTUAL".center(80))
+    print("Use `gator submit <desc>` with config.py SIZES=[1]".center(80))
+    print(bar)
+
+
+class _red_section:
+    def __enter__(self):
+        sys.stdout.write(_RAW_RED)
+        sys.stdout.flush()
+        self._saved = {n: Log.__dict__[n] for n in ("info", "success", "error")}
+
+        def _plain(cls, msg):
+            print(f"[{cls._ts()}] {msg}")
+
+        for n in ("info", "success", "error"):
+            setattr(Log, n, classmethod(_plain))
+        return self
+
+    def __exit__(self, *a):
+        for n, v in self._saved.items():
+            setattr(Log, n, v)
+        sys.stdout.write(_RAW_RESET)
+        sys.stdout.flush()
 
 
 def _api_request(path, data=None, headers=None):
@@ -114,68 +157,52 @@ def do_build():
 
 
 def cmd_debug(args):
-    do_build()
-    cmd_validate(args, build=False)
-    cmd_microbench(args, build=False)
+    with _red_section():
+        do_build()
+        cmd_validate(args, build=False)
+        cmd_microbench(args, build=False)
 
 
 def cmd_validate(args, build=True):
-    if build:
-        do_build()
-
-    Log.info("Validating Turbogator C++ extensions against PyTorch...")
-    run_cmd(["uv", "run", "python", "turbogator/validate.py"])
-    Log.success("Validation Complete!")
+    with _red_section():
+        _unreliable_banner()
+        if build:
+            do_build()
+        Log.info("Validating Turbogator C++ extensions against PyTorch...")
+        run_cmd(["uv", "run", "python", "turbogator/validate.py"])
+        Log.success("Validation Complete!")
+        _unreliable_banner()
 
 
 def cmd_microbench(args, build=True):
-    if build:
-        do_build()
-    out_dir = Path("results/microbench")
-    out_dir.mkdir(parents=True, exist_ok=True)
+    with _red_section():
+        _unreliable_banner()
+        if build:
+            do_build()
+        out_dir = Path("results/microbench")
+        out_dir.mkdir(parents=True, exist_ok=True)
 
-    desc = getattr(args, "description", "turbogator")
-    t_dim, c_in = app_config.get_dimensions(app_config.REPRESENTATIVE_N)
+        desc = getattr(args, "description", "turbogator")
+        t_dim, c_in = app_config.get_dimensions(app_config.REPRESENTATIVE_N)
 
-    flamegraph_path = out_dir / "profile.speedscope.json"
-    torch_profile_out = out_dir / "pytorch_profile.trace.json"
-    metrics_out = out_dir / f"{desc}_metrics.json"
+        flamegraph_path = out_dir / "profile.speedscope.json"
+        torch_profile_out = out_dir / "pytorch_profile.trace.json"
+        metrics_out = out_dir / f"{desc}_metrics.json"
 
-    Log.info(f"Recording py-spy ({desc}): T={t_dim}, C_in={c_in}")
+        bench_env = {**os.environ, **BENCH_SINGLE_THREAD_ENV}
 
-    cmd = [
-        "py-spy",
-        "record",
-        "-o",
-        str(flamegraph_path),
-        "--format",
-        "speedscope",
-        "--rate",
-        "100",
-        "--native",
-        "--",
-        sys.executable,
-        "turbogator/benchmark.py",
-        "--desc",
-        desc,
-        "--t",
-        str(t_dim),
-        "--c",
-        str(c_in),
-        "--profile",
-        "none",
-    ]
-    Log.info(f"Running: {' '.join(cmd)}")
-    # py-spy exits with code 1 on Linux due to a ECHILD race after the profiled
-    # process exits normally; treat it as success if the output file was written.
-    result = subprocess.run(cmd)
-    if result.returncode != 0 and not flamegraph_path.exists():
-        Log.error(f"py-spy failed with code {result.returncode}")
-        sys.exit(result.returncode)
-
-    Log.info("Running torch profiler...")
-    run_cmd(
-        [
+        Log.info(f"Recording py-spy ({desc}): T={t_dim}, C_in={c_in}")
+        cmd = [
+            "py-spy",
+            "record",
+            "-o",
+            str(flamegraph_path),
+            "--format",
+            "speedscope",
+            "--rate",
+            "100",
+            "--native",
+            "--",
             sys.executable,
             "turbogator/benchmark.py",
             "--desc",
@@ -184,39 +211,64 @@ def cmd_microbench(args, build=True):
             str(t_dim),
             "--c",
             str(c_in),
-            "--profile",
-            "torch",
-            "--profile-out",
-            str(torch_profile_out),
-        ]
-    )
-
-    Log.info("Running clean benchmark pass for metrics...")
-    run_cmd(
-        [
-            sys.executable,
-            "turbogator/benchmark.py",
-            "--desc",
-            desc,
-            "--t",
-            str(t_dim),
-            "--c",
-            str(c_in),
-            "--warmup",
-            str(app_config.WARMUP),
-            "--steps",
-            str(app_config.STEPS),
             "--profile",
             "none",
-            "--out",
-            str(metrics_out),
         ]
-    )
+        Log.info(f"Running: {' '.join(cmd)}")
+        # py-spy exits with code 1 on Linux due to a ECHILD race after the profiled
+        # process exits normally; treat it as success if the output file was written.
+        result = subprocess.run(cmd, env=bench_env)
+        if result.returncode != 0 and not flamegraph_path.exists():
+            Log.error(f"py-spy failed with code {result.returncode}")
+            sys.exit(result.returncode)
 
-    Log.success(f"Microbenchmark complete. Outputs saved to {out_dir}")
-    Log.info(f"Metrics saved to {metrics_out.name}")
-    Log.info("Open py-spy flamegraph to https://www.speedscope.app/")
-    Log.info("Open torch trace in https://ui.perfetto.dev")
+        Log.info("Running torch profiler...")
+        run_cmd(
+            [
+                sys.executable,
+                "turbogator/benchmark.py",
+                "--desc",
+                desc,
+                "--t",
+                str(t_dim),
+                "--c",
+                str(c_in),
+                "--profile",
+                "torch",
+                "--profile-out",
+                str(torch_profile_out),
+            ],
+            env=bench_env,
+        )
+
+        Log.info("Running clean benchmark pass for metrics...")
+        run_cmd(
+            [
+                sys.executable,
+                "turbogator/benchmark.py",
+                "--desc",
+                desc,
+                "--t",
+                str(t_dim),
+                "--c",
+                str(c_in),
+                "--warmup",
+                "5",
+                "--steps",
+                "5",
+                "--profile",
+                "none",
+                "--out",
+                str(metrics_out),
+            ],
+            env=bench_env,
+        )
+
+        Log.success(f"Microbenchmark complete. Outputs saved to {out_dir}")
+        Log.info(f"Metrics saved to {metrics_out.name}")
+        Log.info("Open py-spy flamegraph at https://www.speedscope.app/")
+        Log.info("Open torch trace at https://ui.perfetto.dev")
+        _unreliable_banner()
 
 
 def cmd_fetch(args):
@@ -234,7 +286,7 @@ def cmd_fetch(args):
         logs = _api_request(f"/logs/{job_id}").decode().splitlines()
         for line in logs:
             if line.strip():
-                print(f"{Log.BLUE}[{Log._ts()}]{Log.RESET} {line}")
+                print(f"{Log._stamp()} {line}")
         Log.info("Run fetch again later to check if it has completed.")
         sys.exit(0)
 
@@ -328,10 +380,11 @@ def cmd_submit(args):
     root = Path(".")
     tar_path = root / "workspace.tar.gz"
 
-    # sanity check
-    Log.info("Building and validating locally before submit...")
-    do_build()
-    cmd_validate(args, build=False)
+    # server does this now, DO NOT do it locally anymore!!!
+    # # sanity check
+    # Log.info("Building and validating locally before submit...")
+    # do_build()
+    # cmd_validate(args, build=False)
 
     def filter_tar(info):
         name = info.name
@@ -383,7 +436,7 @@ def cmd_submit(args):
         if len(logs) > last_line:
             for line in logs[last_line:]:
                 if line.strip():
-                    print(f"{Log.BLUE}[{Log._ts()}]{Log.RESET} {line}")
+                    print(f"{Log._stamp()} {line}")
                 else:
                     print()
             last_line = len(logs)
@@ -440,7 +493,7 @@ def cmd_submit(args):
         if len(final_logs) > last_line:
             for line in final_logs[last_line:]:
                 if line.strip():
-                    print(f"{Log.BLUE}[{Log._ts()}]{Log.RESET} {line}")
+                    print(f"{Log._stamp()} {line}")
 
     Log.success(f"Job Complete! Data saved to {out_dir}")
 
