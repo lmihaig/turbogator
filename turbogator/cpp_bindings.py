@@ -2,35 +2,33 @@ import importlib
 
 turbogator_ext = importlib.import_module("turbogator.turbogator_ext")
 
-# baseline impl
-equi_linear_baseline = turbogator_ext.equi_linear_baseline
-equi_linear_opt_v2 = turbogator_ext.equi_linear_opt_v2
-equi_linear_opt_vectorized = turbogator_ext.equi_linear_opt_vectorized
+# geometric product
 geometric_product_baseline = turbogator_ext.geometric_product_baseline
 geometric_product_opt_v1 = turbogator_ext.geometric_product_opt_v1
+geometric_product_vectorized = turbogator_ext.geometric_product_vectorized
+
+# equi_join
 equi_join_baseline = turbogator_ext.equi_join_baseline
-equi_join_optimized_hardcoded = turbogator_ext.equi_join_optimized_hardcoded
-equi_join_optimized_sparse = turbogator_ext.equi_join_optimized_sparse
-equi_join_optimized_precompute_ab = turbogator_ext.equi_join_optimized_precompute_ab
-equi_join_optimized_unroll_k = turbogator_ext.equi_join_optimized_unroll_k
-equi_join_restrict_unswitch = turbogator_ext.equi_join_restrict_unswitch
-equi_rms_norm_baseline = turbogator_ext.equi_rms_norm_baseline
-equi_rms_norm_branchless_clamp = turbogator_ext.equi_rms_norm_branchless_clamp
-equi_rms_norm_restrict = turbogator_ext.equi_rms_norm_restrict
-equi_rms_norm_unrolled_selector = turbogator_ext.equi_rms_norm_unrolled_selector
-equi_rms_norm_reciprocal_div = turbogator_ext.equi_rms_norm_reciprocal_div
-equi_rms_norm_prefetch = turbogator_ext.equi_rms_norm_prefetch
-equi_rms_norm_unrolled_channels_4 = turbogator_ext.equi_rms_norm_unrolled_channels_4
-equi_rms_norm_assume_aligned = turbogator_ext.equi_rms_norm_assume_aligned
-equi_rms_norm_combined = turbogator_ext.equi_rms_norm_combined
-equi_rms_norm_vectorized = turbogator_ext.equi_rms_norm_vectorized
-scaler_gated_gelu_baseline = turbogator_ext.scaler_gated_gelu_baseline
-scaler_gated_gelu_vectorized = turbogator_ext.scaler_gated_gelu_vectorized
-equi_geometric_attention_baseline = turbogator_ext.equi_geometric_attention_baseline
-equi_geometric_attention_optimized1 = turbogator_ext.equi_geometric_attention_optimized1
-equi_geometric_attention_optimized2 = turbogator_ext.equi_geometric_attention_optimized2
+equi_join_opt_v1 = turbogator_ext.equi_join_opt_v1
+equi_join_opt_v2 = turbogator_ext.equi_join_opt_v2
 equi_join_vectorized = turbogator_ext.equi_join_vectorized
 
+# equi_geometric_attention
+equi_geometric_attention_baseline = turbogator_ext.equi_geometric_attention_baseline
+equi_geometric_attention_opt_v1 = turbogator_ext.equi_geometric_attention_opt_v1
+equi_geometric_attention_vectorized = turbogator_ext.equi_geometric_attention_vectorized
 
-# vectorized impl
-geometric_product_vectorized = turbogator_ext.geometric_product_vectorized
+# scaler_gated_gelu
+scaler_gated_gelu_baseline = turbogator_ext.scaler_gated_gelu_baseline
+scaler_gated_gelu_vectorized = turbogator_ext.scaler_gated_gelu_vectorized
+
+# // equi_linear
+equi_linear_baseline = turbogator_ext.equi_linear_baseline
+equi_linear_opt_v1 = turbogator_ext.equi_linear_opt_v1
+equi_linear_opt_v2 = turbogator_ext.equi_linear_opt_v2
+equi_linear_vectorized = turbogator_ext.equi_linear_vectorized
+
+# // equi_rms_norm
+equi_rms_norm_baseline = turbogator_ext.equi_rms_norm_baseline
+equi_rms_norm_opt_v1 = turbogator_ext.equi_rms_norm_opt_v1
+equi_rms_norm_vectorized = turbogator_ext.equi_rms_norm_vectorized

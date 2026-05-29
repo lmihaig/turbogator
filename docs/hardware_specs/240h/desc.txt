@@ -1,0 +1,12 @@
+VFMADD132SS (XMM, XMM, XMM)	4	0.50 / 0.50	1 / 1	1*p01
+VADDSS      (XMM, XMM, XMM)	2	0.50 / 0.50	1 / 1	1*p15
+-> 2 FMAs on port 0 and 1 = 4 FLOPs
+-> 1 ADD on port 5        = 1 FLOPs
+= 5 FLOPs
+
+
+VFMADD132PS (YMM, YMM, YMM)	4	0.50 / 0.50	1 / 1	1*p01
+VADDPS      (YMM, YMM, YMM)	2	0.50 / 0.50	1 / 1	1*p15
+-> 2 FMAs on port 0 and 1 * 8 f32s per instr = 32 FLOPs
+-> 1 ADD on port 5        * 8 f32s per instr  = 8 FLOPs
+= 40 FLOPs

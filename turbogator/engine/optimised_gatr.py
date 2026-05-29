@@ -11,6 +11,7 @@ from einops import rearrange
 from ezgatr.nets.mv_only_gatr import MVOnlyGATrConfig
 from turbogator import cpp_bindings as c_ops
 
+
 class EquiLinear(nn.Module):
     __constants__ = ["in_channels", "out_channels", "normalize_basis"]
 
@@ -94,7 +95,7 @@ class EquiRMSNorm(nn.Module):
             nn.init.ones_(self.weight)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return c_ops.equi_rms_norm_combined(x, self.weight, self.eps)
+        return c_ops.equi_rms_norm_opt_v1(x, self.weight, self.eps)
 
     def extra_repr(self) -> str:
         return (
@@ -152,7 +153,7 @@ class MVOnlyGATrBilinear(nn.Module):
         x = torch.cat(
             [
                 c_ops.geometric_product_opt_v1(lg, rg),
-                c_ops.equi_join_optimized_hardcoded(lj, rj, reference),
+                c_ops.equi_join_opt_v2(lj, rj, reference),
             ],
             dim=-2,
         )
@@ -187,7 +188,9 @@ class MVOnlyGATrMLP(nn.Module):
 
         x = self.layer_norm(x)
         x = self.equi_bil(x, reference)
-        x = self.proj_out(c_ops.scaler_gated_gelu_baseline(x, self.config.gelu_approximate))
+        x = self.proj_out(
+            c_ops.scaler_gated_gelu_baseline(x, self.config.gelu_approximate)
+        )
 
         return x + residual
 
@@ -240,7 +243,7 @@ class MVOnlyGATrAttention(nn.Module):
             h=self.config.attn_num_heads,
             c=self.config.size_channels_hidden,
         )
-        x, _ = c_ops.equi_geometric_attention_optimized1(
+        x, _ = c_ops.equi_geometric_attention_opt_v1(
             q,
             k,
             v,

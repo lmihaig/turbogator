@@ -53,7 +53,7 @@ class EquiLinear(nn.Module):
             nn.init.uniform_(self.bias, -bound, bound)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return c_ops.equi_linear_opt_vectorized(
+        return c_ops.equi_linear_vectorized(
             x, self.weight, self.bias, self.normalize_basis
         )
 
@@ -97,7 +97,7 @@ class EquiRMSNorm(nn.Module):
             nn.init.ones_(self.weight)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return c_ops.equi_rms_norm_combined(x, self.weight, self.eps)
+        return c_ops.equi_rms_norm_vectorized(x, self.weight, self.eps)
 
     def extra_repr(self) -> str:
         return (
@@ -245,7 +245,7 @@ class MVOnlyGATrAttention(nn.Module):
             h=self.config.attn_num_heads,
             c=self.config.size_channels_hidden,
         )
-        x, _ = c_ops.equi_geometric_attention_optimized2(
+        x, _ = c_ops.equi_geometric_attention_vectorized(
             q,
             k,
             v,

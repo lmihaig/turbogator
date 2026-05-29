@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 import argparse
 import base64
+import fcntl
 import json
 import os
 import shutil
 import subprocess
 import sys
 import tarfile
+import tempfile
 import time
 import urllib.error
 import urllib.request
@@ -141,6 +143,20 @@ def _api_submit(user, desc, tar_path):
     }
 
     return json.loads(_api_request("/submit", data=body, headers=headers))
+
+
+def _append_history(root, data):
+    path = root / "results/history.jsonl"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    line = json.dumps(data) + "\n"
+    with open(path, "a") as f:
+        fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+        try:
+            f.write(line)
+            f.flush()
+            os.fsync(f.fileno())
+        finally:
+            fcntl.flock(f.fileno(), fcntl.LOCK_UN)
 
 
 def do_build():
@@ -322,8 +338,7 @@ def cmd_fetch(args):
         if "error" in data:
             Log.error("Server reported execution failure. Check run.log.")
         else:
-            with open(root / "results/history.jsonl", "a") as f:
-                f.write(json.dumps(data) + "\n")
+            _append_history(root, data)
             Log.success("Metrics appended to local history.")
 
     Log.success(f"Recovery Complete! Data saved to {out_dir}")
@@ -350,6 +365,11 @@ def cmd_clean(args):
         shutil.rmtree(d, ignore_errors=True)
     for f in rm_files:
         Path(f).unlink(missing_ok=True)
+
+    for p in Path(".").glob("workspace.*.tar.gz"):
+        p.unlink(missing_ok=True)
+    for p in Path(".").glob("tmp_*.tar.gz"):
+        p.unlink(missing_ok=True)
 
     for p in Path(".").rglob("__pycache__"):
         if ".venv" not in p.parts and ".git" not in p.parts:
@@ -378,7 +398,6 @@ def cmd_submit(args):
     desc = args.description
     pinned_dir = PINNED_RESULTS.get(desc)
     root = Path(".")
-    tar_path = root / "workspace.tar.gz"
 
     # server does this now, DO NOT do it locally anymore!!!
     # # sanity check
@@ -398,22 +417,32 @@ def cmd_submit(args):
             return None
         return info
 
-    with tarfile.open(tar_path, "w:gz") as tf:
-        for p in [
-            "turbogator",
-            "csrc",
-            "config.py",
-            "pyproject.toml",
-            "uv.lock",
-            "CMakeLists.txt",
-            "README.md",
-        ]:
-            if Path(p).exists():
-                tf.add(p, filter=filter_tar)
+    fd, tar_name = tempfile.mkstemp(
+        prefix="workspace.", suffix=".tar.gz", dir=str(root)
+    )
+    os.close(fd)
+    tar_path = Path(tar_name)
 
-    user = os.environ.get("USER", "unknown")
-    Log.info(f"Submitting workspace for '{desc}'...")
-    res = _api_submit(user, desc, tar_path)
+    try:
+        with tarfile.open(tar_path, "w:gz") as tf:
+            for p in [
+                "turbogator",
+                "csrc",
+                "config.py",
+                "pyproject.toml",
+                "uv.lock",
+                "CMakeLists.txt",
+                "README.md",
+            ]:
+                if Path(p).exists():
+                    tf.add(p, filter=filter_tar)
+
+        user = os.environ.get("USER", "unknown")
+        Log.info(f"Submitting workspace for '{desc}'...")
+        res = _api_submit(user, desc, tar_path)
+    finally:
+        tar_path.unlink(missing_ok=True)
+
     job_id = res.get("job_id")
 
     if not job_id:
@@ -469,7 +498,6 @@ def cmd_submit(args):
             time.sleep(2 * attempt)
 
     tmp_archive.unlink(missing_ok=True)
-    tar_path.unlink()
 
     metrics_file = out_dir / "metrics.json"
     advisor_dir = out_dir / "advisor_results"
@@ -479,21 +507,11 @@ def cmd_submit(args):
             Log.error("Server reported execution failure. Check run.log.")
             sys.exit(1)
         else:
-            with open(root / "results/history.jsonl", "a") as f:
-                f.write(json.dumps(data) + "\n")
+            _append_history(root, data)
             Log.success("Metrics appended to local history.")
 
     if advisor_dir.exists():
         Log.success(f"Intel Advisor results saved to {advisor_dir}")
-
-    # server cleanup race condition missing lines
-    local_log = out_dir / "run.log"
-    if local_log.exists():
-        final_logs = local_log.read_text().splitlines()
-        if len(final_logs) > last_line:
-            for line in final_logs[last_line:]:
-                if line.strip():
-                    print(f"{Log._stamp()} {line}")
 
     Log.success(f"Job Complete! Data saved to {out_dir}")
 

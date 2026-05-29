@@ -1,9 +1,9 @@
-#include "equi_join_kernel.hpp"
+#include "equi_join_constants.hpp"
 #include "ops.hpp"
 
 namespace turbogator {
 
-void equi_join_baseline(const float* a, const float* b, const float* ref, float* out, size_t n, size_t ref_group) {
+void equi_join_opt_v1(const float* a, const float* b, const float* ref, float* out, size_t n, size_t ref_group) {
     const float* cur_ref = ref;
     size_t ref_left      = ref_group;
     for (size_t batch = 0; batch < n; batch++) {
@@ -14,10 +14,10 @@ void equi_join_baseline(const float* a, const float* b, const float* ref, float*
         for (int i = 0; i < 16; i++)
             cur_out[i] = 0.0f;
 
-        for (int i = 0; i < 16; i++)
-            for (int j = 0; j < 16; j++)
-                for (int k = 0; k < 16; k++)
-                    cur_out[i] += KERNEL.data[i][j][k] * cur_a[j] * cur_b[k];
+        for (size_t idx = 0; idx < kJoinKernelEntryCount; idx++) {
+            const SparseEntry& e = kJoinKernelEntries[idx];
+            cur_out[e.i] += e.v * cur_a[e.j] * cur_b[e.k];
+        }
 
         if (ref != nullptr) {
             float scale = cur_ref[14];

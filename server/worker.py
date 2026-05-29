@@ -61,7 +61,7 @@ def build_project(job_dir, env, log_file):
 
 
 def validate_build(job_dir, env, log_file):
-    print("\n=== Step: Validate ===", file=log_file, flush=True)
+    print("\n=== Stage: Validate ===", file=log_file, flush=True)
 
     ccdb = job_dir / "build" / "skbuild" / "compile_commands.json"
     if ccdb.exists():
@@ -146,7 +146,7 @@ def parse_perf_csv(perf_path, events):
 
 
 def run_microbench(job_dir, env, log_file, app_config, desc):
-    print("\n=== Step: Microbench (1 warmup, 1 step) ===", file=log_file, flush=True)
+    print("\n=== Stage: Microbench ===", file=log_file, flush=True)
     pinned_core = app_config.PINNED_CPU_CORE
     n_val = app_config.REPRESENTATIVE_N
     t_val, c_val = app_config.get_dimensions(n_val)
@@ -389,6 +389,7 @@ def main():
         _fence(log_file, "after microbench")
 
         run_sweep(job_dir, env, log_file, app_config, desc, metrics)
+        _fence(log_file, "after sweep")
 
     except Exception as e:
         if failure_reason is None:

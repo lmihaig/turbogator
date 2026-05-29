@@ -8,32 +8,37 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 PALETTE = {
-    "green": "#4e8f7a",
-    "orange": "#b87a3f",
-    "purple": "#7a74a6",
-    "magenta": "#b06d8f",
-    "blue": "#5c85a6",
-    "red": "#b24a4a",
-    "teal": "#3f8a8a",
-    "olive": "#8a8a3f",
-    "indigo": "#5a5aa6",
-    "salmon": "#cc7a6a",
+    "blue": "#2563eb",
+    "orange": "#ea580c",
+    "teal": "#0d9488",
+    "magenta": "#c026d3",
+    "green": "#16a34a",
+    "purple": "#7c3aed",
+    "rose": "#e11d48",
+    "cyan": "#0284c7",
+    "gold": "#ca8a04",
+    "navy": "#1e3a8a",
+    "brick": "#9f1239",
+    "slate": "#475569",
     "primary": "#8B0000",
     "gray_text": "0.4",
 }
 
 SERIES_COLORS = [
     PALETTE["blue"],
-    PALETTE["green"],
     PALETTE["orange"],
-    PALETTE["purple"],
-    PALETTE["magenta"],
-    PALETTE["red"],
     PALETTE["teal"],
-    PALETTE["olive"],
-    PALETTE["indigo"],
-    PALETTE["salmon"],
+    PALETTE["magenta"],
+    PALETTE["green"],
+    PALETTE["purple"],
+    PALETTE["rose"],
+    PALETTE["cyan"],
+    PALETTE["gold"],
+    PALETTE["navy"],
+    PALETTE["brick"],
+    PALETTE["slate"],
 ]
+
 
 PRIMARY_DESC = "ezgatr"
 
@@ -45,15 +50,32 @@ def _normalize_desc(desc):
 def series_palette(descriptions, primary=PRIMARY_DESC):
     primary_norm = _normalize_desc(primary)
     out = {}
+    used_colors = set()
+
     for d in descriptions:
         if d in out:
             continue
+
         nd = _normalize_desc(d)
+
         if nd == primary_norm:
             out[d] = PALETTE["primary"]
-        else:
-            h = int.from_bytes(hashlib.md5(nd.encode()).digest()[:4], "big")
-            out[d] = SERIES_COLORS[h % len(SERIES_COLORS)]
+            continue
+
+        h = int.from_bytes(hashlib.md5(nd.encode()).digest()[:4], "big")
+        base_idx = h % len(SERIES_COLORS)
+        color = SERIES_COLORS[base_idx]
+
+        if color in used_colors and len(used_colors) < len(SERIES_COLORS):
+            for offset in range(1, len(SERIES_COLORS)):
+                probe_idx = (base_idx + offset) % len(SERIES_COLORS)
+                if SERIES_COLORS[probe_idx] not in used_colors:
+                    color = SERIES_COLORS[probe_idx]
+                    break
+
+        out[d] = color
+        used_colors.add(color)
+
     return out
 
 
