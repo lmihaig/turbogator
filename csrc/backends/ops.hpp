@@ -68,5 +68,7 @@ void equi_rms_norm_assume_aligned(const float* x, const float* weight, float* ou
                             size_t batch, size_t n_channels, float eps);
 void equi_rms_norm_combined(const float* x, const float* weight, float* out,
                             size_t batch, size_t n_channels, float eps);
+void equi_rms_norm_vectorized(const float* x, const float* weight, float* out,
+                              size_t batch, size_t n_channels, float eps);
 
 }  // namespace turbogator
