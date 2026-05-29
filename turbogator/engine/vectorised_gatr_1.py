@@ -11,6 +11,7 @@ from einops import rearrange
 from ezgatr.nets.mv_only_gatr import MVOnlyGATrConfig
 from turbogator import cpp_bindings as c_ops
 
+
 class EquiLinear(nn.Module):
     __constants__ = ["in_channels", "out_channels", "normalize_basis"]
 
@@ -52,7 +53,9 @@ class EquiLinear(nn.Module):
             nn.init.uniform_(self.bias, -bound, bound)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return c_ops.equi_linear_opt_vectorized(x, self.weight, self.bias, self.normalize_basis)
+        return c_ops.equi_linear_opt_vectorized(
+            x, self.weight, self.bias, self.normalize_basis
+        )
 
     def extra_repr(self) -> str:
         return (
@@ -152,7 +155,7 @@ class MVOnlyGATrBilinear(nn.Module):
         x = torch.cat(
             [
                 c_ops.geometric_product_opt_v1(lg, rg),
-                c_ops.equi_join_optimized_hardcoded(lj, rj, reference),
+                c_ops.equi_join_vectorized(lj, rj, reference),
             ],
             dim=-2,
         )
@@ -187,7 +190,9 @@ class MVOnlyGATrMLP(nn.Module):
 
         x = self.layer_norm(x)
         x = self.equi_bil(x, reference)
-        x = self.proj_out(c_ops.scaler_gated_gelu_baseline(x, self.config.gelu_approximate))
+        x = self.proj_out(
+            c_ops.scaler_gated_gelu_baseline(x, self.config.gelu_approximate)
+        )
 
         return x + residual
 

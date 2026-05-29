@@ -58,7 +58,7 @@ target_compile_options(turbogator_ext PRIVATE
 # TEST THESE LATER???
 # -funroll-loops 
 # -ffinite-math-only
-# -fast-math
+# -ffast-math
 # -fno-math-errno         
 # -fno-trapping-math      
 # -fprefetch-loop-arrays 

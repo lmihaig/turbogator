@@ -100,6 +100,38 @@ PYBIND11_MODULE(turbogator_ext, m)
 
         return    out; });
 
+    m.def("equi_join_vectorized", [](torch::Tensor a, torch::Tensor b, torch::Tensor ref)
+          {
+        auto a_contig = a.contiguous();
+        auto b_contig = b.contiguous();
+
+        if (a_contig.numel() != b_contig.numel()) {
+            throw std::runtime_error("equi_join_vectorized: size mismatch between a and b");
+        }
+        
+        if (a_contig.size(-1) != 16) {
+            throw std::runtime_error("equi_join_vectorized: last dimension must be 16");
+        }
+
+        auto out = make_out_like(a_contig);
+        size_t num_multivectors = a_contig.numel() / 16;
+
+        const float* ref_ptr = nullptr;
+        torch::Tensor ref_contig; 
+        if (ref.defined()) {
+            ref_contig = ref.expand_as(a_contig).contiguous();
+            ref_ptr = ref_contig.data_ptr<float>();
+        }
+
+        turbogator::equi_join_vectorized(
+            a_contig.data_ptr<float>(),
+            b_contig.data_ptr<float>(),
+            ref_ptr,
+            out.data_ptr<float>(),
+            num_multivectors);
+
+        return out; });
+
     m.def("equi_join_baseline", [](torch::Tensor a, torch::Tensor b, torch::Tensor ref)
           {
         auto a_contig = a.contiguous();
@@ -132,7 +164,7 @@ PYBIND11_MODULE(turbogator_ext, m)
         );
         
         return out; });
-    
+
     m.def("equi_join_optimized_hardcoded", [](torch::Tensor a, torch::Tensor b, torch::Tensor ref)
           {
         auto a_contig = a.contiguous();
@@ -198,7 +230,7 @@ PYBIND11_MODULE(turbogator_ext, m)
         );
         
         return out; });
-    
+
     m.def("equi_join_optimized_precompute_ab", [](torch::Tensor a, torch::Tensor b, torch::Tensor ref)
           {
         auto a_contig = a.contiguous();
@@ -264,7 +296,7 @@ PYBIND11_MODULE(turbogator_ext, m)
         );
         
         return out; });
-    
+
     m.def("equi_join_restrict_unswitch", [](torch::Tensor a, torch::Tensor b, torch::Tensor ref)
           {
         auto a_contig = a.contiguous();
@@ -297,7 +329,6 @@ PYBIND11_MODULE(turbogator_ext, m)
         );
         
         return out; });
-
 
     m.def(
         "equi_geometric_attention_baseline",
@@ -587,7 +618,7 @@ PYBIND11_MODULE(turbogator_ext, m)
         py::arg("x"),
         py::arg("weight") = py::none(),
         py::arg("eps") = py::none());
-    
+
     m.def(
         "equi_rms_norm_branchless_clamp",
         [](torch::Tensor x, py::object weight, py::object eps)
@@ -607,10 +638,11 @@ PYBIND11_MODULE(turbogator_ext, m)
             if (!eps.is_none())
                 eps_val = eps.cast<float>();
 
-            const auto& sz = x.sizes();
+            const auto &sz = x.sizes();
             size_t n_channels = sz[sz.size() - 2];
             size_t batch = 1;
-            for (size_t i = 0; i + 2 < sz.size(); ++i) batch *= sz[i];
+            for (size_t i = 0; i + 2 < sz.size(); ++i)
+                batch *= sz[i];
 
             turbogator::equi_rms_norm_branchless_clamp(
                 x.data_ptr<float>(),
@@ -642,10 +674,11 @@ PYBIND11_MODULE(turbogator_ext, m)
             if (!eps.is_none())
                 eps_val = eps.cast<float>();
 
-            const auto& sz = x.sizes();
+            const auto &sz = x.sizes();
             size_t n_channels = sz[sz.size() - 2];
             size_t batch = 1;
-            for (size_t i = 0; i + 2 < sz.size(); ++i) batch *= sz[i];
+            for (size_t i = 0; i + 2 < sz.size(); ++i)
+                batch *= sz[i];
 
             turbogator::equi_rms_norm_restrict(
                 x.data_ptr<float>(),
@@ -677,10 +710,11 @@ PYBIND11_MODULE(turbogator_ext, m)
             if (!eps.is_none())
                 eps_val = eps.cast<float>();
 
-            const auto& sz = x.sizes();
+            const auto &sz = x.sizes();
             size_t n_channels = sz[sz.size() - 2];
             size_t batch = 1;
-            for (size_t i = 0; i + 2 < sz.size(); ++i) batch *= sz[i];
+            for (size_t i = 0; i + 2 < sz.size(); ++i)
+                batch *= sz[i];
 
             turbogator::equi_rms_norm_unrolled_selector(
                 x.data_ptr<float>(),
@@ -692,7 +726,7 @@ PYBIND11_MODULE(turbogator_ext, m)
         py::arg("x"),
         py::arg("weight") = py::none(),
         py::arg("eps") = py::none());
-    
+
     m.def(
         "equi_rms_norm_reciprocal_div",
         [](torch::Tensor x, py::object weight, py::object eps)
@@ -712,10 +746,11 @@ PYBIND11_MODULE(turbogator_ext, m)
             if (!eps.is_none())
                 eps_val = eps.cast<float>();
 
-            const auto& sz = x.sizes();
+            const auto &sz = x.sizes();
             size_t n_channels = sz[sz.size() - 2];
             size_t batch = 1;
-            for (size_t i = 0; i + 2 < sz.size(); ++i) batch *= sz[i];
+            for (size_t i = 0; i + 2 < sz.size(); ++i)
+                batch *= sz[i];
 
             turbogator::equi_rms_norm_reciprocal_div(
                 x.data_ptr<float>(),
@@ -727,7 +762,7 @@ PYBIND11_MODULE(turbogator_ext, m)
         py::arg("x"),
         py::arg("weight") = py::none(),
         py::arg("eps") = py::none());
-    
+
     m.def(
         "equi_rms_norm_prefetch",
         [](torch::Tensor x, py::object weight, py::object eps)
@@ -747,10 +782,11 @@ PYBIND11_MODULE(turbogator_ext, m)
             if (!eps.is_none())
                 eps_val = eps.cast<float>();
 
-            const auto& sz = x.sizes();
+            const auto &sz = x.sizes();
             size_t n_channels = sz[sz.size() - 2];
             size_t batch = 1;
-            for (size_t i = 0; i + 2 < sz.size(); ++i) batch *= sz[i];
+            for (size_t i = 0; i + 2 < sz.size(); ++i)
+                batch *= sz[i];
 
             turbogator::equi_rms_norm_prefetch(
                 x.data_ptr<float>(),
@@ -782,10 +818,11 @@ PYBIND11_MODULE(turbogator_ext, m)
             if (!eps.is_none())
                 eps_val = eps.cast<float>();
 
-            const auto& sz = x.sizes();
+            const auto &sz = x.sizes();
             size_t n_channels = sz[sz.size() - 2];
             size_t batch = 1;
-            for (size_t i = 0; i + 2 < sz.size(); ++i) batch *= sz[i];
+            for (size_t i = 0; i + 2 < sz.size(); ++i)
+                batch *= sz[i];
 
             turbogator::equi_rms_norm_unrolled_channels_4(
                 x.data_ptr<float>(),
@@ -797,7 +834,7 @@ PYBIND11_MODULE(turbogator_ext, m)
         py::arg("x"),
         py::arg("weight") = py::none(),
         py::arg("eps") = py::none());
-    
+
     m.def(
         "equi_rms_norm_assume_aligned",
         [](torch::Tensor x, py::object weight, py::object eps)
@@ -817,10 +854,11 @@ PYBIND11_MODULE(turbogator_ext, m)
             if (!eps.is_none())
                 eps_val = eps.cast<float>();
 
-            const auto& sz = x.sizes();
+            const auto &sz = x.sizes();
             size_t n_channels = sz[sz.size() - 2];
             size_t batch = 1;
-            for (size_t i = 0; i + 2 < sz.size(); ++i) batch *= sz[i];
+            for (size_t i = 0; i + 2 < sz.size(); ++i)
+                batch *= sz[i];
 
             turbogator::equi_rms_norm_assume_aligned(
                 x.data_ptr<float>(),
@@ -832,7 +870,7 @@ PYBIND11_MODULE(turbogator_ext, m)
         py::arg("x"),
         py::arg("weight") = py::none(),
         py::arg("eps") = py::none());
-    
+
     m.def(
         "equi_rms_norm_combined",
         [](torch::Tensor x, py::object weight, py::object eps)
@@ -852,10 +890,11 @@ PYBIND11_MODULE(turbogator_ext, m)
             if (!eps.is_none())
                 eps_val = eps.cast<float>();
 
-            const auto& sz = x.sizes();
+            const auto &sz = x.sizes();
             size_t n_channels = sz[sz.size() - 2];
             size_t batch = 1;
-            for (size_t i = 0; i + 2 < sz.size(); ++i) batch *= sz[i];
+            for (size_t i = 0; i + 2 < sz.size(); ++i)
+                batch *= sz[i];
 
             turbogator::equi_rms_norm_combined(
                 x.data_ptr<float>(),
@@ -887,10 +926,11 @@ PYBIND11_MODULE(turbogator_ext, m)
             if (!eps.is_none())
                 eps_val = eps.cast<float>();
 
-            const auto& sz = x.sizes();
+            const auto &sz = x.sizes();
             size_t n_channels = sz[sz.size() - 2];
             size_t batch = 1;
-            for (size_t i = 0; i + 2 < sz.size(); ++i) batch *= sz[i];
+            for (size_t i = 0; i + 2 < sz.size(); ++i)
+                batch *= sz[i];
 
             turbogator::equi_rms_norm_vectorized(
                 x.data_ptr<float>(),

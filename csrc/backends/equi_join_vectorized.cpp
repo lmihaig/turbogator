@@ -50,7 +50,7 @@ namespace turbogator
         return _mm_cvtss_f32(sum1);
     }
 
-    void equi_join_optimized_avx2(const float *a, const float *b, const float *ref, float *out, size_t n)
+    void equi_join_vectorized(const float *a, const float *b, const float *ref, float *out, size_t n)
     {
         for (size_t batch = 0; batch < n; ++batch)
         {

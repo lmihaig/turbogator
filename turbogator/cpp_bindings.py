@@ -27,6 +27,8 @@ scaler_gated_gelu_baseline = turbogator_ext.scaler_gated_gelu_baseline
 equi_geometric_attention_baseline = turbogator_ext.equi_geometric_attention_baseline
 equi_geometric_attention_optimized1 = turbogator_ext.equi_geometric_attention_optimized1
 equi_geometric_attention_optimized2 = turbogator_ext.equi_geometric_attention_optimized2
+equi_join_vectorized = turbogator_ext.equi_join_vectorized
+
 
 # vectorized impl
 geometric_product_vectorized = turbogator_ext.geometric_product_vectorized
