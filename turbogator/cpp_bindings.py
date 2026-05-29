@@ -5,6 +5,7 @@ turbogator_ext = importlib.import_module("turbogator.turbogator_ext")
 # baseline impl
 equi_linear_baseline = turbogator_ext.equi_linear_baseline
 equi_linear_opt_v2 = turbogator_ext.equi_linear_opt_v2
+equi_linear_opt_vectorized = turbogator_ext.equi_linear_opt_vectorized
 geometric_product_baseline = turbogator_ext.geometric_product_baseline
 geometric_product_opt_v1 = turbogator_ext.geometric_product_opt_v1
 equi_join_baseline = turbogator_ext.equi_join_baseline

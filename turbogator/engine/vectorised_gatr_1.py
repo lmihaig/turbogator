@@ -52,7 +52,7 @@ class EquiLinear(nn.Module):
             nn.init.uniform_(self.bias, -bound, bound)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return c_ops.equi_linear_opt_v2(x, self.weight, self.bias, self.normalize_basis)
+        return c_ops.equi_linear_opt_vectorized(x, self.weight, self.bias, self.normalize_basis)
 
     def extra_repr(self) -> str:
         return (
