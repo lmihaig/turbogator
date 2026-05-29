@@ -1,10 +1,11 @@
 ACTIVE_SERVER = "adam"
 
-WARMUP = 20
-STEPS = 20
-SIZES = [1, 2, 3, 4, 6]
+WARMUP = 3
+STEPS = 5
+SIZES = [1]
 # SIZES = [1, 2, 3, 4, 6, 8, 12, 16]
 REPRESENTATIVE_N = 8
+
 
 ## Do not worry about things below this line :)
 ########################################################################
