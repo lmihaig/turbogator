@@ -50,33 +50,36 @@ static void project_daa_bk(const float* mv, float* out) {
     out[4] = 2.f * r[2]*r[3];
 }
 
-// Dual-accumulator AVX FMA dot product.
-// Two independent acc registers keep the FMA units on both execution ports busy:
+// Quad-accumulator AVX FMA dot product.
+// 4 independent accumulators fully hide the 4-cycle FMA latency: each acc
 static inline float dot_avx_dual(const float* __restrict__ a,
                                   const float* __restrict__ b,
                                   int64_t n) {
     __m256 acc0 = _mm256_setzero_ps();
     __m256 acc1 = _mm256_setzero_ps();
+    __m256 acc2 = _mm256_setzero_ps();
+    __m256 acc3 = _mm256_setzero_ps();
 
     int64_t d = 0;
-    // Main loop: 16 floats per iteration -> two independent FMAs per cycle
-    for (; d + 16 <= n; d += 16) {
-        acc0 = _mm256_fmadd_ps(_mm256_loadu_ps(a + d),
-                               _mm256_loadu_ps(b + d),
-                               acc0);
-        acc1 = _mm256_fmadd_ps(_mm256_loadu_ps(a + d + 8),
-                               _mm256_loadu_ps(b + d + 8),
-                               acc1);
+    // Main loop: 32 floats per iteration -> 4 independent FMAs, hides 4-cycle latency
+    for (; d + 32 <= n; d += 32) {
+        acc0 = _mm256_fmadd_ps(_mm256_loadu_ps(a + d),      _mm256_loadu_ps(b + d),      acc0);
+        acc1 = _mm256_fmadd_ps(_mm256_loadu_ps(a + d +  8), _mm256_loadu_ps(b + d +  8), acc1);
+        acc2 = _mm256_fmadd_ps(_mm256_loadu_ps(a + d + 16), _mm256_loadu_ps(b + d + 16), acc2);
+        acc3 = _mm256_fmadd_ps(_mm256_loadu_ps(a + d + 24), _mm256_loadu_ps(b + d + 24), acc3);
     }
-    // 8-float remainder chunk
+    // 16-float remainder: 2 accumulators
+    for (; d + 16 <= n; d += 16) {
+        acc0 = _mm256_fmadd_ps(_mm256_loadu_ps(a + d),     _mm256_loadu_ps(b + d),     acc0);
+        acc1 = _mm256_fmadd_ps(_mm256_loadu_ps(a + d + 8), _mm256_loadu_ps(b + d + 8), acc1);
+    }
+    // 8-float remainder
     for (; d + 8 <= n; d += 8) {
-        acc0 = _mm256_fmadd_ps(_mm256_loadu_ps(a + d),
-                               _mm256_loadu_ps(b + d),
-                               acc0);
+        acc0 = _mm256_fmadd_ps(_mm256_loadu_ps(a + d), _mm256_loadu_ps(b + d), acc0);
     }
 
-    // Horizontal reduction: merge acc0 + acc1, then reduce 8->1
-    __m256 acc   = _mm256_add_ps(acc0, acc1);
+    // Horizontal reduction: fold 4 accumulators down to 1, then reduce 8->1
+    __m256 acc   = _mm256_add_ps(_mm256_add_ps(acc0, acc1), _mm256_add_ps(acc2, acc3));
     __m128 lo    = _mm256_castps256_ps128(acc);
     __m128 hi    = _mm256_extractf128_ps(acc, 1);
     __m128 sum4  = _mm_add_ps(lo, hi);
@@ -84,7 +87,7 @@ static inline float dot_avx_dual(const float* __restrict__ a,
     __m128 sum1  = _mm_add_ss(sum2, _mm_shuffle_ps(sum2, sum2, 0x1));
     float  result = _mm_cvtss_f32(sum1);
 
-    // Scalar tail (< 8 elements) to be safe for any n:
+    // Scalar tail (< 8 elements)
     for (; d < n; ++d)
         result += a[d] * b[d];
 
