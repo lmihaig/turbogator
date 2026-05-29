@@ -4,6 +4,8 @@ import os
 import time
 from pathlib import Path
 
+os.environ.setdefault("FORCE_COLOR", "1")
+
 import numpy as np
 import torch
 from ezgatr.nets.mv_only_gatr import MVOnlyGATrConfig, MVOnlyGATrModel
@@ -12,8 +14,14 @@ from torch.profiler import record_function
 import config as app_config
 from turbogator.engine import TurboGatorModel
 from turbogator.engine.baseline_gatr import BaselineGATrModel
+from collections import defaultdict
+from termcolor import colored
 
 torch.set_num_threads(1)
+
+
+def _color(ok, text):
+    return colored(text, "green" if ok else "red", force_color=True)
 
 
 # wrapper for easier identification in traces
@@ -53,21 +61,83 @@ def analyze_runs(warmup_ns, step_ns):
         cv_pct = (std_s / mean_s) * 100 if mean_s > 0 else 0
 
         # fmt: off
+        std_ok = mean_s > 0 and (std_s / mean_s) < 0.01             # StdDev/Mean < 1%
+        iqr_ok = median_s > 0 and (iqr_s / 2) / median_s < 0.005    # IQR/2 < 0.5% of median
+        maxmin_ok = min_s > 0 and max_s <= 1.1 * min_s              # Max <= 1.1 * Min
+        var_ok = cv_pct < 1.0                                       # Var ~ 1% or less
+
         print("Metrics:")
-        print(f"  Mean   + StdDev : {mean_s:.6f}s + {std_s:.6f}s")              # should be < 1% delta
-        print(f"  Median + IQR/2  : {median_s:.6f}s + {iqr_s / 2:.6f}s")        # IQR/2 < 0.5% of median
-        print(f"  Min / Max       : {min_s:.6f}s / {max_s:.6f}s")               # Max = 1.1 * Min
-        print(f" Var   : {cv_pct:.2f}%")                                        # ~1% pls
+        print(f"  Mean   + StdDev : {mean_s:.6f}s + {_color(std_ok,    f'{std_s:.6f}s')}")
+        print(f"  Median + IQR/2  : {median_s:.6f}s + {_color(iqr_ok,  f'{iqr_s / 2:.6f}s')}")
+        print(f"  Min / Max       : {min_s:.6f}s / {_color(maxmin_ok,  f'{max_s:.6f}s')}")
+        print(f" Var   : {_color(var_ok, f'{cv_pct:.2f}%')}")
 
     print("=" * 50 + "\n")
     # fmt: on
 
 
-def run_torch_profiler(model, x, out_path):
+# drop zero duration events
+# clip events that overshoot parent's end
+def _clean_torch_trace(path, min_dur_us=1):
+    with open(path) as f:
+        data = json.load(f)
+
+    events = data.get("traceEvents", [])
+    by_track = defaultdict(list)
+    kept = []
+
+    # events like cpu_instant_event
+    for ev in events:
+        if ev.get("ph") == "i" and ev.get("name") == "[memory]":
+            continue
+
+        if ev.get("ph") != "X":
+            kept.append(ev)
+            continue
+
+        dur = ev.get("dur") or 0
+        if dur < min_dur_us:
+            continue
+
+        by_track[(ev.get("pid"), ev.get("tid"))].append(ev)
+
+    # fix overlapping events
+    fixed = []
+    for evs in by_track.values():
+        evs.sort(key=lambda e: (e["ts"], -e.get("dur", 0)))
+        stack = []
+
+        for ev in evs:
+            ts = ev["ts"]
+
+            while stack and stack[-1] <= ts:
+                stack.pop()
+
+            if stack:
+                parent_end = stack[-1]
+                if ts + ev["dur"] > parent_end:
+                    new_dur = parent_end - ts
+                    if new_dur < min_dur_us:
+                        continue
+                    ev["dur"] = new_dur
+
+            stack.append(ts + ev["dur"])
+            fixed.append(ev)
+
+    data["traceEvents"] = kept + fixed
+
+    tmp = f"{path}.tmp"
+    with open(tmp, "w") as f:
+        json.dump(data, f)
+    os.replace(tmp, str(path))
+
+
+def run_torch_profiler(model, x, out_path, warmup, steps):
     Path(out_path).parent.mkdir(parents=True, exist_ok=True)
 
     def _on_trace_ready(prof):
         prof.export_chrome_trace(str(out_path))
+        _clean_torch_trace(out_path)
         print("\n--- PyTorch Memory & CPU Summary ---")
         print(prof.key_averages().table(sort_by="self_cpu_memory_usage", row_limit=15))
 
@@ -77,12 +147,12 @@ def run_torch_profiler(model, x, out_path):
         profile_memory=True,
         with_stack=True,
         with_flops=True,
-        schedule=torch.profiler.schedule(wait=0, warmup=1, active=1, repeat=1),
+        schedule=torch.profiler.schedule(wait=0, warmup=warmup, active=steps, repeat=1),
         on_trace_ready=_on_trace_ready,
     ) as prof:
-        for step in range(2):
-            step_name = "WARMUP" if step == 0 else "ACTIVE"
-            with record_function(f"GATOR_FORWARD_PASS_{step_name}"):
+        for i in range(warmup + steps):
+            label = "WARMUP" if i < warmup else "ACTIVE"
+            with record_function(f"GATOR_FORWARD_PASS_{label}"):
                 GATOR_FORWARD_PASS(model, x)
             prof.step()
 
@@ -110,7 +180,7 @@ def benchmark(desc, T, C_in, seed, warmup, steps, profile, profile_out, perf_ctl
 
     with torch.no_grad():
         if profile == "torch":
-            return run_torch_profiler(model, x, profile_out)
+            return run_torch_profiler(model, x, profile_out, warmup, steps)
 
         warmup_times_ns = []
         for i in range(warmup):
