@@ -86,19 +86,23 @@ PYBIND11_MODULE(turbogator_ext, m)
 
     m.def("geometric_product_vectorized", [](torch::Tensor a, torch::Tensor b)
           {
-        if (a.numel() != b.numel()) {
-            throw std::runtime_error("geometric_product_vectorized: size mismatch");
+        auto a_contig = a.contiguous();
+        auto b_contig = b.contiguous();
+        if (a_contig.numel() != b_contig.numel()) {
+            throw std::runtime_error("geometric_product_vectorized: size mismatch between a and b");
         }
-        auto out = make_out_like(a);
+        if (a_contig.size(-1) != 16) {
+            throw std::runtime_error("geometric_product_vectorized: last dimension must be 16");
+        }
+        auto out = make_out_like(a_contig);
+        size_t num_multivectors = a_contig.numel() / 16;
         turbogator::geometric_product_vectorized(
-            a.data_ptr<float>(),
-            b.data_ptr<float>(),
+            a_contig.data_ptr<float>(),
+            b_contig.data_ptr<float>(),
             out.data_ptr<float>(),
-            a.numel()
+            num_multivectors
         );
-
-
-        return    out; });
+        return out; });
 
     m.def("equi_join_vectorized", [](torch::Tensor a, torch::Tensor b, torch::Tensor ref)
           {
@@ -470,6 +474,22 @@ PYBIND11_MODULE(turbogator_ext, m)
             auto x_contig = x.contiguous();
             auto out = make_out_like(x_contig);
             turbogator::scaler_gated_gelu_baseline(
+                x_contig.data_ptr<float>(),
+                out.data_ptr<float>(),
+                x_contig.numel());
+            return out;
+        },
+        py::arg("x"),
+        py::arg("approximate") = "tanh");
+
+    m.def(
+        "scaler_gated_gelu_vectorized",
+        [](torch::Tensor x, py::object approximate)
+        {
+            (void)approximate;
+            auto x_contig = x.contiguous();
+            auto out = make_out_like(x_contig);
+            turbogator::scaler_gated_gelu_vectorized(
                 x_contig.data_ptr<float>(),
                 out.data_ptr<float>(),
                 x_contig.numel());

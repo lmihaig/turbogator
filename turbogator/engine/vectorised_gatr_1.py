@@ -154,7 +154,7 @@ class MVOnlyGATrBilinear(nn.Module):
 
         x = torch.cat(
             [
-                c_ops.geometric_product_opt_v1(lg, rg),
+                c_ops.geometric_product_vectorized(lg, rg),
                 c_ops.equi_join_vectorized(lj, rj, reference),
             ],
             dim=-2,
@@ -191,7 +191,7 @@ class MVOnlyGATrMLP(nn.Module):
         x = self.layer_norm(x)
         x = self.equi_bil(x, reference)
         x = self.proj_out(
-            c_ops.scaler_gated_gelu_baseline(x, self.config.gelu_approximate)
+            c_ops.scaler_gated_gelu_vectorized(x, self.config.gelu_approximate)
         )
 
         return x + residual
