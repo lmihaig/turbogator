@@ -50,6 +50,9 @@ void equi_linear_opt_v1(const float* x, const float* weight, const float* bias, 
 void equi_linear_opt_v2(const float* x, const float* weight, const float* bias, float* out,
                         size_t batch, size_t in_channels, size_t out_channels,
                         bool normalize_basis = true);
+void equi_linear_opt_vectorized(const float* x, const float* weight, const float* bias, float* out,
+                                size_t batch, size_t in_channels, size_t out_channels,
+                                bool normalize_basis = true);
 void equi_rms_norm_baseline(const float* x, const float* weight, float* out,
                             size_t batch, size_t n_channels, float eps);
 void equi_rms_norm_branchless_clamp(const float* x, const float* weight, float* out,

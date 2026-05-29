@@ -519,6 +519,40 @@ PYBIND11_MODULE(turbogator_ext, m)
         py::arg("normalize_basis") = true);
 
     m.def(
+        "equi_linear_opt_vectorized",
+        [](torch::Tensor x, torch::Tensor weight, py::object bias, bool normalize_basis)
+        {
+            x = x.contiguous();
+            weight = weight.contiguous();
+            auto out = make_equi_linear_out(x, weight);
+
+            torch::Tensor bias_tensor;
+            const float *bias_ptr = nullptr;
+            if (!bias.is_none())
+            {
+                bias_tensor = bias.cast<torch::Tensor>().contiguous();
+                if (bias_tensor.numel())
+                    bias_ptr = bias_tensor.data_ptr<float>();
+            }
+
+            const auto x_sizes = x.sizes();
+            size_t in_channels = x_sizes[x_sizes.size() - 2];
+            size_t out_channels = weight.size(0);
+            size_t batch = 1;
+            for (size_t i = 0; i + 2 < x_sizes.size(); ++i)
+                batch *= x_sizes[i];
+
+            turbogator::equi_linear_opt_vectorized(
+                x.data_ptr<float>(), weight.data_ptr<float>(), bias_ptr,
+                out.data_ptr<float>(), batch, in_channels, out_channels, normalize_basis);
+            return out;
+        },
+        py::arg("x"),
+        py::arg("weight"),
+        py::arg("bias") = py::none(),
+        py::arg("normalize_basis") = true);
+
+    m.def(
         "equi_rms_norm_baseline",
         [](torch::Tensor x, py::object weight, py::object eps)
         {
