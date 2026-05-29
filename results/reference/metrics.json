@@ -2,7 +2,7 @@
   "server": "adam",
   "user": "lmg",
   "description": "ezgatr",
-  "job_id": "1779872492_lmg",
+  "job_id": "1780063719_lmg",
   "data": [
     {
       "X": {
@@ -11,23 +11,23 @@
         "C_in": 2,
         "D": 16
       },
-      "cycles": 795092057.5,
+      "cycles": 742204385.0,
       "N": 1,
       "perf": {
-        "cycles": 1350062709.4,
-        "instructions": 3321828082.0,
-        "FP_ARITH_INST_RETIRED.SCALAR_SINGLE": 39239666.0,
+        "cycles": 1046553279.5555556,
+        "instructions": 2820275531.7777777,
+        "FP_ARITH_INST_RETIRED.SCALAR_SINGLE": 48875963.11111111,
         "FP_ARITH_INST_RETIRED.128B_PACKED_SINGLE": 0.0,
-        "FP_ARITH_INST_RETIRED.256B_PACKED_SINGLE": 1747858321.0,
-        "L1-dcache-loads": 1144270523.0,
-        "L1-dcache-stores": 202478992.2,
-        "l2_rqsts.references": 143284130.8,
-        "l2_rqsts.miss": 52086696.0,
-        "mem_load_retired.l3_miss": 464767.2
+        "FP_ARITH_INST_RETIRED.256B_PACKED_SINGLE": 1709762034.3333333,
+        "L1-dcache-loads": 1005642371.1111112,
+        "L1-dcache-stores": 142634803.44444445,
+        "l2_rqsts.references": 120386127.1111111,
+        "l2_rqsts.miss": 36292814.0,
+        "mem_load_retired.l3_miss": 293309.8888888889
       },
       "dram": {
-        "unc_m_cas_count_rd": 14521793.0,
-        "unc_m_cas_count_wr": 7891161.0
+        "unc_m_cas_count_rd": 11102448.111111112,
+        "unc_m_cas_count_wr": 6636788.444444444
       }
     },
     {
@@ -37,23 +37,23 @@
         "C_in": 4,
         "D": 16
       },
-      "cycles": 1574010017.5,
+      "cycles": 1573220862.5,
       "N": 2,
       "perf": {
-        "cycles": 2133171843.6,
-        "instructions": 5322366099.6,
-        "FP_ARITH_INST_RETIRED.SCALAR_SINGLE": 99349636.6,
+        "cycles": 1878643056.6666667,
+        "instructions": 4879870757.888889,
+        "FP_ARITH_INST_RETIRED.SCALAR_SINGLE": 98616148.55555555,
         "FP_ARITH_INST_RETIRED.128B_PACKED_SINGLE": 0.0,
-        "FP_ARITH_INST_RETIRED.256B_PACKED_SINGLE": 3422121483.4,
-        "L1-dcache-loads": 1942078236.4,
-        "L1-dcache-stores": 245411743.4,
-        "l2_rqsts.references": 240314699.4,
-        "l2_rqsts.miss": 108746200.6,
-        "mem_load_retired.l3_miss": 726205.4
+        "FP_ARITH_INST_RETIRED.256B_PACKED_SINGLE": 3402085204.3333335,
+        "L1-dcache-loads": 1809924876.8888888,
+        "L1-dcache-stores": 180059036.7777778,
+        "l2_rqsts.references": 220935496.7777778,
+        "l2_rqsts.miss": 104664117.55555555,
+        "mem_load_retired.l3_miss": 767665.1111111111
       },
       "dram": {
-        "unc_m_cas_count_rd": 27424127.0,
-        "unc_m_cas_count_wr": 16261504.6
+        "unc_m_cas_count_rd": 21938149.777777776,
+        "unc_m_cas_count_wr": 14937022.222222222
       }
     },
     {
@@ -63,23 +63,23 @@
         "C_in": 6,
         "D": 16
       },
-      "cycles": 2392571137.5000005,
+      "cycles": 2425064392.4999995,
       "N": 3,
       "perf": {
-        "cycles": 2929119431.2,
-        "instructions": 7158038279.2,
-        "FP_ARITH_INST_RETIRED.SCALAR_SINGLE": 151253605.0,
+        "cycles": 2713413703.2222223,
+        "instructions": 7036646200.888889,
+        "FP_ARITH_INST_RETIRED.SCALAR_SINGLE": 153291301.66666666,
         "FP_ARITH_INST_RETIRED.128B_PACKED_SINGLE": 0.0,
-        "FP_ARITH_INST_RETIRED.256B_PACKED_SINGLE": 5253524681.8,
-        "L1-dcache-loads": 2747769046.0,
-        "L1-dcache-stores": 284514916.8,
-        "l2_rqsts.references": 326090065.2,
-        "l2_rqsts.miss": 162221673.2,
-        "mem_load_retired.l3_miss": 4340180.6
+        "FP_ARITH_INST_RETIRED.256B_PACKED_SINGLE": 5135802878.222222,
+        "L1-dcache-loads": 2615813915.3333335,
+        "L1-dcache-stores": 227190059.7777778,
+        "l2_rqsts.references": 313143700.0,
+        "l2_rqsts.miss": 163457514.7777778,
+        "mem_load_retired.l3_miss": 3007806.888888889
       },
       "dram": {
-        "unc_m_cas_count_rd": 55282465.0,
-        "unc_m_cas_count_wr": 25645236.8
+        "unc_m_cas_count_rd": 48070167.55555555,
+        "unc_m_cas_count_wr": 24701755.333333332
       }
     },
     {
@@ -89,49 +89,23 @@
         "C_in": 8,
         "D": 16
       },
-      "cycles": 4179716800.0,
+      "cycles": 4161180730.0,
       "N": 4,
       "perf": {
-        "cycles": 4685370038.2,
-        "instructions": 9671994785.4,
-        "FP_ARITH_INST_RETIRED.SCALAR_SINGLE": 192771924.2,
+        "cycles": 4446669525.222222,
+        "instructions": 9183812127.333334,
+        "FP_ARITH_INST_RETIRED.SCALAR_SINGLE": 190101191.8888889,
         "FP_ARITH_INST_RETIRED.128B_PACKED_SINGLE": 0.0,
-        "FP_ARITH_INST_RETIRED.256B_PACKED_SINGLE": 7039121230.8,
-        "L1-dcache-loads": 3615607409.4,
-        "L1-dcache-stores": 335183332.8,
-        "l2_rqsts.references": 486155663.0,
-        "l2_rqsts.miss": 270281293.4,
-        "mem_load_retired.l3_miss": 21560508.4
+        "FP_ARITH_INST_RETIRED.256B_PACKED_SINGLE": 7049477964.666667,
+        "L1-dcache-loads": 3503490608.2222223,
+        "L1-dcache-stores": 274789563.4444444,
+        "l2_rqsts.references": 494225316.6666667,
+        "l2_rqsts.miss": 277564610.0,
+        "mem_load_retired.l3_miss": 22077569.333333332
       },
       "dram": {
-        "unc_m_cas_count_rd": 138547212.0,
-        "unc_m_cas_count_wr": 44261359.4
-      }
-    },
-    {
-      "X": {
-        "B": 8,
-        "T": 192,
-        "C_in": 12,
-        "D": 16
-      },
-      "cycles": 5564921340.0,
-      "N": 6,
-      "perf": {
-        "cycles": 6086071298.8,
-        "instructions": 14226232333.0,
-        "FP_ARITH_INST_RETIRED.SCALAR_SINGLE": 293973762.4,
-        "FP_ARITH_INST_RETIRED.128B_PACKED_SINGLE": 0.0,
-        "FP_ARITH_INST_RETIRED.256B_PACKED_SINGLE": 10885667014.0,
-        "L1-dcache-loads": 5380020154.6,
-        "L1-dcache-stores": 426319265.8,
-        "l2_rqsts.references": 646438055.4,
-        "l2_rqsts.miss": 341091952.4,
-        "mem_load_retired.l3_miss": 25671674.0
-      },
-      "dram": {
-        "unc_m_cas_count_rd": 217491746.4,
-        "unc_m_cas_count_wr": 62260314.6
+        "unc_m_cas_count_rd": 140727787.0,
+        "unc_m_cas_count_wr": 38003626.666666664
       }
     }
   ]
