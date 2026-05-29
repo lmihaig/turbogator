@@ -1,0 +1,656 @@
+
+================================================================================================
+
+                                            SUMMARY
+
+================================================================================================
+
+Sizes:
+Level 1 Data: 48K
+Level 1 Instruction: 32K
+Level 2 Unified: 1280K
+Level 3 Unified: 24576K
+
+
++-----------------+-------------------+-------------------+-------------------+-------------------+
+| Memory Tier     | Theoretical Peak  | STREAM            | LIKWID            | Intel MLC         |
+|                 | (Single Core)     | (Single Core)     | (Single Core)     | (Whole Socket)    |
++-----------------+-------------------+-------------------+-------------------+-------------------+
+| L1 Data Cache   | 96.00 bytes/cyc   |        -          | 63.66 bytes/cyc   | 349.64 bytes/cyc  |
+| L2 Cache        | 64.00 bytes/cyc   |        -          | 41.08 bytes/cyc   | 191.19 bytes/cyc  |
+| L3 Cache (LLC)  | 32.00 bytes/cyc   |        -          | 16.37 bytes/cyc   |  48.57 bytes/cyc  |
+| System DRAM     | 35.84 bytes/cyc   |  8.29 bytes/cyc   |  8.54 bytes/cyc   |  31.29 bytes/cyc  |
++-----------------+-------------------+-------------------+-------------------+-------------------+
+
+================================================================================
+
+================================================================================================
+
+                                            STREAM
+
+================================================================================================
+
+-------------------------------------------------------------
+STREAM version $Revision: 5.10 $
+-------------------------------------------------------------
+This system uses 8 bytes per array element.
+-------------------------------------------------------------
+Array size = 10000000 (elements), Offset = 0 (elements)
+Memory per array = 76.3 MiB (= 0.1 GiB).
+Total memory required = 228.9 MiB (= 0.2 GiB).
+Each kernel will be executed 10 times.
+ The *best* time for each kernel (excluding the first iteration)
+ will be used to compute the reported bandwidth.
+-------------------------------------------------------------
+Number of Threads requested = 1
+Number of Threads counted = 1
+-------------------------------------------------------------
+Your clock granularity/precision appears to be 1 microseconds.
+Each test below will take on the order of 6976 microseconds.
+   (= 6976 clock ticks)
+Increase the size of the arrays if this shows that
+you are not getting at least 20 clock ticks per test.
+-------------------------------------------------------------
+WARNING -- The above is only a rough guideline.
+For best results, please be sure you know the
+precision of your system timer.
+-------------------------------------------------------------
+Function    Best Rate MB/s  Avg time     Min time     Max time
+Copy:           28555.7     0.005616     0.005603     0.005633
+Scale:          18570.2     0.008637     0.008616     0.008667
+Add:            20784.5     0.011575     0.011547     0.011626
+Triad:          20761.3     0.011586     0.011560     0.011605
+-------------------------------------------------------------
+Solution Validates: avg error less than 1.000000e-13 on all three arrays
+-------------------------------------------------------------
+
+================================================================================================
+
+                                            MLC
+
+================================================================================================
+mihai@septimus:~/STREAM/Linux$ sudo taskset -c 4 ./mlc --max_bandwidth
+Intel(R) Memory Latency Checker - v3.12
+Command line parameters: --max_bandwidth
+
+Using buffer size of 195.312MiB/thread for reads and an additional 195.312MiB/thread for writes
+*** Unable to modify prefetchers (try executing 'modprobe msr')
+*** So, enabling random access for latency measurements
+
+Measuring Maximum Memory Bandwidths for the system
+Will take several minutes to complete as multiple injection rates will be tried to get the best bandwidth
+Bandwidths are in MB/sec (1 MB/sec = 1,000,000 Bytes/sec)
+Using all the threads from each core if Hyper-threading is enabled
+Using traffic with the following read-write ratios
+ALL Reads        :       78245.7
+3:1 Reads-Writes :       74923.9
+2:1 Reads-Writes :       74188.8
+1:1 Reads-Writes :       72940.2
+Stream-triad like:       74457.6
+All NT writes    :       76833.6
+1:1 Read-NT write:       73573.9
+
+mihai@septimus:~/STREAM/Linux$ sudo taskset -c 4 ./mlc --loaded_latency -d0 -T -b19 -t10
+Intel(R) Memory Latency Checker - v3.12
+Command line parameters: --loaded_latency -d0 -T -b19 -t10
+
+Using buffer size of 0.019MiB/thread for reads and an additional 0.019MiB/thread for writes
+*** Unable to modify prefetchers (try executing 'modprobe msr')
+*** So, enabling random access for latency measurements
+
+Measuring Loaded Latencies for the system
+Using all the threads from each core if Hyper-threading is enabled
+Using Read-only traffic type
+Inject  Latency Bandwidth
+Delay   (ns)    MB/sec
+==========================
+ 00000    0.00  874118.9
+
+ mihai@septimus:~/STREAM/Linux$ sudo taskset -c 4 ./mlc --loaded_latency -d0 -T -b400 -t10
+Intel(R) Memory Latency Checker - v3.12
+Command line parameters: --loaded_latency -d0 -T -b400 -t10
+
+Using buffer size of 0.391MiB/thread for reads and an additional 0.391MiB/thread for writes
+*** Unable to modify prefetchers (try executing 'modprobe msr')
+*** So, enabling random access for latency measurements
+
+Measuring Loaded Latencies for the system
+Using all the threads from each core if Hyper-threading is enabled
+Using Read-only traffic type
+Inject  Latency Bandwidth
+Delay   (ns)    MB/sec
+==========================
+ 00000    0.00  477995.5
+
+
+ mihai@septimus:~/STREAM/Linux$ sudo taskset -c 4 ./mlc --loaded_latency -d0 -T -b4m -t10
+Intel(R) Memory Latency Checker - v3.12
+Command line parameters: --loaded_latency -d0 -T -b4m -t10
+
+Using buffer size of 4.000MiB/thread for reads and an additional 4.000MiB/thread for writes
+*** Unable to modify prefetchers (try executing 'modprobe msr')
+*** So, enabling random access for latency measurements
+
+Measuring Loaded Latencies for the system
+Using all the threads from each core if Hyper-threading is enabled
+Using Read-only traffic type
+Inject  Latency Bandwidth
+Delay   (ns)    MB/sec
+==========================
+ 00000    0.00  121437.4
+
+
+
+================================================================================================
+
+                                            LIKWID
+
+================================================================================================
+
+========================================
+Starting Advanced MSR-Validated Profile: Sat May 30 12:34:36 AM CEST 2026
+Target Physical Core: 4
+========================================
+
+--- Running L1 Cache Sweep (20kB) ---
+turbostat version 2024.07.26 - Len Brown <lenb@kernel.org>
+Kernel command line: BOOT_IMAGE=/boot/vmlinuz-6.12.74+deb13+1-amd64 root=UUID=fe18ec35-e9f8-459f-baa7-dd96a82eea0b ro quiet
+CPUID(0): GenuineIntel 0x20 CPUID levels
+CPUID(1): family:model:stepping 0x6:ba:2 (6:186:2) microcode 0x6133
+CPUID(0x80000000): max_extended_levels: 0x80000008
+CPUID(1): SSE3 MONITOR SMX EIST TM2 TSC MSR ACPI-TM HT TM
+CPUID(6): APERF, TURBO, DTS, PTM, HWP, HWPnotify, HWPwindow, HWPepp, HWPpkg, EPB
+cpu4: MSR_IA32_MISC_ENABLE: 0x00850089 (TCC EIST MWAIT PREFETCH TURBO)
+CPUID(7): No-SGX Hybrid
+CPUID(0x15): eax_crystal: 2 ebx_tsc: 156 ecx_crystal_hz: 38400000
+TSC: 2995 MHz (38400000 Hz * 156 / 2 / 1000000)
+CPUID(0x16): base_mhz: 3000 max_mhz: 4000 bus_mhz: 100
+cpu4: MSR_PLATFORM_INFO: 0x804043df0811e00
+4 * 100.0 = 400.0 MHz max efficiency frequency
+30 * 100.0 = 3000.0 MHz base frequency
+cpu4: MSR_TURBO_RATIO_LIMIT: 0x3030303031313434
+48 * 100.0 = 4800.0 MHz max turbo 8 active cores
+48 * 100.0 = 4800.0 MHz max turbo 7 active cores
+48 * 100.0 = 4800.0 MHz max turbo 6 active cores
+48 * 100.0 = 4800.0 MHz max turbo 5 active cores
+49 * 100.0 = 4900.0 MHz max turbo 4 active cores
+49 * 100.0 = 4900.0 MHz max turbo 3 active cores
+52 * 100.0 = 5200.0 MHz max turbo 2 active cores
+52 * 100.0 = 5200.0 MHz max turbo 1 active cores
+cpu4: MSR_SECONDARY_TURBO_RATIO_LIMIT: 0x28282828
+40 * 100.0 = 4000.0 MHz max turbo 4 active cores
+40 * 100.0 = 4000.0 MHz max turbo 3 active cores
+40 * 100.0 = 4000.0 MHz max turbo 2 active cores
+40 * 100.0 = 4000.0 MHz max turbo 1 active cores
+cpu4: MSR_CONFIG_TDP_NOMINAL: 0x00000019 (base_ratio=25)
+cpu4: MSR_CONFIG_TDP_LEVEL_1: 0x00120118 (PKG_MIN_PWR_LVL1=0 PKG_MAX_PWR_LVL1=0 LVL1_RATIO=18 PKG_TDP_LVL1=280)
+cpu4: MSR_CONFIG_TDP_LEVEL_2: 0x001e0208 (PKG_MIN_PWR_LVL2=0 PKG_MAX_PWR_LVL2=0 LVL2_RATIO=30 PKG_TDP_LVL2=520)
+cpu4: MSR_CONFIG_TDP_CONTROL: 0x00000000 ( lock=0)
+cpu4: MSR_TURBO_ACTIVATION_RATIO: 0x00000018 (MAX_NON_TURBO_RATIO=24 lock=0)
+cpu4: cpufreq driver: intel_pstate
+cpu4: cpufreq governor: performance
+cpufreq intel_pstate no_turbo: 1
+cpu4: MSR_MISC_PWR_MGMT: 0x000030c2 (ENable-EIST_Coordination ENable-EPB DISable-OOB)
+cpu4: MSR_PM_ENABLE: 0x00000001 (HWP)
+cpu4: MSR_HWP_CAPABILITIES: 0x010c2043 (high 67 guar 32 eff 12 low 1)
+cpu4: MSR_HWP_REQUEST: 0x00002020 (min 32 max 32 des 0 epp 0x0 window 0x0 pkg 0x0)
+cpu4: MSR_HWP_REQUEST_PKG: 0x8000ff01 (min 1 max 255 des 0 epp 0x80 window 0x0)
+cpu4: MSR_HWP_INTERRUPT: 0x00000005 (EN_Guaranteed_Perf_Change, Dis_Excursion_Min)
+cpu4: MSR_HWP_STATUS: 0x00000004 (No-Guaranteed_Perf_Change, Excursion_Min)
+cpu4: EPB: 7 (custom)
+cpu4: MSR_IA32_POWER_CTL: 0x00e4005b (C1E auto-promotion: ENabled)
+cpu4: MSR_PKG_CST_CONFIG_CONTROL: 0x74008008 (UNdemote-C1, demote-C1, locked, pkg-cstate-limit=8 (unlimited))
+/dev/cpu_dma_latency: 2000000000 usec (default)
+current_driver: intel_idle
+current_governor: menu
+current_governor_ro: menu
+cpu4: POLL: CPUIDLE CORE POLL IDLE
+cpu4: C1ACPI: ACPI FFH MWAIT 0x0
+cpu4: C2ACPI: ACPI FFH MWAIT 0x21
+cpu4: C3ACPI: ACPI FFH MWAIT 0x60
+cpu4: MSR_PKGC3_IRTL: 0x00000000 (NOTvalid, 0 ns)
+cpu4: MSR_PKGC6_IRTL: 0x00000000 (NOTvalid, 0 ns)
+cpu4: MSR_PKGC8_IRTL: 0x00000000 (NOTvalid, 0 ns)
+cpu4: MSR_PKGC10_IRTL: 0x00000000 (NOTvalid, 0 ns)
+Uncore Frequency package0 die0: 400 - 4600 MHz (400 - 4600 MHz) 1900 MHz
+RAPL: 5825 sec. Joule Counter Range, at 45 Watts
+cpu4: MSR_RAPL_POWER_UNIT: 0x000a0e03 (0.125000 Watts, 0.000061 Joules, 0.000977 sec.)
+cpu4: MSR_PKG_POWER_INFO: 0x00000168 (45 W TDP, RAPL 0 - 0 W, 0.000000 sec.)
+cpu4: MSR_PKG_POWER_LIMIT: 0x42839800df8398 (UNlocked)
+cpu4: PKG Limit #1: ENabled (115.000 Watts, 56.000000 sec, clamp ENabled)
+cpu4: PKG Limit #2: ENabled (115.000 Watts, 0.002441* sec, clamp DISabled)
+cpu4: MSR_VR_CURRENT_CONFIG: 0x00000410
+cpu4: PKG Limit #4: 130.000000 Watts (UNlocked)
+cpu4: MSR_DRAM_POWER_LIMIT: 0x00000000 (UNlocked)
+cpu4: DRAM Limit: DISabled (0.000 Watts, 0.000977 sec, clamp DISabled)
+cpu4: MSR_PP0_POLICY: 9
+cpu4: MSR_PP0_POWER_LIMIT: 0x00000000 (UNlocked)
+cpu4: Cores Limit: DISabled (0.000 Watts, 0.000977 sec, clamp DISabled)
+cpu4: MSR_PP1_POLICY: 13
+cpu4: MSR_PP1_POWER_LIMIT: 0x00000000 (UNlocked)
+cpu4: GFX Limit: DISabled (0.000 Watts, 0.000977 sec, clamp DISabled)
+cpu4: MSR_IA32_TEMPERATURE_TARGET: 0x85640000 (95 C) (100 default - 5 offset)
+cpu4: MSR_IA32_PACKAGE_THERM_STATUS: 0x883f0000 (37 C)
+cpu4: MSR_IA32_PACKAGE_THERM_INTERRUPT: 0x02000003 (100 C, 100 C)
+cpu4: MSR_MISC_FEATURE_CONTROL: 0x00000000 (L2-Prefetch L2-Prefetch-pair L1-Prefetch L1-IP-Prefetch)
+Running without Marker API. Activate Marker API with -m on commandline.
+ERROR - [./src/libperfctr.c:likwid_pinThread:955] Invalid argument.
+"ERROR: Pinning of thread to CPU 506390877 failed\n"
+ERROR - [./src/libperfctr.c:likwid_pinThread:955] Success.
+"ERROR: Pinning of thread to CPU 506390877 failed\n"
+Warning: Sanitizing vector length to a multiple of the loop stride 16 and thread count 1 from 2500 elements (20000 bytes) to 2496 elements (19968 bytes)
+Allocate: Process running on hwthread 4 (Domain S0) - Vector length 2496/19968 Offset 0 Alignment 512
+--------------------------------------------------------------------------------
+LIKWID MICRO BENCHMARK
+Test: load_avx
+--------------------------------------------------------------------------------
+Using 1 work groups
+Using 1 threads
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Group: 0 Thread 0 Global Thread 0 running on hwthread 4 - Vector length 2496 Offset 0
+--------------------------------------------------------------------------------
+Cycles:                 3155956308
+CPU Clock:              2995192720
+Cycle Clock:            2995192720
+Time:                   1.053674e+00 sec
+Iterations:             8388608
+Iterations per thread:  8388608
+Inner loop executions:  156
+Size (Byte):            19968
+Size per thread:        19968
+Number of Flops:        0
+MFlops/s:               0.00
+Data volume (Byte):     167503724544
+MByte/s:                158971.13
+Cycles per update:      0.150729
+Cycles per cacheline:   1.205831
+Loads per update:       1
+Stores per update:      0
+Load bytes per element: 8
+Store bytes per elem.:  0
+Instructions:           9160359952
+UOPs:                   7851737088
+--------------------------------------------------------------------------------
+4.351707 sec
+CPU     Bzy_MHz TSC_MHz
+-       2497    2995
+4       2497    2995
+
+--- Running L2 Cache Sweep (500kB) ---
+turbostat version 2024.07.26 - Len Brown <lenb@kernel.org>
+Kernel command line: BOOT_IMAGE=/boot/vmlinuz-6.12.74+deb13+1-amd64 root=UUID=fe18ec35-e9f8-459f-baa7-dd96a82eea0b ro quiet
+CPUID(0): GenuineIntel 0x20 CPUID levels
+CPUID(1): family:model:stepping 0x6:ba:2 (6:186:2) microcode 0x6133
+CPUID(0x80000000): max_extended_levels: 0x80000008
+CPUID(1): SSE3 MONITOR SMX EIST TM2 TSC MSR ACPI-TM HT TM
+CPUID(6): APERF, TURBO, DTS, PTM, HWP, HWPnotify, HWPwindow, HWPepp, HWPpkg, EPB
+cpu4: MSR_IA32_MISC_ENABLE: 0x00850089 (TCC EIST MWAIT PREFETCH TURBO)
+CPUID(7): No-SGX Hybrid
+CPUID(0x15): eax_crystal: 2 ebx_tsc: 156 ecx_crystal_hz: 38400000
+TSC: 2995 MHz (38400000 Hz * 156 / 2 / 1000000)
+CPUID(0x16): base_mhz: 3000 max_mhz: 4000 bus_mhz: 100
+cpu4: MSR_PLATFORM_INFO: 0x804043df0811e00
+4 * 100.0 = 400.0 MHz max efficiency frequency
+30 * 100.0 = 3000.0 MHz base frequency
+cpu4: MSR_TURBO_RATIO_LIMIT: 0x3030303031313434
+48 * 100.0 = 4800.0 MHz max turbo 8 active cores
+48 * 100.0 = 4800.0 MHz max turbo 7 active cores
+48 * 100.0 = 4800.0 MHz max turbo 6 active cores
+48 * 100.0 = 4800.0 MHz max turbo 5 active cores
+49 * 100.0 = 4900.0 MHz max turbo 4 active cores
+49 * 100.0 = 4900.0 MHz max turbo 3 active cores
+52 * 100.0 = 5200.0 MHz max turbo 2 active cores
+52 * 100.0 = 5200.0 MHz max turbo 1 active cores
+cpu4: MSR_SECONDARY_TURBO_RATIO_LIMIT: 0x28282828
+40 * 100.0 = 4000.0 MHz max turbo 4 active cores
+40 * 100.0 = 4000.0 MHz max turbo 3 active cores
+40 * 100.0 = 4000.0 MHz max turbo 2 active cores
+40 * 100.0 = 4000.0 MHz max turbo 1 active cores
+cpu4: MSR_CONFIG_TDP_NOMINAL: 0x00000019 (base_ratio=25)
+cpu4: MSR_CONFIG_TDP_LEVEL_1: 0x00120118 (PKG_MIN_PWR_LVL1=0 PKG_MAX_PWR_LVL1=0 LVL1_RATIO=18 PKG_TDP_LVL1=280)
+cpu4: MSR_CONFIG_TDP_LEVEL_2: 0x001e0208 (PKG_MIN_PWR_LVL2=0 PKG_MAX_PWR_LVL2=0 LVL2_RATIO=30 PKG_TDP_LVL2=520)
+cpu4: MSR_CONFIG_TDP_CONTROL: 0x00000000 ( lock=0)
+cpu4: MSR_TURBO_ACTIVATION_RATIO: 0x00000018 (MAX_NON_TURBO_RATIO=24 lock=0)
+cpu4: cpufreq driver: intel_pstate
+cpu4: cpufreq governor: performance
+cpufreq intel_pstate no_turbo: 1
+cpu4: MSR_MISC_PWR_MGMT: 0x000030c2 (ENable-EIST_Coordination ENable-EPB DISable-OOB)
+cpu4: MSR_PM_ENABLE: 0x00000001 (HWP)
+cpu4: MSR_HWP_CAPABILITIES: 0x010c2043 (high 67 guar 32 eff 12 low 1)
+cpu4: MSR_HWP_REQUEST: 0x00002020 (min 32 max 32 des 0 epp 0x0 window 0x0 pkg 0x0)
+cpu4: MSR_HWP_REQUEST_PKG: 0x8000ff01 (min 1 max 255 des 0 epp 0x80 window 0x0)
+cpu4: MSR_HWP_INTERRUPT: 0x00000005 (EN_Guaranteed_Perf_Change, Dis_Excursion_Min)
+cpu4: MSR_HWP_STATUS: 0x00000004 (No-Guaranteed_Perf_Change, Excursion_Min)
+cpu4: EPB: 7 (custom)
+cpu4: MSR_IA32_POWER_CTL: 0x00e4005b (C1E auto-promotion: ENabled)
+cpu4: MSR_PKG_CST_CONFIG_CONTROL: 0x74008008 (UNdemote-C1, demote-C1, locked, pkg-cstate-limit=8 (unlimited))
+/dev/cpu_dma_latency: 2000000000 usec (default)
+current_driver: intel_idle
+current_governor: menu
+current_governor_ro: menu
+cpu4: POLL: CPUIDLE CORE POLL IDLE
+cpu4: C1ACPI: ACPI FFH MWAIT 0x0
+cpu4: C2ACPI: ACPI FFH MWAIT 0x21
+cpu4: C3ACPI: ACPI FFH MWAIT 0x60
+cpu4: MSR_PKGC3_IRTL: 0x00000000 (NOTvalid, 0 ns)
+cpu4: MSR_PKGC6_IRTL: 0x00000000 (NOTvalid, 0 ns)
+cpu4: MSR_PKGC8_IRTL: 0x00000000 (NOTvalid, 0 ns)
+cpu4: MSR_PKGC10_IRTL: 0x00000000 (NOTvalid, 0 ns)
+Uncore Frequency package0 die0: 400 - 4600 MHz (400 - 4600 MHz) 1900 MHz
+RAPL: 5825 sec. Joule Counter Range, at 45 Watts
+cpu4: MSR_RAPL_POWER_UNIT: 0x000a0e03 (0.125000 Watts, 0.000061 Joules, 0.000977 sec.)
+cpu4: MSR_PKG_POWER_INFO: 0x00000168 (45 W TDP, RAPL 0 - 0 W, 0.000000 sec.)
+cpu4: MSR_PKG_POWER_LIMIT: 0x42839800df8398 (UNlocked)
+cpu4: PKG Limit #1: ENabled (115.000 Watts, 56.000000 sec, clamp ENabled)
+cpu4: PKG Limit #2: ENabled (115.000 Watts, 0.002441* sec, clamp DISabled)
+cpu4: MSR_VR_CURRENT_CONFIG: 0x00000410
+cpu4: PKG Limit #4: 130.000000 Watts (UNlocked)
+cpu4: MSR_DRAM_POWER_LIMIT: 0x00000000 (UNlocked)
+cpu4: DRAM Limit: DISabled (0.000 Watts, 0.000977 sec, clamp DISabled)
+cpu4: MSR_PP0_POLICY: 9
+cpu4: MSR_PP0_POWER_LIMIT: 0x00000000 (UNlocked)
+cpu4: Cores Limit: DISabled (0.000 Watts, 0.000977 sec, clamp DISabled)
+cpu4: MSR_PP1_POLICY: 13
+cpu4: MSR_PP1_POWER_LIMIT: 0x00000000 (UNlocked)
+cpu4: GFX Limit: DISabled (0.000 Watts, 0.000977 sec, clamp DISabled)
+cpu4: MSR_IA32_TEMPERATURE_TARGET: 0x85640000 (95 C) (100 default - 5 offset)
+cpu4: MSR_IA32_PACKAGE_THERM_STATUS: 0x883f0000 (37 C)
+cpu4: MSR_IA32_PACKAGE_THERM_INTERRUPT: 0x02000003 (100 C, 100 C)
+cpu4: MSR_MISC_FEATURE_CONTROL: 0x00000000 (L2-Prefetch L2-Prefetch-pair L1-Prefetch L1-IP-Prefetch)
+Running without Marker API. Activate Marker API with -m on commandline.
+ERROR - [./src/libperfctr.c:likwid_pinThread:955] Invalid argument.
+"ERROR: Pinning of thread to CPU 130969461 failed\n"
+ERROR - [./src/libperfctr.c:likwid_pinThread:955] Success.
+"ERROR: Pinning of thread to CPU 130969461 failed\n"
+Warning: Sanitizing vector length to a multiple of the loop stride 16 and thread count 1 from 62500 elements (500000 bytes) to 62496 elements (499968 bytes)
+Allocate: Process running on hwthread 4 (Domain S0) - Vector length 62496/499968 Offset 0 Alignment 512
+--------------------------------------------------------------------------------
+LIKWID MICRO BENCHMARK
+Test: load_avx
+--------------------------------------------------------------------------------
+Using 1 work groups
+Using 1 threads
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Group: 0 Thread 0 Global Thread 0 running on hwthread 4 - Vector length 62496 Offset 0
+--------------------------------------------------------------------------------
+Cycles:                 3821556490
+CPU Clock:              2994021780
+Cycle Clock:            2994021780
+Time:                   1.276396e+00 sec
+Iterations:             262144
+Iterations per thread:  262144
+Inner loop executions:  3906
+Size (Byte):            499968
+Size per thread:        499968
+Number of Flops:        0
+MFlops/s:               0.00
+Data volume (Byte):     131063611392
+MByte/s:                102682.59
+Cycles per update:      0.233264
+Cycles per cacheline:   1.866114
+Loads per update:       1
+Stores per update:      0
+Load bytes per element: 8
+Store bytes per elem.:  0
+Instructions:           7167541264
+UOPs:                   6143606784
+--------------------------------------------------------------------------------
+5.010780 sec
+CPU     Bzy_MHz TSC_MHz
+-       2499    2995
+4       2499    2995
+
+--- Running L3 Cache Sweep (5MB) ---
+turbostat version 2024.07.26 - Len Brown <lenb@kernel.org>
+Kernel command line: BOOT_IMAGE=/boot/vmlinuz-6.12.74+deb13+1-amd64 root=UUID=fe18ec35-e9f8-459f-baa7-dd96a82eea0b ro quiet
+CPUID(0): GenuineIntel 0x20 CPUID levels
+CPUID(1): family:model:stepping 0x6:ba:2 (6:186:2) microcode 0x6133
+CPUID(0x80000000): max_extended_levels: 0x80000008
+CPUID(1): SSE3 MONITOR SMX EIST TM2 TSC MSR ACPI-TM HT TM
+CPUID(6): APERF, TURBO, DTS, PTM, HWP, HWPnotify, HWPwindow, HWPepp, HWPpkg, EPB
+cpu4: MSR_IA32_MISC_ENABLE: 0x00850089 (TCC EIST MWAIT PREFETCH TURBO)
+CPUID(7): No-SGX Hybrid
+CPUID(0x15): eax_crystal: 2 ebx_tsc: 156 ecx_crystal_hz: 38400000
+TSC: 2995 MHz (38400000 Hz * 156 / 2 / 1000000)
+CPUID(0x16): base_mhz: 3000 max_mhz: 4000 bus_mhz: 100
+cpu4: MSR_PLATFORM_INFO: 0x804043df0811e00
+4 * 100.0 = 400.0 MHz max efficiency frequency
+30 * 100.0 = 3000.0 MHz base frequency
+cpu4: MSR_TURBO_RATIO_LIMIT: 0x3030303031313434
+48 * 100.0 = 4800.0 MHz max turbo 8 active cores
+48 * 100.0 = 4800.0 MHz max turbo 7 active cores
+48 * 100.0 = 4800.0 MHz max turbo 6 active cores
+48 * 100.0 = 4800.0 MHz max turbo 5 active cores
+49 * 100.0 = 4900.0 MHz max turbo 4 active cores
+49 * 100.0 = 4900.0 MHz max turbo 3 active cores
+52 * 100.0 = 5200.0 MHz max turbo 2 active cores
+52 * 100.0 = 5200.0 MHz max turbo 1 active cores
+cpu4: MSR_SECONDARY_TURBO_RATIO_LIMIT: 0x28282828
+40 * 100.0 = 4000.0 MHz max turbo 4 active cores
+40 * 100.0 = 4000.0 MHz max turbo 3 active cores
+40 * 100.0 = 4000.0 MHz max turbo 2 active cores
+40 * 100.0 = 4000.0 MHz max turbo 1 active cores
+cpu4: MSR_CONFIG_TDP_NOMINAL: 0x00000019 (base_ratio=25)
+cpu4: MSR_CONFIG_TDP_LEVEL_1: 0x00120118 (PKG_MIN_PWR_LVL1=0 PKG_MAX_PWR_LVL1=0 LVL1_RATIO=18 PKG_TDP_LVL1=280)
+cpu4: MSR_CONFIG_TDP_LEVEL_2: 0x001e0208 (PKG_MIN_PWR_LVL2=0 PKG_MAX_PWR_LVL2=0 LVL2_RATIO=30 PKG_TDP_LVL2=520)
+cpu4: MSR_CONFIG_TDP_CONTROL: 0x00000000 ( lock=0)
+cpu4: MSR_TURBO_ACTIVATION_RATIO: 0x00000018 (MAX_NON_TURBO_RATIO=24 lock=0)
+cpu4: cpufreq driver: intel_pstate
+cpu4: cpufreq governor: performance
+cpufreq intel_pstate no_turbo: 1
+cpu4: MSR_MISC_PWR_MGMT: 0x000030c2 (ENable-EIST_Coordination ENable-EPB DISable-OOB)
+cpu4: MSR_PM_ENABLE: 0x00000001 (HWP)
+cpu4: MSR_HWP_CAPABILITIES: 0x010d2043 (high 67 guar 32 eff 13 low 1)
+cpu4: MSR_HWP_REQUEST: 0x00002020 (min 32 max 32 des 0 epp 0x0 window 0x0 pkg 0x0)
+cpu4: MSR_HWP_REQUEST_PKG: 0x8000ff01 (min 1 max 255 des 0 epp 0x80 window 0x0)
+cpu4: MSR_HWP_INTERRUPT: 0x00000005 (EN_Guaranteed_Perf_Change, Dis_Excursion_Min)
+cpu4: MSR_HWP_STATUS: 0x00000004 (No-Guaranteed_Perf_Change, Excursion_Min)
+cpu4: EPB: 7 (custom)
+cpu4: MSR_IA32_POWER_CTL: 0x00e4005b (C1E auto-promotion: ENabled)
+cpu4: MSR_PKG_CST_CONFIG_CONTROL: 0x74008008 (UNdemote-C1, demote-C1, locked, pkg-cstate-limit=8 (unlimited))
+/dev/cpu_dma_latency: 2000000000 usec (default)
+current_driver: intel_idle
+current_governor: menu
+current_governor_ro: menu
+cpu4: POLL: CPUIDLE CORE POLL IDLE
+cpu4: C1ACPI: ACPI FFH MWAIT 0x0
+cpu4: C2ACPI: ACPI FFH MWAIT 0x21
+cpu4: C3ACPI: ACPI FFH MWAIT 0x60
+cpu4: MSR_PKGC3_IRTL: 0x00000000 (NOTvalid, 0 ns)
+cpu4: MSR_PKGC6_IRTL: 0x00000000 (NOTvalid, 0 ns)
+cpu4: MSR_PKGC8_IRTL: 0x00000000 (NOTvalid, 0 ns)
+cpu4: MSR_PKGC10_IRTL: 0x00000000 (NOTvalid, 0 ns)
+Uncore Frequency package0 die0: 400 - 4600 MHz (400 - 4600 MHz) 1900 MHz
+RAPL: 5825 sec. Joule Counter Range, at 45 Watts
+cpu4: MSR_RAPL_POWER_UNIT: 0x000a0e03 (0.125000 Watts, 0.000061 Joules, 0.000977 sec.)
+cpu4: MSR_PKG_POWER_INFO: 0x00000168 (45 W TDP, RAPL 0 - 0 W, 0.000000 sec.)
+cpu4: MSR_PKG_POWER_LIMIT: 0x42839800df8398 (UNlocked)
+cpu4: PKG Limit #1: ENabled (115.000 Watts, 56.000000 sec, clamp ENabled)
+cpu4: PKG Limit #2: ENabled (115.000 Watts, 0.002441* sec, clamp DISabled)
+cpu4: MSR_VR_CURRENT_CONFIG: 0x00000410
+cpu4: PKG Limit #4: 130.000000 Watts (UNlocked)
+cpu4: MSR_DRAM_POWER_LIMIT: 0x00000000 (UNlocked)
+cpu4: DRAM Limit: DISabled (0.000 Watts, 0.000977 sec, clamp DISabled)
+cpu4: MSR_PP0_POLICY: 9
+cpu4: MSR_PP0_POWER_LIMIT: 0x00000000 (UNlocked)
+cpu4: Cores Limit: DISabled (0.000 Watts, 0.000977 sec, clamp DISabled)
+cpu4: MSR_PP1_POLICY: 13
+cpu4: MSR_PP1_POWER_LIMIT: 0x00000000 (UNlocked)
+cpu4: GFX Limit: DISabled (0.000 Watts, 0.000977 sec, clamp DISabled)
+cpu4: MSR_IA32_TEMPERATURE_TARGET: 0x85640000 (95 C) (100 default - 5 offset)
+cpu4: MSR_IA32_PACKAGE_THERM_STATUS: 0x883f0000 (37 C)
+cpu4: MSR_IA32_PACKAGE_THERM_INTERRUPT: 0x02000003 (100 C, 100 C)
+cpu4: MSR_MISC_FEATURE_CONTROL: 0x00000000 (L2-Prefetch L2-Prefetch-pair L1-Prefetch L1-IP-Prefetch)
+Running without Marker API. Activate Marker API with -m on commandline.
+ERROR - [./src/libperfctr.c:likwid_pinThread:955] Invalid argument.
+"ERROR: Pinning of thread to CPU 7537302 failed\n"
+ERROR - [./src/libperfctr.c:likwid_pinThread:955] Success.
+"ERROR: Pinning of thread to CPU 7537302 failed\n"
+Warning: Sanitizing vector length to a multiple of the loop stride 16 and thread count 1 from 625000 elements (5000000 bytes) to 624992 elements (4999936 bytes)
+Allocate: Process running on hwthread 4 (Domain S0) - Vector length 624992/4999936 Offset 0 Alignment 512
+--------------------------------------------------------------------------------
+LIKWID MICRO BENCHMARK
+Test: load_avx
+--------------------------------------------------------------------------------
+Using 1 work groups
+Using 1 threads
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Group: 0 Thread 0 Global Thread 0 running on hwthread 4 - Vector length 624992 Offset 0
+--------------------------------------------------------------------------------
+Cycles:                 2997809350
+CPU Clock:              2995110387
+Cycle Clock:            2995110387
+Time:                   1.000901e+00 sec
+Iterations:             8192
+Iterations per thread:  8192
+Inner loop executions:  39062
+Size (Byte):            4999936
+Size per thread:        4999936
+Number of Flops:        0
+MFlops/s:               0.00
+Data volume (Byte):     40959475712
+MByte/s:                40922.60
+Cycles per update:      0.585517
+Cycles per cacheline:   4.684137
+Loads per update:       1
+Stores per update:      0
+Load bytes per element: 8
+Store bytes per elem.:  0
+Instructions:           2239971344
+UOPs:                   1919975424
+--------------------------------------------------------------------------------
+4.198336 sec
+CPU     Bzy_MHz TSC_MHz
+-       2499    2995
+4       2499    2995
+
+--- Running System DRAM Sweep (200MB) ---
+turbostat version 2024.07.26 - Len Brown <lenb@kernel.org>
+Kernel command line: BOOT_IMAGE=/boot/vmlinuz-6.12.74+deb13+1-amd64 root=UUID=fe18ec35-e9f8-459f-baa7-dd96a82eea0b ro quiet
+CPUID(0): GenuineIntel 0x20 CPUID levels
+CPUID(1): family:model:stepping 0x6:ba:2 (6:186:2) microcode 0x6133
+CPUID(0x80000000): max_extended_levels: 0x80000008
+CPUID(1): SSE3 MONITOR SMX EIST TM2 TSC MSR ACPI-TM HT TM
+CPUID(6): APERF, TURBO, DTS, PTM, HWP, HWPnotify, HWPwindow, HWPepp, HWPpkg, EPB
+cpu4: MSR_IA32_MISC_ENABLE: 0x00850089 (TCC EIST MWAIT PREFETCH TURBO)
+CPUID(7): No-SGX Hybrid
+CPUID(0x15): eax_crystal: 2 ebx_tsc: 156 ecx_crystal_hz: 38400000
+TSC: 2995 MHz (38400000 Hz * 156 / 2 / 1000000)
+CPUID(0x16): base_mhz: 3000 max_mhz: 4000 bus_mhz: 100
+cpu4: MSR_PLATFORM_INFO: 0x804043df0811e00
+4 * 100.0 = 400.0 MHz max efficiency frequency
+30 * 100.0 = 3000.0 MHz base frequency
+cpu4: MSR_TURBO_RATIO_LIMIT: 0x3030303031313434
+48 * 100.0 = 4800.0 MHz max turbo 8 active cores
+48 * 100.0 = 4800.0 MHz max turbo 7 active cores
+48 * 100.0 = 4800.0 MHz max turbo 6 active cores
+48 * 100.0 = 4800.0 MHz max turbo 5 active cores
+49 * 100.0 = 4900.0 MHz max turbo 4 active cores
+49 * 100.0 = 4900.0 MHz max turbo 3 active cores
+52 * 100.0 = 5200.0 MHz max turbo 2 active cores
+52 * 100.0 = 5200.0 MHz max turbo 1 active cores
+cpu4: MSR_SECONDARY_TURBO_RATIO_LIMIT: 0x28282828
+40 * 100.0 = 4000.0 MHz max turbo 4 active cores
+40 * 100.0 = 4000.0 MHz max turbo 3 active cores
+40 * 100.0 = 4000.0 MHz max turbo 2 active cores
+40 * 100.0 = 4000.0 MHz max turbo 1 active cores
+cpu4: MSR_CONFIG_TDP_NOMINAL: 0x00000019 (base_ratio=25)
+cpu4: MSR_CONFIG_TDP_LEVEL_1: 0x00120118 (PKG_MIN_PWR_LVL1=0 PKG_MAX_PWR_LVL1=0 LVL1_RATIO=18 PKG_TDP_LVL1=280)
+cpu4: MSR_CONFIG_TDP_LEVEL_2: 0x001e0208 (PKG_MIN_PWR_LVL2=0 PKG_MAX_PWR_LVL2=0 LVL2_RATIO=30 PKG_TDP_LVL2=520)
+cpu4: MSR_CONFIG_TDP_CONTROL: 0x00000000 ( lock=0)
+cpu4: MSR_TURBO_ACTIVATION_RATIO: 0x00000018 (MAX_NON_TURBO_RATIO=24 lock=0)
+cpu4: cpufreq driver: intel_pstate
+cpu4: cpufreq governor: performance
+cpufreq intel_pstate no_turbo: 1
+cpu4: MSR_MISC_PWR_MGMT: 0x000030c2 (ENable-EIST_Coordination ENable-EPB DISable-OOB)
+cpu4: MSR_PM_ENABLE: 0x00000001 (HWP)
+cpu4: MSR_HWP_CAPABILITIES: 0x01112043 (high 67 guar 32 eff 17 low 1)
+cpu4: MSR_HWP_REQUEST: 0x00002020 (min 32 max 32 des 0 epp 0x0 window 0x0 pkg 0x0)
+cpu4: MSR_HWP_REQUEST_PKG: 0x8000ff01 (min 1 max 255 des 0 epp 0x80 window 0x0)
+cpu4: MSR_HWP_INTERRUPT: 0x00000005 (EN_Guaranteed_Perf_Change, Dis_Excursion_Min)
+cpu4: MSR_HWP_STATUS: 0x00000004 (No-Guaranteed_Perf_Change, Excursion_Min)
+cpu4: EPB: 7 (custom)
+cpu4: MSR_IA32_POWER_CTL: 0x00e4005b (C1E auto-promotion: ENabled)
+cpu4: MSR_PKG_CST_CONFIG_CONTROL: 0x74008008 (UNdemote-C1, demote-C1, locked, pkg-cstate-limit=8 (unlimited))
+/dev/cpu_dma_latency: 2000000000 usec (default)
+current_driver: intel_idle
+current_governor: menu
+current_governor_ro: menu
+cpu4: POLL: CPUIDLE CORE POLL IDLE
+cpu4: C1ACPI: ACPI FFH MWAIT 0x0
+cpu4: C2ACPI: ACPI FFH MWAIT 0x21
+cpu4: C3ACPI: ACPI FFH MWAIT 0x60
+cpu4: MSR_PKGC3_IRTL: 0x00000000 (NOTvalid, 0 ns)
+cpu4: MSR_PKGC6_IRTL: 0x00000000 (NOTvalid, 0 ns)
+cpu4: MSR_PKGC8_IRTL: 0x00000000 (NOTvalid, 0 ns)
+cpu4: MSR_PKGC10_IRTL: 0x00000000 (NOTvalid, 0 ns)
+Uncore Frequency package0 die0: 400 - 4600 MHz (400 - 4600 MHz) 1900 MHz
+RAPL: 5825 sec. Joule Counter Range, at 45 Watts
+cpu4: MSR_RAPL_POWER_UNIT: 0x000a0e03 (0.125000 Watts, 0.000061 Joules, 0.000977 sec.)
+cpu4: MSR_PKG_POWER_INFO: 0x00000168 (45 W TDP, RAPL 0 - 0 W, 0.000000 sec.)
+cpu4: MSR_PKG_POWER_LIMIT: 0x42839800df8398 (UNlocked)
+cpu4: PKG Limit #1: ENabled (115.000 Watts, 56.000000 sec, clamp ENabled)
+cpu4: PKG Limit #2: ENabled (115.000 Watts, 0.002441* sec, clamp DISabled)
+cpu4: MSR_VR_CURRENT_CONFIG: 0x00000410
+cpu4: PKG Limit #4: 130.000000 Watts (UNlocked)
+cpu4: MSR_DRAM_POWER_LIMIT: 0x00000000 (UNlocked)
+cpu4: DRAM Limit: DISabled (0.000 Watts, 0.000977 sec, clamp DISabled)
+cpu4: MSR_PP0_POLICY: 9
+cpu4: MSR_PP0_POWER_LIMIT: 0x00000000 (UNlocked)
+cpu4: Cores Limit: DISabled (0.000 Watts, 0.000977 sec, clamp DISabled)
+cpu4: MSR_PP1_POLICY: 13
+cpu4: MSR_PP1_POWER_LIMIT: 0x00000000 (UNlocked)
+cpu4: GFX Limit: DISabled (0.000 Watts, 0.000977 sec, clamp DISabled)
+cpu4: MSR_IA32_TEMPERATURE_TARGET: 0x85640000 (95 C) (100 default - 5 offset)
+cpu4: MSR_IA32_PACKAGE_THERM_STATUS: 0x883f0000 (37 C)
+cpu4: MSR_IA32_PACKAGE_THERM_INTERRUPT: 0x02000003 (100 C, 100 C)
+cpu4: MSR_MISC_FEATURE_CONTROL: 0x00000000 (L2-Prefetch L2-Prefetch-pair L1-Prefetch L1-IP-Prefetch)
+Running without Marker API. Activate Marker API with -m on commandline.
+ERROR - [./src/libperfctr.c:likwid_pinThread:955] Invalid argument.
+"ERROR: Pinning of thread to CPU 1522695122 failed\n"
+ERROR - [./src/libperfctr.c:likwid_pinThread:955] Success.
+"ERROR: Pinning of thread to CPU 1522695122 failed\n"
+Allocate: Process running on hwthread 4 (Domain S0) - Vector length 25000000/200000000 Offset 0 Alignment 512
+--------------------------------------------------------------------------------
+LIKWID MICRO BENCHMARK
+Test: load_avx
+--------------------------------------------------------------------------------
+Using 1 work groups
+Using 1 threads
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Group: 0 Thread 0 Global Thread 0 running on hwthread 4 - Vector length 25000000 Offset 0
+--------------------------------------------------------------------------------
+Cycles:                 3594157748
+CPU Clock:              2995197991
+Cycle Clock:            2995197991
+Time:                   1.199973e+00 sec
+Iterations:             128
+Iterations per thread:  128
+Inner loop executions:  1562500
+Size (Byte):            200000000
+Size per thread:        200000000
+Number of Flops:        0
+MFlops/s:               0.00
+Data volume (Byte):     25600000000
+MByte/s:                21333.81
+Cycles per update:      1.123174
+Cycles per cacheline:   8.985394
+Loads per update:       1
+Stores per update:      0
+Load bytes per element: 8
+Store bytes per elem.:  0
+Instructions:           1400000016
+UOPs:                   1200000000
+--------------------------------------------------------------------------------
+4.759247 sec
+CPU     Bzy_MHz TSC_MHz
+-       2498    2995
+4       2498    2995
+
+========================================
+MSR-Validated Profiling Complete.
+========================================

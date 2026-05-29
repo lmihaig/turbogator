@@ -2,7 +2,7 @@
   "server": "adam",
   "user": "lmg",
   "description": "baseline",
-  "job_id": "1779872783_lmg",
+  "job_id": "1780083750_lmg",
   "data": [
     {
       "X": {
@@ -11,23 +11,23 @@
         "C_in": 2,
         "D": 16
       },
-      "cycles": 12118707449.999998,
+      "cycles": 12131557107.5,
       "N": 1,
       "perf": {
-        "cycles": 12639180128.2,
-        "instructions": 23736935938.6,
-        "FP_ARITH_INST_RETIRED.SCALAR_SINGLE": 13837498092.0,
+        "cycles": 12394066721.222221,
+        "instructions": 23251993455.88889,
+        "FP_ARITH_INST_RETIRED.SCALAR_SINGLE": 13858620621.666666,
         "FP_ARITH_INST_RETIRED.128B_PACKED_SINGLE": 0.0,
-        "FP_ARITH_INST_RETIRED.256B_PACKED_SINGLE": 304557.6,
-        "L1-dcache-loads": 13900478915.2,
-        "L1-dcache-stores": 541727547.8,
-        "l2_rqsts.references": 858051908.4,
-        "l2_rqsts.miss": 386913064.6,
-        "mem_load_retired.l3_miss": 315990.8
+        "FP_ARITH_INST_RETIRED.256B_PACKED_SINGLE": 270669.0,
+        "L1-dcache-loads": 13770860827.555555,
+        "L1-dcache-stores": 477265275.4444444,
+        "l2_rqsts.references": 842172100.7777778,
+        "l2_rqsts.miss": 383459487.1111111,
+        "mem_load_retired.l3_miss": 424051.1111111111
       },
       "dram": {
-        "unc_m_cas_count_rd": 12278555.2,
-        "unc_m_cas_count_wr": 4368329.0
+        "unc_m_cas_count_rd": 11593377.777777778,
+        "unc_m_cas_count_wr": 4475129.555555556
       }
     },
     {
@@ -37,23 +37,23 @@
         "C_in": 4,
         "D": 16
       },
-      "cycles": 24458146140.000004,
+      "cycles": 24418938447.5,
       "N": 2,
       "perf": {
-        "cycles": 24926835006.0,
-        "instructions": 47213097007.8,
-        "FP_ARITH_INST_RETIRED.SCALAR_SINGLE": 27672217360.0,
+        "cycles": 24632184166.22222,
+        "instructions": 46777752432.55556,
+        "FP_ARITH_INST_RETIRED.SCALAR_SINGLE": 27695646286.77778,
         "FP_ARITH_INST_RETIRED.128B_PACKED_SINGLE": 0.0,
-        "FP_ARITH_INST_RETIRED.256B_PACKED_SINGLE": 631474.0,
-        "L1-dcache-loads": 27699457294.8,
-        "L1-dcache-stores": 1061575173.0,
-        "l2_rqsts.references": 1700974171.0,
-        "l2_rqsts.miss": 765922042.6,
-        "mem_load_retired.l3_miss": 992200.6
+        "FP_ARITH_INST_RETIRED.256B_PACKED_SINGLE": 556932.4444444445,
+        "L1-dcache-loads": 27576577307.22222,
+        "L1-dcache-stores": 992742356.8888888,
+        "l2_rqsts.references": 1672336049.7777777,
+        "l2_rqsts.miss": 761511429.3333334,
+        "mem_load_retired.l3_miss": 1549853.4444444445
       },
       "dram": {
-        "unc_m_cas_count_rd": 19067677.8,
-        "unc_m_cas_count_wr": 8668999.0
+        "unc_m_cas_count_rd": 20639572.333333332,
+        "unc_m_cas_count_wr": 8135730.0
       }
     },
     {
@@ -63,23 +63,23 @@
         "C_in": 6,
         "D": 16
       },
-      "cycles": 37063956287.5,
+      "cycles": 37152968255.0,
       "N": 3,
       "perf": {
-        "cycles": 37425972953.0,
-        "instructions": 71680246144.2,
-        "FP_ARITH_INST_RETIRED.SCALAR_SINGLE": 41854263155.2,
+        "cycles": 37265660145.77778,
+        "instructions": 71296293589.66667,
+        "FP_ARITH_INST_RETIRED.SCALAR_SINGLE": 41840713166.333336,
         "FP_ARITH_INST_RETIRED.128B_PACKED_SINGLE": 0.0,
-        "FP_ARITH_INST_RETIRED.256B_PACKED_SINGLE": 818202.2,
-        "L1-dcache-loads": 41883682976.6,
-        "L1-dcache-stores": 1716818034.4,
-        "l2_rqsts.references": 2534083447.8,
-        "l2_rqsts.miss": 1143032595.2,
-        "mem_load_retired.l3_miss": 1658718.0
+        "FP_ARITH_INST_RETIRED.256B_PACKED_SINGLE": 765026.3333333334,
+        "L1-dcache-loads": 41756720760.77778,
+        "L1-dcache-stores": 1647264338.3333333,
+        "l2_rqsts.references": 2526922964.5555553,
+        "l2_rqsts.miss": 1137997788.8888888,
+        "mem_load_retired.l3_miss": 1890676.5555555555
       },
       "dram": {
-        "unc_m_cas_count_rd": 27596245.8,
-        "unc_m_cas_count_wr": 13028539.4
+        "unc_m_cas_count_rd": 30469865.777777776,
+        "unc_m_cas_count_wr": 12581559.444444444
       }
     },
     {
@@ -89,23 +89,23 @@
         "C_in": 8,
         "D": 16
       },
-      "cycles": 50048816679.99999,
+      "cycles": 49990259155.0,
       "N": 4,
       "perf": {
-        "cycles": 50353674977.6,
-        "instructions": 97595413504.0,
-        "FP_ARITH_INST_RETIRED.SCALAR_SINGLE": 56441276011.8,
+        "cycles": 50043715071.77778,
+        "instructions": 97069357744.22223,
+        "FP_ARITH_INST_RETIRED.SCALAR_SINGLE": 56447402821.44444,
         "FP_ARITH_INST_RETIRED.128B_PACKED_SINGLE": 0.0,
-        "FP_ARITH_INST_RETIRED.256B_PACKED_SINGLE": 1304440.2,
-        "L1-dcache-loads": 56462215802.4,
-        "L1-dcache-stores": 2491453660.6,
-        "l2_rqsts.references": 3364577694.6,
-        "l2_rqsts.miss": 1523848035.4,
-        "mem_load_retired.l3_miss": 3090628.0
+        "FP_ARITH_INST_RETIRED.256B_PACKED_SINGLE": 1049985.111111111,
+        "L1-dcache-loads": 56322637184.333336,
+        "L1-dcache-stores": 2420738159.7777777,
+        "l2_rqsts.references": 3369787195.888889,
+        "l2_rqsts.miss": 1525651855.0,
+        "mem_load_retired.l3_miss": 2670307.111111111
       },
       "dram": {
-        "unc_m_cas_count_rd": 36147246.2,
-        "unc_m_cas_count_wr": 17774294.6
+        "unc_m_cas_count_rd": 40446707.333333336,
+        "unc_m_cas_count_wr": 17389360.222222224
       }
     },
     {
@@ -115,23 +115,101 @@
         "C_in": 12,
         "D": 16
       },
-      "cycles": 76886243702.5,
+      "cycles": 76873790220.0,
       "N": 6,
       "perf": {
-        "cycles": 77104164472.6,
-        "instructions": 152624082725.2,
-        "FP_ARITH_INST_RETIRED.SCALAR_SINGLE": 86785082677.2,
+        "cycles": 76823091184.88889,
+        "instructions": 152117801819.44446,
+        "FP_ARITH_INST_RETIRED.SCALAR_SINGLE": 86764741283.88889,
         "FP_ARITH_INST_RETIRED.128B_PACKED_SINGLE": 0.0,
-        "FP_ARITH_INST_RETIRED.256B_PACKED_SINGLE": 1898005.0,
-        "L1-dcache-loads": 86775584095.0,
-        "L1-dcache-stores": 4471618870.6,
-        "l2_rqsts.references": 5148983181.6,
-        "l2_rqsts.miss": 2290983115.8,
-        "mem_load_retired.l3_miss": 4701096.0
+        "FP_ARITH_INST_RETIRED.256B_PACKED_SINGLE": 1578909.6666666667,
+        "L1-dcache-loads": 86665621081.77777,
+        "L1-dcache-stores": 4412060783.555555,
+        "l2_rqsts.references": 5105864207.222222,
+        "l2_rqsts.miss": 2289373373.0,
+        "mem_load_retired.l3_miss": 5093376.666666667
       },
       "dram": {
-        "unc_m_cas_count_rd": 52566325.0,
-        "unc_m_cas_count_wr": 27145824.0
+        "unc_m_cas_count_rd": 64645278.333333336,
+        "unc_m_cas_count_wr": 27397722.333333332
+      }
+    },
+    {
+      "X": {
+        "B": 8,
+        "T": 256,
+        "C_in": 16,
+        "D": 16
+      },
+      "cycles": 104870104540.0,
+      "N": 8,
+      "perf": {
+        "cycles": 104663128860.11111,
+        "instructions": 211767707751.44446,
+        "FP_ARITH_INST_RETIRED.SCALAR_SINGLE": 118665618122.33333,
+        "FP_ARITH_INST_RETIRED.128B_PACKED_SINGLE": 0.0,
+        "FP_ARITH_INST_RETIRED.256B_PACKED_SINGLE": 2121023.111111111,
+        "L1-dcache-loads": 118527774676.66667,
+        "L1-dcache-stores": 6924325407.555555,
+        "l2_rqsts.references": 6943249483.222222,
+        "l2_rqsts.miss": 3052241509.4444447,
+        "mem_load_retired.l3_miss": 5968346.444444444
+      },
+      "dram": {
+        "unc_m_cas_count_rd": 85078933.77777778,
+        "unc_m_cas_count_wr": 36704571.11111111
+      }
+    },
+    {
+      "X": {
+        "B": 8,
+        "T": 384,
+        "C_in": 24,
+        "D": 16
+      },
+      "cycles": 164372536015.0,
+      "N": 12,
+      "perf": {
+        "cycles": 163878961327.8889,
+        "instructions": 344574319805.2222,
+        "FP_ARITH_INST_RETIRED.SCALAR_SINGLE": 187016590357.1111,
+        "FP_ARITH_INST_RETIRED.128B_PACKED_SINGLE": 0.0,
+        "FP_ARITH_INST_RETIRED.256B_PACKED_SINGLE": 3485208.6666666665,
+        "L1-dcache-loads": 186945060086.44446,
+        "L1-dcache-stores": 13589247211.444445,
+        "l2_rqsts.references": 10860463598.11111,
+        "l2_rqsts.miss": 4647439650.222222,
+        "mem_load_retired.l3_miss": 11368769.555555556
+      },
+      "dram": {
+        "unc_m_cas_count_rd": 130871814.1111111,
+        "unc_m_cas_count_wr": 55827883.0
+      }
+    },
+    {
+      "X": {
+        "B": 8,
+        "T": 512,
+        "C_in": 32,
+        "D": 16
+      },
+      "cycles": 229175200307.5,
+      "N": 16,
+      "perf": {
+        "cycles": 228354003937.8889,
+        "instructions": 495877456282.3333,
+        "FP_ARITH_INST_RETIRED.SCALAR_SINGLE": 261605101601.33334,
+        "FP_ARITH_INST_RETIRED.128B_PACKED_SINGLE": 0.0,
+        "FP_ARITH_INST_RETIRED.256B_PACKED_SINGLE": 4535274.555555556,
+        "L1-dcache-loads": 261573993250.44446,
+        "L1-dcache-stores": 22408653580.444443,
+        "l2_rqsts.references": 15722669268.444445,
+        "l2_rqsts.miss": 6885609006.222222,
+        "mem_load_retired.l3_miss": 14095904.888888888
+      },
+      "dram": {
+        "unc_m_cas_count_rd": 133788484.77777778,
+        "unc_m_cas_count_wr": 72218322.1111111
       }
     }
   ]

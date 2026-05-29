@@ -1,11 +1,15 @@
+import math
+
 ACTIVE_SERVER = "adam"
 
-WARMUP = 5
-STEPS = 9
+WARMUP = 3
+STEPS = 5
 # SIZES = [1]
 # SIZES = [1, 2, 3, 4]
-SIZES = [1, 2, 3, 4, 6, 8, 12, 16]
+SIZES = [1, 4, 6, 16, 32, 48, 56, 64]
 REPRESENTATIVE_N = 8
+
+SHOW_CACHE_LINES = True
 
 
 ## Do not worry about things below this line :)
@@ -28,6 +32,12 @@ SERVERS = {
         "pinned_core": "4",
         "build_jobs": 12,
         "roofline_beta": 32,
+        "roofline_beta_levels": {
+            "l1": 96,
+            "l2": 64,
+            "l3": 32,
+            "dram": 35.84,
+        },
         "roofline_pi_scalar": 5,
         "roofline_pi_vector": 40,
         "perf_events": [
@@ -83,9 +93,44 @@ PINNED_CPU_CORE = _ACTIVE["pinned_core"]
 PERF_EVENTS = _ACTIVE["perf_events"]
 DRAM_EVENTS = _ACTIVE.get("dram_events", [])
 ROOFLINE_BETA = _ACTIVE["roofline_beta"]
+ROOFLINE_BETA_LEVELS = _ACTIVE.get("roofline_beta_levels", {})
 ROOFLINE_PI_SCALAR = _ACTIVE["roofline_pi_scalar"]
 ROOFLINE_PI_VECTOR = _ACTIVE["roofline_pi_vector"]
 BUILD_JOBS = _ACTIVE["build_jobs"]
+
+
+def roofline_beta_for(level):
+    return ROOFLINE_BETA_LEVELS.get(level, ROOFLINE_BETA)
+
+
+CACHE_SIZES_BYTES = {
+    "L1d": 48 * 1024,
+    "L2": 1280 * 1024,
+    "L3": 24576 * 1024,
+}
+
+
+def working_set_bytes(size):
+
+    C_hid, D = 32, 16
+    qk_dim = C_hid * 12  # 7 ipa + 5 daa projected blades per channel
+    T = 4.0 * math.sqrt(max(float(size), 0.0))
+    return 4.0 * (T * T + T * C_hid * D + 3.0 * T * qk_dim)
+
+
+def input_size_at_cache(cache_bytes):
+    lo, hi = 0.0, 1.0
+    while working_set_bytes(hi) < cache_bytes:
+        hi *= 2.0
+        if hi > 1e18:
+            return float("inf")
+    for _ in range(60):
+        mid = 0.5 * (lo + hi)
+        if working_set_bytes(mid) < cache_bytes:
+            lo = mid
+        else:
+            hi = mid
+    return 0.5 * (lo + hi)
 
 
 def get_dimensions(N):

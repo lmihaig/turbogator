@@ -22,12 +22,20 @@ HISTORY_FILE = REPO_ROOT / "results" / "history.jsonl"
 PLOT_DIR = REPO_ROOT / "results" / "plots"
 
 # T * C_in
-X_COL = "size"  
+X_COL = "size"
 
 # columns plotted by each subplot - change here to re-route the Y axis
-PERF_Y_COL    = "perf"     
-RUNTIME_Y_COL = "gcycles"  
-OI_Y_COL      = "oi_dram" 
+PERF_Y_COL = "perf"
+PERF_THEORY_Y_COL = "perf_theory"
+RUNTIME_Y_COL = "gcycles"
+
+
+OI_LEVELS = [
+    ("oi_l1", "L1"),
+    ("oi_l2", "L2"),
+    ("oi_l3", "L3"),
+    ("oi_dram", "DRAM"),
+]
 
 MANUAL_LABEL_ADJUSTMENTS = {}
 
@@ -42,18 +50,56 @@ def _draw_lines(ax, df, palette, y_col, dropna=True):
         if g.empty:
             continue
         is_primary = desc == PRIMARY_DESC
-        lines.append(add_series(
-            ax,
-            x=g[X_COL], y=g[y_col],
-            label=desc,
-            primary=is_primary,
-            color=palette[desc],
-            linestyle="--" if is_primary else "-",
-            linewidth=3.2 if is_primary else 2,
-            marker="o" if is_primary else "s",
-        ))
+        lines.append(
+            add_series(
+                ax,
+                x=g[X_COL],
+                y=g[y_col],
+                label=desc,
+                primary=is_primary,
+                color=palette[desc],
+                linestyle="--" if is_primary else "-",
+                linewidth=3.2 if is_primary else 2,
+                marker="o" if is_primary else "s",
+            )
+        )
         all_y.extend(float(v) for v in g[y_col])
     return lines, all_y
+
+
+CACHE_LINE_COLOR = "0.35"
+
+
+def add_cache_lines(ax):
+    if not getattr(app_config, "SHOW_CACHE_LINES", False):
+        return
+    xmin, xmax = ax.get_xlim()
+    trans = ax.get_xaxis_transform()
+    for name, nbytes in app_config.CACHE_SIZES_BYTES.items():
+        x = app_config.input_size_at_cache(nbytes)
+        if not (xmin <= x <= xmax):
+            continue
+        ax.axvline(x, color=CACHE_LINE_COLOR, linestyle=":", linewidth=1.5, zorder=1)
+        ax.text(
+            x,
+            0.94,
+            f"{name} cache",
+            transform=trans,
+            rotation=0,
+            ha="center",
+            va="top",
+            fontsize=10,
+            fontweight="bold",
+            color=CACHE_LINE_COLOR,
+            zorder=6,
+            bbox=dict(
+                boxstyle="round,pad=0.25",
+                fc="white",
+                ec=CACHE_LINE_COLOR,
+                lw=0.6,
+                alpha=0.85,
+            ),
+        )
 
 
 def plot_performance_inputsize(df, palette):
@@ -71,8 +117,36 @@ def plot_performance_inputsize(df, palette):
         hide_left_spine=True,
     )
     place_line_labels(lines, label_adjustments=MANUAL_LABEL_ADJUSTMENTS)
+    add_cache_lines(ax)
     save_figure(fig, PLOT_DIR / "performance_inputsize", tight_rect=(0, 0, 1.0, 1.0))
     print(f"Plot saved: {PLOT_DIR / 'performance_inputsize'}")
+
+
+def plot_performance_inputsize_theory(df, palette):
+    if PERF_THEORY_Y_COL not in df.columns:
+        print(f"Column {PERF_THEORY_Y_COL!r} not in data - skipping theory perf plot.")
+        return
+    fig, ax = new_single_axes(figsize=(10, 6))
+    lines, all_y = _draw_lines(ax, df, palette, PERF_THEORY_Y_COL)
+    if not lines:
+        return
+    y_max = max(all_y) if all_y else 1.0
+    style_axes(
+        ax,
+        title=f"Performance (analytic FLOPs): {app_config.MACHINE}",
+        y_unit_text="Performance [theoretical flops / cycle]",
+        x_label="Input Size (TxC_in)",
+        x_scale="log2",
+        grid_axis="y",
+        ylim=(0, max(1.0, y_max * 1.2)),
+        hide_left_spine=True,
+    )
+    place_line_labels(lines, label_adjustments=MANUAL_LABEL_ADJUSTMENTS)
+    add_cache_lines(ax)
+    save_figure(
+        fig, PLOT_DIR / "performance_inputsize_theory", tight_rect=(0, 0, 1.0, 1.0)
+    )
+    print(f"Plot saved: {PLOT_DIR / 'performance_inputsize_theory'}")
 
 
 def plot_runtime_inputsize(df, palette):
@@ -90,6 +164,7 @@ def plot_runtime_inputsize(df, palette):
         hide_left_spine=True,
     )
     place_line_labels(lines, label_adjustments=MANUAL_LABEL_ADJUSTMENTS)
+    add_cache_lines(ax)
     save_figure(fig, PLOT_DIR / "runtime_inputsize", tight_rect=(0, 0, 1.0, 1.0))
     print(f"Plot saved: {PLOT_DIR / 'runtime_inputsize'}")
 
@@ -102,8 +177,7 @@ def plot_speedup_inputsize(df, palette):
     ref_perf = ref.set_index(X_COL)[PERF_Y_COL]
 
     fig, ax = new_single_axes(figsize=(10, 6))
-    ax.axhline(1.0, color="gray", linestyle="--", linewidth=1.5, zorder=1)
-    lines, all_y = [], [1.0]
+    lines, all_y = [], []
 
     for desc in description_order(df):
         if desc == PRIMARY_DESC:
@@ -117,14 +191,18 @@ def plot_speedup_inputsize(df, palette):
         if not common:
             continue
         speedup = g.set_index(X_COL).loc[common, PERF_Y_COL] / ref_perf.loc[common]
-        lines.append(add_series(
-            ax,
-            x=common, y=speedup.values,
-            label=desc,
-            color=palette[desc],
-            linestyle=":" if desc == "baseline" else "-",
-            linewidth=2, marker="s",
-        ))
+        lines.append(
+            add_series(
+                ax,
+                x=common,
+                y=speedup.values,
+                label=desc,
+                color=palette[desc],
+                linestyle=":" if desc == "baseline" else "-",
+                linewidth=2,
+                marker="s",
+            )
+        )
         all_y.extend(float(v) for v in speedup)
 
     if not lines:
@@ -141,23 +219,24 @@ def plot_speedup_inputsize(df, palette):
         hide_left_spine=True,
     )
     place_line_labels(lines, label_adjustments=MANUAL_LABEL_ADJUSTMENTS)
+    add_cache_lines(ax)
     save_figure(fig, PLOT_DIR / "speedup_inputsize", tight_rect=(0, 0, 1.0, 1.0))
     print(f"Plot saved: {PLOT_DIR / 'speedup_inputsize'}")
 
 
-def plot_oi_inputsize(df, palette):
-    fig, ax = new_single_axes(figsize=(10, 6))
-    ridge = app_config.ROOFLINE_PI_VECTOR / app_config.ROOFLINE_BETA
-    ax.axhline(ridge, color="gray", linestyle="--", linewidth=1.2, zorder=1,
-               label=f"ridge = {ridge:.2f}")
+def plot_oi_inputsize(df, palette, oi_col, level_label):
+    if oi_col not in df.columns:
+        print(f"Column {oi_col!r} not in data - skipping OI ({level_label}) plot.")
+        return
 
-    lines, all_y = _draw_lines(ax, df, palette, OI_Y_COL)
+    fig, ax = new_single_axes(figsize=(10, 6))
+    lines, all_y = _draw_lines(ax, df, palette, oi_col)
     if not lines:
         return
 
     style_axes(
         ax,
-        title=f"Operational Intensity (L3): {app_config.MACHINE}",
+        title=f"Operational Intensity ({level_label}): {app_config.MACHINE}",
         y_unit_text="Flops / byte",
         x_label="Input Size (TxC_in)",
         x_scale="log2",
@@ -166,8 +245,88 @@ def plot_oi_inputsize(df, palette):
         hide_left_spine=True,
     )
     place_line_labels(lines, label_adjustments=MANUAL_LABEL_ADJUSTMENTS)
-    save_figure(fig, PLOT_DIR / "oi_inputsize", tight_rect=(0, 0, 1.0, 1.0))
-    print(f"Plot saved: {PLOT_DIR / 'oi_inputsize'}")
+    add_cache_lines(ax)
+    name = f"oi_inputsize_{level_label.lower()}"
+    save_figure(fig, PLOT_DIR / name, tight_rect=(0, 0, 1.0, 1.0))
+    print(f"Plot saved: {PLOT_DIR / name}")
+
+
+def plot_work_efficiency(df, palette):
+    need = {"flops_efficiency", "gcycles", "perf", "perf_theory"}
+    if not need.issubset(df.columns):
+        print("Missing work/efficiency columns - skipping work-efficiency plot.")
+        return
+
+    target_n = app_config.REPRESENTATIVE_N
+    pts = []
+    for desc in description_order(df):
+        g = df[df["description"] == desc]
+        if g.empty:
+            continue
+        exact = g[g["N"] == target_n]
+        row = (
+            exact.iloc[0]
+            if not exact.empty
+            else g.iloc[(g["N"] - target_n).abs().argsort().iloc[0]]
+        )
+        eff, gc = row["flops_efficiency"], row["gcycles"]
+        if np.isfinite(eff) and np.isfinite(gc) and gc > 0:
+            pts.append((desc, row))
+    if not pts:
+        return
+
+    fig, ax = new_single_axes(figsize=(10, 6))
+
+    ax.axhline(100.0, color="gray", linestyle="--", linewidth=1.2, zorder=1)
+    ax.text(
+        0.99,
+        101.0,
+        "100% = dense brute force (every algorithmic FLOP)",
+        transform=ax.get_yaxis_transform(),
+        ha="right",
+        va="bottom",
+        fontsize=8,
+        color="0.45",
+    )
+
+    for desc, row in pts:
+        x = float(row["gcycles"])
+        y = float(row["flops_efficiency"]) * 100.0
+        is_primary = desc == PRIMARY_DESC
+        ax.scatter(
+            x,
+            y,
+            s=260 if is_primary else 150,
+            color=palette[desc],
+            edgecolor="black",
+            linewidth=1.1,
+            zorder=4,
+            marker="o" if is_primary else "s",
+            label=f"{desc}  ({row['gcycles']:.1f} Gcyc, {row['flops_efficiency'] * 100:.0f}%)",
+        )
+
+    ax.set_xscale("log", base=2)
+    style_axes(
+        ax,
+        title=f"Work vs. Speed at N={target_n}: who's faster, and who computes less",
+        y_unit_text="Algorithmic FLOPs executed  [% of analytic]   ↓ less wasted work",
+        x_label="Runtime [Gcycles]   ← faster",
+        x_scale="log2",
+        grid_axis="both",
+        ylim=(0, 118),
+        hide_left_spine=False,
+    )
+    ax.legend(
+        loc="center left",
+        fontsize=8,
+        frameon=True,
+        framealpha=0.92,
+        edgecolor="#cccccc",
+        title="version  (runtime, work done)",
+        title_fontsize=8,
+    )
+    save_figure(fig, PLOT_DIR / "work_efficiency", tight_rect=(0, 0, 1.0, 1.0))
+    print(f"Plot saved: {PLOT_DIR / 'work_efficiency'}")
 
 
 def generate_performance_plot():
@@ -180,6 +339,9 @@ def generate_performance_plot():
     palette = series_palette(description_order(df))
 
     plot_performance_inputsize(df, palette)
+    plot_performance_inputsize_theory(df, palette)
     plot_runtime_inputsize(df, palette)
     plot_speedup_inputsize(df, palette)
-    plot_oi_inputsize(df, palette)
+    plot_work_efficiency(df, palette)
+    for oi_col, level_label in OI_LEVELS:
+        plot_oi_inputsize(df, palette, oi_col, level_label)

@@ -53,16 +53,16 @@ target_compile_options(turbogator_ext PRIVATE
     -fno-tree-vectorize
     -fno-tree-slp-vectorize
 
-)
+    ## FAST BOYS HERE
+    # -funroll-loops 
+    # -ffinite-math-only
+    # -ffast-math
+    # -fno-math-errno         
+    # -fno-trapping-math      
+    # -fprefetch-loop-arrays 
+    # -flto  
 
-# TEST THESE LATER???
-# -funroll-loops 
-# -ffinite-math-only
-# -ffast-math
-# -fno-math-errno         
-# -fno-trapping-math      
-# -fprefetch-loop-arrays 
-# -flto  
+)
 
 target_precompile_headers(turbogator_ext PRIVATE
     <torch/extension.h>

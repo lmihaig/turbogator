@@ -1,3 +1,4 @@
+import math
 import os
 import sys
 from pathlib import Path
@@ -62,9 +63,11 @@ def generate_perf_bars():
         return
 
     n_metrics, n_descs = len(metrics), len(rows)
-    fig, axes = new_figure(nrows=1, ncols=n_metrics, figsize=(4 * n_metrics, 5))
-    if n_metrics == 1:
-        axes = [axes]
+
+    ncols = min(3, n_metrics)
+    nrows = math.ceil(n_metrics / ncols)
+    fig, axes = new_figure(nrows=nrows, ncols=ncols, figsize=(4 * ncols, 5 * nrows))
+    axes = np.atleast_1d(axes).ravel()
 
     bar_width = 0.7
     for ax, (col, label, subtitle) in zip(axes, metrics):
@@ -83,6 +86,9 @@ def generate_perf_bars():
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
         ax.set_xlim(-0.5, n_descs - 0.5)
+
+    for ax in axes[n_metrics:]:
+        ax.set_visible(False)
 
     fig.suptitle(
         f"Hardware Profile at N={target_n} — {app_config.MACHINE}",

@@ -112,7 +112,7 @@ def _draw_roofline(ax, xlim, ylim, beta, title):
     ax.spines["left"].set_visible(False)
 
 
-def _generate_one(df, palette, oi_col, output_name, title_base):
+def _generate_one(df, palette, oi_col, output_name, title_base, beta):
     fig, ax = new_single_axes(figsize=(10, 6))
     lines = []
 
@@ -144,7 +144,6 @@ def _generate_one(df, palette, oi_col, output_name, title_base):
     if not lines:
         return
 
-    beta = app_config.ROOFLINE_BETA
     peaks = [app_config.ROOFLINE_PI_SCALAR, app_config.ROOFLINE_PI_VECTOR]
     ridges = [p / beta for p in peaks]
 
@@ -195,4 +194,6 @@ def generate_roofline_plot():
     for oi_col, name, title in ROOFLINES:
         if oi_col not in df.columns:
             continue
-        _generate_one(df, palette, oi_col, name, title)
+        level = oi_col.replace("oi_", "")
+        beta = app_config.roofline_beta_for(level)
+        _generate_one(df, palette, oi_col, name, title, beta)

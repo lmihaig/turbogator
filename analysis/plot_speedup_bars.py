@@ -61,7 +61,9 @@ def _build_matrix(df, ref_desc):
     return descs, n_values, matrix
 
 
-def _draw(ax, descs, n_values, matrix, palette, ref_desc):
+def _draw(
+    ax, descs, n_values, matrix, palette, ref_desc, show_legend=True, n_slots=None
+):
     group_w = 0.75
     bar_w = group_w / len(descs)
     x = np.arange(len(n_values))
@@ -103,6 +105,8 @@ def _draw(ax, descs, n_values, matrix, palette, ref_desc):
     ax.set_xticklabels([f"N={n}" for n in n_values], fontsize=9)
     ax.set_xlabel("Input Size", fontsize=10)
 
+    ax.set_xlim(-0.5, (n_slots if n_slots is not None else len(n_values)) - 0.5)
+
     ax.set_yscale("log", base=10)
     ax.set_ylim(1e-2, 1e3)
     ax.yaxis.set_major_locator(mticker.LogLocator(base=10.0, numticks=6))
@@ -120,15 +124,19 @@ def _draw(ax, descs, n_values, matrix, palette, ref_desc):
         spine.set_linewidth(0.8)
         spine.set_color("black")
 
-    ax.legend(
-        loc="upper left",
-        ncol=len(descs),
-        fontsize=8,
-        frameon=True,
-        framealpha=0.92,
-        edgecolor="#cccccc",
-        fancybox=True,
-    )
+    if show_legend:
+        ax.legend(
+            loc="upper left",
+            ncol=len(descs),
+            fontsize=8,
+            frameon=True,
+            framealpha=0.92,
+            edgecolor="#cccccc",
+            fancybox=True,
+        )
+
+
+MAX_GROUPS_PER_ROW = 4
 
 
 def _generate(df, palette, ref_desc, ylabel, title, output_name):
@@ -137,10 +145,31 @@ def _generate(df, palette, ref_desc, ylabel, title, output_name):
         print(f"No {ref_desc} in history or no hw data - skipping {output_name}.")
         return
 
-    fig, ax = plt.subplots(figsize=(max(8, 1.8 * len(n_values) * len(descs)), 6))
-    _draw(ax, descs, n_values, matrix, palette, ref_desc)
-    ax.set_ylabel(ylabel, fontsize=10)
-    ax.set_title(title, fontsize=12, fontweight="bold", pad=10)
+    chunks = [
+        n_values[i : i + MAX_GROUPS_PER_ROW]
+        for i in range(0, len(n_values), MAX_GROUPS_PER_ROW)
+    ]
+    nrows = len(chunks)
+    row_w = max(8, 1.8 * MAX_GROUPS_PER_ROW * len(descs))
+    fig, axes = plt.subplots(
+        nrows=nrows, ncols=1, figsize=(row_w, 6 * nrows), squeeze=False
+    )
+    axes = axes.ravel()
+
+    for idx, (ax, chunk) in enumerate(zip(axes, chunks)):
+        _draw(
+            ax,
+            descs,
+            chunk,
+            matrix,
+            palette,
+            ref_desc,
+            show_legend=(idx == 0),
+            n_slots=MAX_GROUPS_PER_ROW,
+        )
+        ax.set_ylabel(ylabel, fontsize=10)
+
+    axes[0].set_title(title, fontsize=12, fontweight="bold", pad=10)
 
     out = PLOT_DIR / output_name
     save_figure(fig, out, dpi=180)

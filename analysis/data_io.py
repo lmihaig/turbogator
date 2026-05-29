@@ -152,6 +152,7 @@ def _derive(df):
     df["oi_theory"] = df["flops"] / df["bytes_theory"]
 
     df["perf"] = df["flops"] / df["cycles"]
+    df["perf_theory"] = df["flops_theory"] / df["cycles"]
 
     if "instructions" in df.columns:
         df["ipc"] = df["instructions"] / df["cycles"]
