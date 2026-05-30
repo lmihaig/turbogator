@@ -19,9 +19,15 @@ Level 3 Unified: 24576K
 | L1 Data Cache   | 96.00 bytes/cyc   |        -          | 63.66 bytes/cyc   | 349.64 bytes/cyc  |
 | L2 Cache        | 64.00 bytes/cyc   |        -          | 41.08 bytes/cyc   | 191.19 bytes/cyc  |
 | L3 Cache (LLC)  | 32.00 bytes/cyc   |        -          | 16.37 bytes/cyc   |  48.57 bytes/cyc  |
-| System DRAM     | 35.84 bytes/cyc   |  8.29 bytes/cyc   |  8.54 bytes/cyc   |  31.29 bytes/cyc  |
+| System DRAM     | 9.63  bytes/cyc   |  8.29 bytes/cyc   |  8.54 bytes/cyc   |  31.29 bytes/cyc  |
 +-----------------+-------------------+-------------------+-------------------+-------------------+
 
+* Little's Law
+* L1 has particularity, some of these CPUs have 
+    2 ports x 64 bytes 
+    128 bytes/cyc load 
+    64 bytes/cyc store
+    but I think ours has 3 ports x 32 bytes
 ================================================================================
 
 ================================================================================================

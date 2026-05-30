@@ -31,11 +31,12 @@ SERVERS = {
         "pinned_core": "4",
         "build_jobs": 12,
         "roofline_beta": 32,
+        #  these are THEORETICAL, for measured see docs/hardware_specs
         "roofline_beta_levels": {
             "l1": 96,
             "l2": 64,
             "l3": 32,
-            "dram": 36,
+            "dram": 9,
         },
         "roofline_pi_scalar": 5,
         "roofline_pi_vector": 40,
