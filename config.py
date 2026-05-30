@@ -3,8 +3,8 @@ ACTIVE_SERVER = "adam"
 WARMUP = 5
 STEPS = 9
 # SIZES = [1]
-# SIZES = [2, 4, 6, 8]
-SIZES = [2, 4, 8, 16, 32]
+SIZES = [2, 4, 6, 8]
+# SIZES = [2, 4, 8, 16, 32]
 # SIZES = [1, 4, 6, 16, 32, 48, 56, 64]
 REPRESENTATIVE_N = 8
 
