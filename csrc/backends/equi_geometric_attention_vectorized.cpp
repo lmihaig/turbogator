@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <cstring>
 #include <limits>
 #include <vector>
@@ -110,6 +111,164 @@ static void tiled_mm(
             cell(i, j);
 }
 
+static inline float hmax256(__m256 v) {
+    // 256 -> 128
+    __m128 vlow  = _mm256_castps256_ps128(v);
+    __m128 vhigh = _mm256_extractf128_ps(v, 1);
+    vlow         = _mm_max_ps(vlow, vhigh);
+    // 128 -> 64
+    vhigh = _mm_movehl_ps(vlow, vlow);
+    vlow  = _mm_max_ps(vlow, vhigh);
+    // 64 -> 32
+    vhigh = _mm_shuffle_ps(vlow, vlow, _MM_SHUFFLE(1, 1, 1, 1));
+    return _mm_cvtss_f32(_mm_max_ss(vlow, vhigh));
+}
+
+static inline float hsum256(__m256 v) {
+    // 256 -> 128
+    __m128 vlow  = _mm256_castps256_ps128(v);
+    __m128 vhigh = _mm256_extractf128_ps(v, 1);
+    vlow         = _mm_add_ps(vlow, vhigh);
+    // 128 -> 64
+    vhigh = _mm_movehl_ps(vlow, vlow);
+    vlow  = _mm_add_ps(vlow, vhigh);
+    // 64 -> 32
+    vhigh = _mm_shuffle_ps(vlow, vlow, _MM_SHUFFLE(1, 1, 1, 1));
+    return _mm_cvtss_f32(_mm_add_ss(vlow, vhigh));
+}
+
+
+// funky e^x 
+static inline __m256 fast_exp_ps(__m256 x){
+    // clamp for underflowflow e^x = 0
+    // -87.33654f < x <= 0.
+    x = _mm256_max_ps(x, _mm256_set1_ps(-87.33654f));
+
+    // integer part n =  x * log2(e)
+    __m256 y = _mm256_mul_ps(x, _mm256_set1_ps(1.44269504f)); 
+    __m256i n = _mm256_cvtps_epi32(y);
+    __m256 float_n = _mm256_cvtepi32_ps(n);
+
+    //  fractional part f = x - n * ln(2)
+    x = _mm256_fnmadd_ps(float_n, _mm256_set1_ps(0.69314575f), x); 
+    __m256 f = _mm256_fnmadd_ps(float_n, _mm256_set1_ps(1.4286068e-06f), x);
+
+    // Horner's method
+    // p(f) = 1 + f + f^2/2 + f^3/6 + f^4/24
+    __m256 p = _mm256_fmadd_ps(_mm256_set1_ps(0.04166667f), f, _mm256_set1_ps(0.16666667f));
+    p = _mm256_fmadd_ps(p, f, _mm256_set1_ps(0.5f));
+    p = _mm256_fmadd_ps(p, f, _mm256_set1_ps(1.0f)); 
+    p = _mm256_fmadd_ps(p, f, _mm256_set1_ps(1.0f));
+
+    // 2^n
+    __m256i exp_bits = _mm256_slli_epi32(_mm256_add_epi32(n, _mm256_set1_epi32(127)), 23);
+    __m256 two_to_n = _mm256_castsi256_ps(exp_bits);
+
+    // e^x = 2^n * e^f
+    return _mm256_mul_ps(p, two_to_n);
+}
+
+static inline void vec_softmax(float* scores,
+                               int64_t T,
+                               __m256 v_scale,
+                               const float* attn_mask,
+                               bool is_causal,
+                               int64_t b,
+                               int64_t H,
+                               int64_t h,
+                               __m256 v_neg_inf) {
+    const int8_t VLEN = 256 / 32;
+
+    for (int64_t t1 = 0; t1 < T; ++t1) {
+        float* row       = scores + t1 * T;
+        __m256 v_row_max = v_neg_inf;
+
+        /// find max
+        for (int64_t t2 = 0; t2 < T; t2 += VLEN) {
+            __m256 v_s = _mm256_loadu_ps(row + t2);
+            v_s        = _mm256_mul_ps(v_s, v_scale);
+
+            if (is_causal) {
+                __m256 v_t2 = _mm256_set_ps(t2 + 7, t2 + 6, t2 + 5, t2 + 4, t2 + 3, t2 + 2, t2 + 1, t2);
+                __m256 v_t1 = _mm256_set1_ps((float)t1);
+
+                // mask 0xFFFFFFFF if t2 > t1, else 0x00000000
+                __m256 mask = _mm256_cmp_ps(v_t2, v_t1, _CMP_GT_OQ);
+
+                v_s = _mm256_blendv_ps(v_s, v_neg_inf, mask);
+            }
+
+            _mm256_storeu_ps(row + t2, v_s);
+            v_row_max = _mm256_max_ps(v_row_max, v_s);
+        }
+        // tail??
+        float global_max   = hmax256(v_row_max);
+
+
+        __m256 v_max_bcast = _mm256_set1_ps(global_max);
+        __m256 v_sum       = _mm256_setzero_ps();
+
+        /// exp + sum
+        for (int64_t t2 = 0; t2 < T; t2 += VLEN) {
+            __m256 v_s = _mm256_loadu_ps(row + t2);
+            v_s        = _mm256_sub_ps(v_s, v_max_bcast);
+            
+            v_s = fast_exp_ps(v_s);
+
+            _mm256_storeu_ps(row + t2, v_s);
+            v_sum = _mm256_add_ps(v_sum, v_s);
+        }
+        // tail??
+
+        /// mult inv
+        float total_sum  = hsum256(v_sum);
+        float inv_sum    = 1.0f / total_sum;
+        __m256 v_inv_sum = _mm256_set1_ps(inv_sum);
+
+        for (int64_t t2 = 0; t2 < T; t2 += VLEN) {
+            __m256 v_s = _mm256_loadu_ps(row + t2);
+            v_s        = _mm256_mul_ps(v_s, v_inv_sum);
+            _mm256_storeu_ps(row + t2, v_s);
+        }
+        // tail??
+    }
+}
+
+static inline void scalar_softmax(float* scores,
+                                  int64_t T,
+                                  float scale,
+                                  const float* attn_mask,
+                                  bool is_causal,
+                                  int64_t b,
+                                  int64_t H,
+                                  int64_t h,
+                                  float neg_inf) {
+    for (int64_t t1 = 0; t1 < T; ++t1) {
+        float row_max = neg_inf;
+        for (int64_t t2 = 0; t2 < T; ++t2) {
+            float s;
+            if (is_causal && t2 > t1) {
+                s = neg_inf;
+            } else {
+                s = scores[t1 * T + t2] * scale;
+                if (attn_mask)
+                    s += attn_mask[((b * H + h) * T + t1) * T + t2];
+            }
+            scores[t1 * T + t2] = s;
+            if (s > row_max)
+                row_max = s;
+        }
+        float sum_exp = 0.f;
+        for (int64_t t2 = 0; t2 < T; ++t2) {
+            float e             = std::exp(scores[t1 * T + t2] - row_max);
+            scores[t1 * T + t2] = e;
+            sum_exp += e;
+        }
+        for (int64_t t2 = 0; t2 < T; ++t2)
+            scores[t1 * T + t2] /= sum_exp;
+    }
+}
+
 void equi_geometric_attention_vectorized(const float* q,
                                          const float* k,
                                          const float* v,
@@ -125,6 +284,12 @@ void equi_geometric_attention_vectorized(const float* q,
                                          const std::vector<const float*>& weights,
                                          const float* attn_mask,
                                          bool is_causal) {
+    // enable Flush to Zero (0x8000)
+    // enable Denormals are Zero (0x40)
+    // for vectorising std:exp and avoiding denormals
+    unsigned old_csr = _mm_getcsr();
+    _mm_setcsr(old_csr | 0x8040);
+
     int64_t qk_dim = 0;
     for (auto& kind : kinds) {
         if (kind == "ipa")
@@ -133,9 +298,11 @@ void equi_geometric_attention_vectorized(const float* q,
             qk_dim += C * N_DAA;
     }
 
-    const int64_t mv_stride = C * N_BLADES;
-    const float scale       = 1.f / std::sqrt((float)qk_dim);
-    const float neg_inf     = -std::numeric_limits<float>::infinity();
+    const int64_t mv_stride    = C * N_BLADES;
+    const float scalar_scale   = 1.f / std::sqrt((float)qk_dim);
+    const float scalar_neg_inf = -std::numeric_limits<float>::infinity();
+    const __m256 v_scale       = _mm256_set1_ps(scalar_scale);
+    const __m256 v_neg_inf     = _mm256_set1_ps(scalar_neg_inf);
 
     std::vector<float> q_flat(T * qk_dim);
     std::vector<float> k_flat(T * qk_dim);
@@ -192,34 +359,14 @@ void equi_geometric_attention_vectorized(const float* q,
                     kt_flat[d * T + t2] = k_flat[t2 * qk_dim + d];
             tiled_mm<TILE_MR, TILE_NR>(q_flat.data(), qk_dim, kt_flat.data(), T, scores.data(), T, T, T, qk_dim);
 
-            for (int64_t t1 = 0; t1 < T; ++t1) {
-                float row_max = neg_inf;
-                for (int64_t t2 = 0; t2 < T; ++t2) {
-                    float s;
-                    if (is_causal && t2 > t1) {
-                        s = neg_inf;
-                    } else {
-                        s = scores[t1 * T + t2] * scale;
-                        if (attn_mask)
-                            s += attn_mask[((b * H + h) * T + t1) * T + t2];
-                    }
-                    scores[t1 * T + t2] = s;
-                    if (s > row_max)
-                        row_max = s;
-                }
-                float sum_exp = 0.f;
-                for (int64_t t2 = 0; t2 < T; ++t2) {
-                    float e             = std::exp(scores[t1 * T + t2] - row_max);
-                    scores[t1 * T + t2] = e;
-                    sum_exp += e;
-                }
-                for (int64_t t2 = 0; t2 < T; ++t2)
-                    scores[t1 * T + t2] /= sum_exp;
-            }
+            vec_softmax(scores.data(), T, v_scale, attn_mask, is_causal, b, H, h, v_neg_inf);
+            // scalar_softmax(scores.data(), T, scalar_scale, attn_mask, is_causal, b, H, h, scalar_neg_inf);
 
             tiled_mm<TILE_MR, TILE_NR>(scores.data(), T, v_bh, qs_t, o_bh, mv_stride, T, mv_stride, T);
         }
     }
-}
 
+    _mm_setcsr(old_csr);
+
+}
 }  // namespace turbogator
