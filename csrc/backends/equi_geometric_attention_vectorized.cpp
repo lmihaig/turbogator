@@ -14,8 +14,12 @@ static constexpr int N_BLADES  = 16;
 static constexpr int N_IPA     = 7;
 static constexpr int N_DAA     = 5;
 static constexpr float DAA_EPS = 1e-3f;
-static constexpr int64_t BT    = 32;   // token tile: 32x32x4 = 4 KiB scores tile
-static constexpr int64_t BD    = 288;  // feature tile: 32x288x4 = 36 KiB K tile fits in P-core L1d (48 KiB)
+static constexpr int64_t BT    = 32;  // token tile: 32x32x4 = 4 KiB scores tile
+// static constexpr int64_t BD    = 288;  // feature tile: 32x288x4 = 36 KiB K tile fits in P-core L1d (48 KiB)
+
+// original vec_softmax better at T < 256
+// then flash attention better
+static constexpr int64_t FLASH_T_THRESHOLD = 256;
 
 static constexpr int IPA_IDX[N_IPA] = {0, 2, 3, 4, 8, 9, 10};
 static constexpr int TRI_IDX[4]     = {11, 12, 13, 14};
@@ -106,6 +110,75 @@ static void tiled_mm(
 
     auto cell = [&](int64_t i, int64_t j) {
         float acc = 0.f;
+        for (int64_t k = 0; k < K; ++k)
+            acc += A[i * lda + k] * B[k * ldb + j];
+        C[i * ldc + j] = acc;
+    };
+    for (int64_t i = 0; i < Mfull; ++i)
+        for (int64_t j = Nfull; j < N; ++j)
+            cell(i, j);
+    for (int64_t i = Mfull; i < M; ++i)
+        for (int64_t j = 0; j < N; ++j)
+            cell(i, j);
+}
+
+template <int MR, int NR>
+static inline void mkernel_accum(const float* __restrict__ A,
+                                 int64_t lda,
+                                 const float* __restrict__ B,
+                                 int64_t ldb,
+                                 float* __restrict__ C,
+                                 int64_t ldc,
+                                 int64_t K,
+                                 const float* __restrict__ row_scale) {
+    __m256 c[MR][NR];
+#pragma GCC unroll 8
+    for (int i = 0; i < MR; ++i) {
+        __m256 vs = _mm256_set1_ps(row_scale[i]);
+        for (int j = 0; j < NR; ++j)
+            c[i][j] = _mm256_mul_ps(_mm256_loadu_ps(C + (int64_t)i * ldc + j * 8), vs);
+    }
+    for (int64_t k = 0; k < K; ++k) {
+        const float* brow = B + k * ldb;
+        __m256 bv[NR];
+#pragma GCC unroll 8
+        for (int j = 0; j < NR; ++j)
+            bv[j] = _mm256_loadu_ps(brow + j * 8);
+#pragma GCC unroll 8
+        for (int i = 0; i < MR; ++i) {
+            __m256 a = _mm256_broadcast_ss(A + (int64_t)i * lda + k);
+#pragma GCC unroll 8
+            for (int j = 0; j < NR; ++j)
+                c[i][j] = _mm256_fmadd_ps(a, bv[j], c[i][j]);
+        }
+    }
+#pragma GCC unroll 8
+    for (int i = 0; i < MR; ++i)
+        for (int j = 0; j < NR; ++j)
+            _mm256_storeu_ps(C + (int64_t)i * ldc + j * 8, c[i][j]);
+}
+
+template <int MR, int NR>
+static void tiled_mm_accum(const float* A,
+                           int64_t lda,
+                           const float* B,
+                           int64_t ldb,
+                           float* C,
+                           int64_t ldc,
+                           int64_t M,
+                           int64_t N,
+                           int64_t K,
+                           const float* row_scale) {
+    constexpr int NB    = NR * 8;
+    const int64_t Mfull = M - (M % MR);
+    const int64_t Nfull = N - (N % NB);
+
+    for (int64_t i0 = 0; i0 < Mfull; i0 += MR)
+        for (int64_t j0 = 0; j0 < Nfull; j0 += NB)
+            mkernel_accum<MR, NR>(A + i0 * lda, lda, B + j0, ldb, C + i0 * ldc + j0, ldc, K, row_scale + i0);
+
+    auto cell = [&](int64_t i, int64_t j) {
+        float acc = C[i * ldc + j] * row_scale[i];
         for (int64_t k = 0; k < K; ++k)
             acc += A[i * lda + k] * B[k * ldb + j];
         C[i * ldc + j] = acc;
@@ -308,6 +381,98 @@ static inline void scalar_softmax(float* scores,
     }
 }
 
+// tilled flash attention for a single (batch, head ) pair
+// avoids full TxT scores by keeping BTxBT tiles in L1
+__attribute__((always_inline)) static inline void flash_attention_bh(const float* __restrict__ q_flat,
+                                                                     const float* __restrict__ kt_flat,
+                                                                     const float* __restrict__ v_bh,
+                                                                     float* __restrict__ o_bh,
+                                                                     int64_t T,
+                                                                     int64_t qk_dim,
+                                                                     int64_t mv_stride,
+                                                                     int64_t qs_t,
+                                                                     __m256 v_scale,
+                                                                     __m256 v_neg_inf,
+                                                                     float scalar_neg_inf,
+                                                                     bool is_causal,
+                                                                     float* __restrict__ score_tile,
+                                                                     float* __restrict__ row_max_fa,
+                                                                     float* __restrict__ row_sum_fa) {
+    alignas(32) float corrections[BT];
+
+    for (int64_t t1s = 0; t1s < T; t1s += BT) {
+        for (int r = 0; r < BT; ++r) {
+            row_max_fa[r] = scalar_neg_inf;
+            row_sum_fa[r] = 0.f;
+        }
+
+        float* o_qt = o_bh + t1s * mv_stride;
+        for (int64_t x = 0; x < (int64_t)BT * mv_stride; x += 8)
+            _mm256_storeu_ps(o_qt + x, _mm256_setzero_ps());
+
+        const int64_t t2_lim = is_causal ? (t1s + BT) : T;
+        for (int64_t t2s = 0; t2s < t2_lim; t2s += BT) {
+            // QK^T
+            tiled_mm<TILE_MR, TILE_NR>(q_flat + t1s * qk_dim, qk_dim, kt_flat + t2s, T, score_tile, BT, BT, BT, qk_dim);
+
+            // diag tile mask (t2 > t1 -> -inf)
+            const bool diag = is_causal && (t2s == t1s);
+
+            for (int r = 0; r < BT; ++r) {
+                float* srow = score_tile + r * BT;
+
+                __m256 vm = v_neg_inf;
+                for (int c = 0; c < BT; c += 8) {
+                    __m256 sv = _mm256_mul_ps(_mm256_loadu_ps(srow + c), v_scale);
+                    if (diag) {
+                        __m256 vt2  = _mm256_set_ps((float)(t2s + c + 7),
+                                                    (float)(t2s + c + 6),
+                                                    (float)(t2s + c + 5),
+                                                    (float)(t2s + c + 4),
+                                                    (float)(t2s + c + 3),
+                                                    (float)(t2s + c + 2),
+                                                    (float)(t2s + c + 1),
+                                                    (float)(t2s + c + 0));
+                        __m256 mask = _mm256_cmp_ps(vt2, _mm256_set1_ps((float)(t1s + r)), _CMP_GT_OQ);
+                        sv          = _mm256_blendv_ps(sv, v_neg_inf, mask);
+                    }
+                    _mm256_storeu_ps(srow + c, sv);
+                    vm = _mm256_max_ps(vm, sv);
+                }
+                float tile_max_r = hmax256(vm);
+
+                float old_max    = row_max_fa[r];
+                float new_max    = old_max > tile_max_r ? old_max : tile_max_r;
+                float correction = (old_max >= new_max) ? 1.f : std::exp(old_max - new_max);
+                corrections[r]   = correction;
+                row_sum_fa[r] *= correction;
+                row_max_fa[r] = new_max;
+
+                __m256 vmax_r = _mm256_set1_ps(new_max);
+                __m256 vsum   = _mm256_setzero_ps();
+                for (int c = 0; c < BT; c += 8) {
+                    __m256 sv = fast_exp_ps(_mm256_sub_ps(_mm256_loadu_ps(srow + c), vmax_r));
+                    _mm256_storeu_ps(srow + c, sv);
+                    vsum = _mm256_add_ps(vsum, sv);
+                }
+                row_sum_fa[r] += hsum256(vsum);
+            }
+
+            tiled_mm_accum<TILE_MR, TILE_NR>(
+                score_tile, BT, v_bh + t2s * qs_t, qs_t, o_qt, mv_stride, BT, mv_stride, BT, corrections);
+        }
+
+        // norm rows
+        for (int r = 0; r < BT; ++r) {
+            float inv_sum = 1.f / row_sum_fa[r];
+            float* orow   = o_qt + r * mv_stride;
+            __m256 vinv   = _mm256_set1_ps(inv_sum);
+            for (int64_t d = 0; d < mv_stride; d += 8)
+                _mm256_storeu_ps(orow + d, _mm256_mul_ps(_mm256_loadu_ps(orow + d), vinv));
+        }
+    }
+}
+
 void equi_geometric_attention_vectorized(const float* __restrict__ q,
                                          const float* __restrict__ k,
                                          const float* __restrict__ v,
@@ -351,7 +516,11 @@ void equi_geometric_attention_vectorized(const float* __restrict__ q,
     std::vector<float> q_flat(T * qk_dim);
     std::vector<float> k_flat(T * qk_dim);
     std::vector<float> kt_flat(qk_dim * T);
-    std::vector<float> scores(T * T);
+    std::vector<float> scores(T < FLASH_T_THRESHOLD ? T * T : 0);
+
+    alignas(32) float score_tile[BT * BT];
+    alignas(32) float row_max_fa[BT];
+    alignas(32) float row_sum_fa[BT];
 
     for (int64_t b = 0; b < B; ++b) {
         for (int64_t h = 0; h < H; ++h) {
@@ -401,12 +570,28 @@ void equi_geometric_attention_vectorized(const float* __restrict__ q,
             for (int64_t t2 = 0; t2 < T; ++t2)
                 for (int64_t d = 0; d < qk_dim; ++d)
                     kt_flat[d * T + t2] = k_flat[t2 * qk_dim + d];
-            tiled_mm<TILE_MR, TILE_NR>(q_flat.data(), qk_dim, kt_flat.data(), T, scores.data(), T, T, T, qk_dim);
 
-            vec_softmax(scores.data(), T, v_scale, attn_mask, is_causal, b, H, h, v_neg_inf);
-            // scalar_softmax(scores.data(), T, scalar_scale, attn_mask, is_causal, b, H, h, scalar_neg_inf);
-
-            tiled_mm<TILE_MR, TILE_NR>(scores.data(), T, v_bh, qs_t, o_bh, mv_stride, T, mv_stride, T);
+            if (T < FLASH_T_THRESHOLD) {
+                tiled_mm<TILE_MR, TILE_NR>(q_flat.data(), qk_dim, kt_flat.data(), T, scores.data(), T, T, T, qk_dim);
+                vec_softmax(scores.data(), T, v_scale, attn_mask, is_causal, b, H, h, v_neg_inf);
+                tiled_mm<TILE_MR, TILE_NR>(scores.data(), T, v_bh, qs_t, o_bh, mv_stride, T, mv_stride, T);
+            } else {
+                flash_attention_bh(q_flat.data(),
+                                   kt_flat.data(),
+                                   v_bh,
+                                   o_bh,
+                                   T,
+                                   qk_dim,
+                                   mv_stride,
+                                   qs_t,
+                                   v_scale,
+                                   v_neg_inf,
+                                   scalar_neg_inf,
+                                   is_causal,
+                                   score_tile,
+                                   row_max_fa,
+                                   row_sum_fa);
+            }
         }
     }
 
