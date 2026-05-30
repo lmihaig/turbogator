@@ -1,7 +1,5 @@
 #include <immintrin.h>
 
-#include <stdexcept>
-
 #include "equi_join_constants.hpp"
 #include "ops.hpp"
 
@@ -35,7 +33,7 @@ struct JoinKernelByI {
 
 inline static const JoinKernelByI KERNEL_BY_I;
 
-static inline float hsum256_ps(__m256 v) {
+__attribute__((always_inline)) static inline float hsum256_ps(__m256 v) {
     __m128 lo   = _mm256_castps256_ps128(v);
     __m128 hi   = _mm256_extractf128_ps(v, 1);
     __m128 sum4 = _mm_add_ps(lo, hi);
@@ -44,7 +42,7 @@ static inline float hsum256_ps(__m256 v) {
     return _mm_cvtss_f32(sum1);
 }
 
-void equi_join_vectorized(const float* a, const float* b, const float* ref, float* out, size_t n, size_t ref_group) {
+void equi_join_vectorized(const float* __restrict__ a, const float* __restrict__ b, const float* __restrict__ ref, float* __restrict__ out, size_t n, size_t ref_group) {
     const float* cur_ref = ref;
     size_t ref_left      = ref_group;
     for (size_t batch = 0; batch < n; ++batch) {

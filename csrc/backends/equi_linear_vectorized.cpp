@@ -10,7 +10,7 @@ namespace turbogator {
 alignas(32) static const int32_t PERM_LO[8] = {0, 0, 0, 0, 0, 2, 3, 4};
 alignas(32) static const int32_t PERM_HI[8] = {0, 0, 0, 0, 1, 2, 0, 6};
 
-static void pack_weight(float* dst, const float* w) {
+__attribute__((always_inline)) static inline void pack_weight(float* __restrict__ dst, const float* __restrict__ w) {
     dst[0] = w[0];
     dst[1] = dst[2] = dst[3] = dst[4] = w[1];
     dst[5] = dst[6] = dst[7] = w[2];
@@ -30,14 +30,16 @@ static void pack_weight(float* dst, const float* w) {
     dst[31]                     = w[8];
 }
 
-void equi_linear_vectorized(const float* x,
-                            const float* weight,
-                            const float* bias,
-                            float* out,
+void equi_linear_vectorized(const float* __restrict__ x,
+                            const float* __restrict__ weight,
+                            const float* __restrict__ bias,
+                            float* __restrict__ out,
                             size_t batch,
                             size_t in_channels,
                             size_t out_channels,
                             bool normalize_basis) {
+    if (in_channels  % 2 != 0) __builtin_unreachable();
+    if (out_channels % 2 != 0) __builtin_unreachable();
     float scales[9] = {1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f};
     if (normalize_basis) {
         scales[1] = .5f;

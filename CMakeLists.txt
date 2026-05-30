@@ -50,6 +50,10 @@ target_compile_options(turbogator_ext PRIVATE
     -O3
     -g
 
+    -fipa-pta           # pointer alias analysis 
+    -falign-loops=32    # align loops to 32byte boundaries for icache opt
+    -fno-math-errno     # avoid overhead on math calls
+
     -fno-tree-vectorize
     -fno-tree-slp-vectorize
 
@@ -57,11 +61,11 @@ target_compile_options(turbogator_ext PRIVATE
     # -funroll-loops 
     # -ffinite-math-only
     # -ffast-math
-    # -fno-math-errno         
     # -fno-trapping-math      
     # -fprefetch-loop-arrays 
-    # -flto  
-
+    # -flto=auto
+    # -fno-semantic-interposition
+    # -mprefer-vector-width=256
 )
 
 target_precompile_headers(turbogator_ext PRIVATE

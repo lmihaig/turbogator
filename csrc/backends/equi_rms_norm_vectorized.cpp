@@ -6,7 +6,7 @@
 
 namespace turbogator {
 
-static inline float hsum256_ps(__m256 v) {
+__attribute__((always_inline)) static inline float hsum256_ps(__m256 v) {
     __m128 lo   = _mm256_castps256_ps128(v);
     __m128 hi   = _mm256_extractf128_ps(v, 1);
     __m128 sum4 = _mm_add_ps(lo, hi);
@@ -16,10 +16,12 @@ static inline float hsum256_ps(__m256 v) {
 }
 
 void equi_rms_norm_vectorized(
-    const float* x, const float* weight, float* out, size_t batch, size_t n_channels, float eps) {
-    const float* __restrict__ x_r = x;
-    const float* __restrict__ w_r = weight;
-    float* __restrict__ out_r     = out;
+    const float* __restrict__ x, const float* __restrict__ weight, float* __restrict__ out,
+    size_t batch, size_t n_channels, float eps) {
+    if (n_channels % 2 != 0) __builtin_unreachable();
+    const float* __restrict__ x_r   = x;
+    const float* __restrict__ w_r   = weight;
+    float* __restrict__       out_r = out;
 
     const float inv_n_channels = 1.0f / (float)n_channels;
     const __m256 mask0         = _mm256_setr_ps(1.f, 0.f, 1.f, 1.f, 1.f, 0.f, 0.f, 0.f);

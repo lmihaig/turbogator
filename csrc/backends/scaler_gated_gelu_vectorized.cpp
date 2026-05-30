@@ -6,7 +6,8 @@
 
 namespace turbogator {
 
-void scaler_gated_gelu_vectorized(const float* x, float* out, size_t n) {
+void scaler_gated_gelu_vectorized(const float* __restrict__ x, float* __restrict__ out, size_t n) {
+    if (n % 16 != 0) __builtin_unreachable();
     size_t num_mvs = n / 16;
     for (size_t i = 0; i < num_mvs; ++i) {
         const float* mv_in = x + i * 16;

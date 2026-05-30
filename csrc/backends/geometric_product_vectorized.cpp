@@ -227,7 +227,7 @@ void transpose(const float* src, float* dst) {
             dst[c * R + r] = src[r * C + c];
 }
 
-void gp_avx2_8batch(const float* a_T, const float* b_T, float* out_T) {
+__attribute__((always_inline)) static inline void gp_avx2_8batch(const float* __restrict__ a_T, const float* __restrict__ b_T, float* __restrict__ out_T) {
     __m256 acc[16];
     for (int i = 0; i < 16; ++i)
         acc[i] = _mm256_setzero_ps();
@@ -247,8 +247,7 @@ void gp_avx2_8batch(const float* a_T, const float* b_T, float* out_T) {
         _mm256_storeu_ps(out_T + i * 8, acc[i]);
 }
 
-// scalar tail (not divisible by 8)
-void gp_scalar_one(const float* a, const float* b, float* out) {
+__attribute__((always_inline)) static inline void gp_scalar_one(const float* __restrict__ a, const float* __restrict__ b, float* __restrict__ out) {
     for (int i = 0; i < 16; ++i)
         out[i] = 0.0f;
     for (const auto& en : data) {
@@ -261,7 +260,8 @@ void gp_scalar_one(const float* a, const float* b, float* out) {
 
 }  // namespace
 
-void geometric_product_vectorized(const float* a, const float* b, float* out, size_t n) {
+void geometric_product_vectorized(const float* __restrict__ a, const float* __restrict__ b, float* __restrict__ out, size_t n) {
+    if (n % 8 != 0) __builtin_unreachable();
     constexpr size_t BLOCK  = 8;
     const size_t blocks     = n / BLOCK;
     const size_t tail_start = blocks * BLOCK;

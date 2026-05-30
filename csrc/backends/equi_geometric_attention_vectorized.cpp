@@ -23,19 +23,20 @@ static constexpr int TRI_IDX[4]     = {11, 12, 13, 14};
 static constexpr int TILE_MR = 4;
 static constexpr int TILE_NR = 2;
 
-static void project_ipa(const float* mv, float* out) {
+__attribute__((always_inline)) static inline void project_ipa(const float* __restrict__ mv, float* __restrict__ out) {
     for (int i = 0; i < N_IPA; ++i)
         out[i] = mv[IPA_IDX[i]];
 }
 
-static void normalize_tri(const float* mv, float* r) {
+__attribute__((always_inline)) static inline void normalize_tri(const float* __restrict__ mv, float* __restrict__ r) {
     float r3   = mv[TRI_IDX[3]];
     float norm = r3 / (r3 * r3 + DAA_EPS);
     for (int i = 0; i < 4; ++i)
         r[i] = mv[TRI_IDX[i]] * norm;
 }
 
-static void project_daa_bq(const float* mv, float* out) {
+__attribute__((always_inline)) static inline void project_daa_bq(const float* __restrict__ mv,
+                                                                 float* __restrict__ out) {
     float r[4];
     normalize_tri(mv, r);
     out[0] = r[0] * r[0] + r[1] * r[1] + r[2] * r[2];
@@ -45,7 +46,8 @@ static void project_daa_bq(const float* mv, float* out) {
     out[4] = r[2] * r[3];
 }
 
-static void project_daa_bk(const float* mv, float* out) {
+__attribute__((always_inline)) static inline void project_daa_bk(const float* __restrict__ mv,
+                                                                 float* __restrict__ out) {
     float r[4];
     normalize_tri(mv, r);
     out[0] = -(r[3] * r[3]);
@@ -58,7 +60,13 @@ static void project_daa_bk(const float* mv, float* out) {
 // Quad-accumulator AVX FMA dot product.
 // 4 independent accumulators fully hide the 4-cycle FMA latency: each acc
 template <int MR, int NR>
-static inline void mkernel(const float* A, int64_t lda, const float* B, int64_t ldb, float* C, int64_t ldc, int64_t K) {
+static inline void mkernel(const float* __restrict__ A,
+                           int64_t lda,
+                           const float* __restrict__ B,
+                           int64_t ldb,
+                           float* __restrict__ C,
+                           int64_t ldc,
+                           int64_t K) {
     __m256 c[MR][NR];
 #pragma GCC unroll 8
     for (int i = 0; i < MR; ++i)
@@ -110,7 +118,7 @@ static void tiled_mm(
             cell(i, j);
 }
 
-static inline float hmax256(__m256 v) {
+__attribute__((always_inline)) static inline float hmax256(__m256 v) {
     // 256 -> 128
     __m128 vlow  = _mm256_castps256_ps128(v);
     __m128 vhigh = _mm256_extractf128_ps(v, 1);
@@ -123,7 +131,7 @@ static inline float hmax256(__m256 v) {
     return _mm_cvtss_f32(_mm_max_ss(vlow, vhigh));
 }
 
-static inline float hsum256(__m256 v) {
+__attribute__((always_inline)) static inline float hsum256(__m256 v) {
     // 256 -> 128
     __m128 vlow  = _mm256_castps256_ps128(v);
     __m128 vhigh = _mm256_extractf128_ps(v, 1);
@@ -137,7 +145,7 @@ static inline float hsum256(__m256 v) {
 }
 
 // funky e^x
-static inline __m256 fast_exp_ps(__m256 x) {
+__attribute__((always_inline)) static inline __m256 fast_exp_ps(__m256 x) {
     // clamp for underflowflow e^x = 0
     // -87.33654f < x <= 0.
     x = _mm256_max_ps(x, _mm256_set1_ps(-87.33654f));
@@ -300,10 +308,10 @@ static inline void scalar_softmax(float* scores,
     }
 }
 
-void equi_geometric_attention_vectorized(const float* q,
-                                         const float* k,
-                                         const float* v,
-                                         float* out,
+void equi_geometric_attention_vectorized(const float* __restrict__ q,
+                                         const float* __restrict__ k,
+                                         const float* __restrict__ v,
+                                         float* __restrict__ out,
                                          int64_t B,
                                          int64_t H,
                                          int64_t T,
@@ -315,6 +323,11 @@ void equi_geometric_attention_vectorized(const float* q,
                                          const std::vector<const float*>& weights,
                                          const float* attn_mask,
                                          bool is_causal) {
+    if (T % BT != 0)
+        __builtin_unreachable();
+    if (T % 32 != 0)
+        __builtin_unreachable();
+
     // enable Flush to Zero (0x8000)
     // enable Denormals are Zero (0x40)
     // for vectorising std:exp and avoiding denormals
