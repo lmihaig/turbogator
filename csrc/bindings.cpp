@@ -1,6 +1,7 @@
 #include <pybind11/pybind11.h>
 #include <torch/extension.h>
 
+#include <type_traits>
 #include <vector>
 
 #include "backends/ops.hpp"
@@ -22,50 +23,123 @@ torch::Tensor make_equi_linear_out(const torch::Tensor& x, const torch::Tensor& 
     return torch::empty(shape, x.options());
 }
 
+static std::tuple<size_t, size_t, size_t> detect_outer_strides(const torch::Tensor& a, const torch::Tensor& b) {
+    auto none = std::make_tuple(size_t(0), size_t(0), size_t(0));
+    if (a.is_contiguous() && b.is_contiguous())
+        return none;
+    int nda = a.dim(), ndb = b.dim();
+    // Need (channel, blade) inner dims plus a single outer dim
+    if (nda < 3 || ndb < 3 || nda > 4 || ndb > 4)
+        return none;
+    if (a.stride(nda - 1) != 1 || a.stride(nda - 2) != 16)
+        return none;
+    if (b.stride(ndb - 1) != 1 || b.stride(ndb - 2) != 16)
+        return none;
+    int64_t bs = a.size(nda - 2);
+    if (bs != b.size(ndb - 2) || bs == 0)
+        return none;
+    int64_t os_a = a.stride(nda - 3), os_b = b.stride(ndb - 3);
+    if (os_a % (bs * 16) != 0 || os_b % (bs * 16) != 0)
+        return none;
+    if (nda == 4 && a.stride(0) != a.size(1) * a.stride(1))
+        return none;
+    if (ndb == 4 && b.stride(0) != b.size(1) * b.stride(1))
+        return none;
+    return std::make_tuple(size_t(bs), size_t(os_a), size_t(os_b));
+}
+
 template <typename Fn>
 auto make_gp_lambda(const char* name, Fn fn) {
+    constexpr bool kStrided =
+        std::is_invocable_v<Fn, const float*, const float*, float*, size_t, size_t, size_t, size_t>;
     return [name, fn](torch::Tensor a, torch::Tensor b) {
         RECORD_FUNCTION(name, {});
+        if (a.numel() != b.numel())
+            throw std::runtime_error("size mismatch between a and b");
+        if (a.size(-1) != 16)
+            throw std::runtime_error("last dimension must be 16");
+        size_t n = a.numel() / 16;
+        if constexpr (kStrided) {
+            auto [bs, os_a, os_b] = detect_outer_strides(a, b);
+            if (bs > 0) {
+                auto out = torch::empty(a.sizes().vec(), a.options());
+                fn(a.data_ptr<float>(), b.data_ptr<float>(), out.data_ptr<float>(), n, bs, os_a, os_b);
+                return out;
+            }
+        }
         auto a_contig = a.contiguous();
         auto b_contig = b.contiguous();
-        if (a_contig.numel() != b_contig.numel())
-            throw std::runtime_error("size mismatch between a and b");
-        if (a_contig.size(-1) != 16)
-            throw std::runtime_error("last dimension must be 16");
-        auto out = make_out_like(a_contig);
-        size_t n = a_contig.numel() / 16;
-        fn(a_contig.data_ptr<float>(), b_contig.data_ptr<float>(), out.data_ptr<float>(), n);
+        auto out      = make_out_like(a_contig);
+        if constexpr (kStrided)
+            fn(a_contig.data_ptr<float>(), b_contig.data_ptr<float>(), out.data_ptr<float>(), n, 0, 0, 0);
+        else
+            fn(a_contig.data_ptr<float>(), b_contig.data_ptr<float>(), out.data_ptr<float>(), n);
         return out;
     };
 }
 
+static const float* resolve_ref(
+    const torch::Tensor& ref, const torch::Tensor& a, size_t n, torch::Tensor& ref_contig, size_t& ref_group) {
+    ref_group = 1;
+    if (!ref.defined())
+        return nullptr;
+    int64_t ref_batch = ref.size(0);
+    if (ref.numel() == ref_batch * 16 && n % (size_t)ref_batch == 0) {
+        ref_contig = ref.reshape({ref_batch * 16}).contiguous();
+        ref_group  = n / (size_t)ref_batch;
+    } else {
+        ref_contig = ref.expand_as(a).contiguous();
+        ref_group  = 1;
+    }
+    return ref_contig.data_ptr<float>();
+}
+
 template <typename Fn>
 auto make_equi_join_lambda(const char* name, Fn fn) {
+    constexpr bool kStrided = std::
+        is_invocable_v<Fn, const float*, const float*, const float*, float*, size_t, size_t, size_t, size_t, size_t>;
     return [name, fn](torch::Tensor a, torch::Tensor b, torch::Tensor ref) {
         RECORD_FUNCTION(name, {});
-        auto a_contig = a.contiguous();
-        auto b_contig = b.contiguous();
-        if (a_contig.numel() != b_contig.numel())
+        if (a.numel() != b.numel())
             throw std::runtime_error("size mismatch between a and b");
-        if (a_contig.size(-1) != 16)
+        if (a.size(-1) != 16)
             throw std::runtime_error("last dimension must be 16");
-        auto out             = make_out_like(a_contig);
-        size_t n             = a_contig.numel() / 16;
-        const float* ref_ptr = nullptr;
-        size_t ref_group     = 1;
+        size_t n         = a.numel() / 16;
+        size_t ref_group = 1;
         torch::Tensor ref_contig;
-        if (ref.defined()) {
-            int64_t ref_batch = ref.size(0);
-            if (ref.numel() == ref_batch * 16 && n % (size_t)ref_batch == 0) {
-                ref_contig = ref.reshape({ref_batch * 16}).contiguous();
-                ref_group  = n / (size_t)ref_batch;
-            } else {
-                ref_contig = ref.expand_as(a_contig).contiguous();
-                ref_group  = 1;
+        if constexpr (kStrided) {
+            const float* ref_ptr  = resolve_ref(ref, a, n, ref_contig, ref_group);
+            auto [bs, os_a, os_b] = detect_outer_strides(a, b);
+            if (bs > 0) {
+                auto out = torch::empty(a.sizes().vec(), a.options());
+                fn(a.data_ptr<float>(),
+                   b.data_ptr<float>(),
+                   ref_ptr,
+                   out.data_ptr<float>(),
+                   n,
+                   ref_group,
+                   bs,
+                   os_a,
+                   os_b);
+                return out;
             }
-            ref_ptr = ref_contig.data_ptr<float>();
         }
-        fn(a_contig.data_ptr<float>(), b_contig.data_ptr<float>(), ref_ptr, out.data_ptr<float>(), n, ref_group);
+        auto a_contig        = a.contiguous();
+        auto b_contig        = b.contiguous();
+        auto out             = make_out_like(a_contig);
+        const float* ref_ptr = resolve_ref(ref, a_contig, n, ref_contig, ref_group);
+        if constexpr (kStrided)
+            fn(a_contig.data_ptr<float>(),
+               b_contig.data_ptr<float>(),
+               ref_ptr,
+               out.data_ptr<float>(),
+               n,
+               ref_group,
+               0,
+               0,
+               0);
+        else
+            fn(a_contig.data_ptr<float>(), b_contig.data_ptr<float>(), ref_ptr, out.data_ptr<float>(), n, ref_group);
         return out;
     };
 }

@@ -42,51 +42,68 @@ __attribute__((always_inline)) static inline float hsum256_ps(__m256 v) {
     return _mm_cvtss_f32(sum1);
 }
 
-void equi_join_vectorized(const float* __restrict__ a, const float* __restrict__ b, const float* __restrict__ ref, float* __restrict__ out, size_t n, size_t ref_group) {
-    const float* cur_ref = ref;
-    size_t ref_left      = ref_group;
-    for (size_t batch = 0; batch < n; ++batch) {
-        const float* cur_a = a + (batch * 16);
-        const float* cur_b = b + (batch * 16);
-        float* cur_out     = out + (batch * 16);
+void equi_join_vectorized(const float* __restrict__ a,
+                          const float* __restrict__ b,
+                          const float* __restrict__ ref,
+                          float* __restrict__ out,
+                          size_t n,
+                          size_t ref_group,
+                          size_t block_size,
+                          size_t outer_stride_a,
+                          size_t outer_stride_b) {
+    const float* cur_ref    = ref;
+    size_t ref_left         = ref_group;
+    const size_t n_outer    = (block_size > 0) ? n / block_size : 1;
+    const size_t inner_size = (block_size > 0) ? block_size : n;
 
-        for (int i = 0; i < 16; ++i) {
-            const int count    = KERNEL_BY_I.counts[i];
-            const int* j_ptr   = KERNEL_BY_I.j_idx[i];
-            const int* k_ptr   = KERNEL_BY_I.k_idx[i];
-            const float* v_ptr = KERNEL_BY_I.v[i];
+    for (size_t outer = 0; outer < n_outer; ++outer) {
+        const float* a_base = (block_size > 0) ? a + outer * outer_stride_a : a;
+        const float* b_base = (block_size > 0) ? b + outer * outer_stride_b : b;
+        float* o_base       = out + outer * inner_size * 16;
 
-            __m256 acc = _mm256_setzero_ps();
-            int idx    = 0;
+        for (size_t batch = 0; batch < inner_size; ++batch) {
+            const float* cur_a = a_base + batch * 16;
+            const float* cur_b = b_base + batch * 16;
+            float* cur_out     = o_base + batch * 16;
 
-            for (; idx + 8 <= count; idx += 8) {
-                __m256i j_idx   = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(j_ptr + idx));
-                __m256i k_idx   = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(k_ptr + idx));
-                __m256 a_vals   = _mm256_i32gather_ps(cur_a, j_idx, 4);
-                __m256 b_vals   = _mm256_i32gather_ps(cur_b, k_idx, 4);
-                __m256 v_vals   = _mm256_loadu_ps(v_ptr + idx);
-                __m256 b_signed = _mm256_mul_ps(b_vals, v_vals);
-                acc             = _mm256_fmadd_ps(a_vals, b_signed, acc);
-                __m256 prod     = _mm256_mul_ps(_mm256_mul_ps(a_vals, b_vals), v_vals);
-                acc             = _mm256_add_ps(acc, prod);
+            for (int i = 0; i < 16; ++i) {
+                const int count    = KERNEL_BY_I.counts[i];
+                const int* j_ptr   = KERNEL_BY_I.j_idx[i];
+                const int* k_ptr   = KERNEL_BY_I.k_idx[i];
+                const float* v_ptr = KERNEL_BY_I.v[i];
+
+                __m256 acc = _mm256_setzero_ps();
+                int idx    = 0;
+
+                for (; idx + 8 <= count; idx += 8) {
+                    __m256i j_idx   = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(j_ptr + idx));
+                    __m256i k_idx   = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(k_ptr + idx));
+                    __m256 a_vals   = _mm256_i32gather_ps(cur_a, j_idx, 4);
+                    __m256 b_vals   = _mm256_i32gather_ps(cur_b, k_idx, 4);
+                    __m256 v_vals   = _mm256_loadu_ps(v_ptr + idx);
+                    __m256 b_signed = _mm256_mul_ps(b_vals, v_vals);
+                    acc             = _mm256_fmadd_ps(a_vals, b_signed, acc);
+                    __m256 prod     = _mm256_mul_ps(_mm256_mul_ps(a_vals, b_vals), v_vals);
+                    acc             = _mm256_add_ps(acc, prod);
+                }
+
+                float sum = hsum256_ps(acc);
+                for (; idx < count; ++idx)
+                    sum += v_ptr[idx] * cur_a[j_ptr[idx]] * cur_b[k_ptr[idx]];
+
+                cur_out[i] = sum;
             }
 
-            float sum = hsum256_ps(acc);
-            for (; idx < count; ++idx)
-                sum += v_ptr[idx] * cur_a[j_ptr[idx]] * cur_b[k_ptr[idx]];
+            if (ref != nullptr) {
+                float scale = cur_ref[14];
+                __m256 s    = _mm256_set1_ps(scale);
+                _mm256_storeu_ps(cur_out, _mm256_mul_ps(_mm256_loadu_ps(cur_out), s));
+                _mm256_storeu_ps(cur_out + 8, _mm256_mul_ps(_mm256_loadu_ps(cur_out + 8), s));
 
-            cur_out[i] = sum;
-        }
-
-        if (ref != nullptr) {
-            float scale = cur_ref[14];
-            __m256 s    = _mm256_set1_ps(scale);
-            _mm256_storeu_ps(cur_out, _mm256_mul_ps(_mm256_loadu_ps(cur_out), s));
-            _mm256_storeu_ps(cur_out + 8, _mm256_mul_ps(_mm256_loadu_ps(cur_out + 8), s));
-
-            if (--ref_left == 0) {
-                cur_ref += 16;
-                ref_left = ref_group;
+                if (--ref_left == 0) {
+                    cur_ref += 16;
+                    ref_left = ref_group;
+                }
             }
         }
     }

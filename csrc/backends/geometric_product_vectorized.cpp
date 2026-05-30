@@ -227,7 +227,9 @@ void transpose(const float* src, float* dst) {
             dst[c * R + r] = src[r * C + c];
 }
 
-__attribute__((always_inline)) static inline void gp_avx2_8batch(const float* __restrict__ a_T, const float* __restrict__ b_T, float* __restrict__ out_T) {
+__attribute__((always_inline)) static inline void gp_avx2_8batch(const float* __restrict__ a_T,
+                                                                 const float* __restrict__ b_T,
+                                                                 float* __restrict__ out_T) {
     __m256 acc[16];
     for (int i = 0; i < 16; ++i)
         acc[i] = _mm256_setzero_ps();
@@ -247,7 +249,9 @@ __attribute__((always_inline)) static inline void gp_avx2_8batch(const float* __
         _mm256_storeu_ps(out_T + i * 8, acc[i]);
 }
 
-__attribute__((always_inline)) static inline void gp_scalar_one(const float* __restrict__ a, const float* __restrict__ b, float* __restrict__ out) {
+__attribute__((always_inline)) static inline void gp_scalar_one(const float* __restrict__ a,
+                                                                const float* __restrict__ b,
+                                                                float* __restrict__ out) {
     for (int i = 0; i < 16; ++i)
         out[i] = 0.0f;
     for (const auto& en : data) {
@@ -260,29 +264,46 @@ __attribute__((always_inline)) static inline void gp_scalar_one(const float* __r
 
 }  // namespace
 
-void geometric_product_vectorized(const float* __restrict__ a, const float* __restrict__ b, float* __restrict__ out, size_t n) {
-    if (n % 8 != 0) __builtin_unreachable();
-    constexpr size_t BLOCK  = 8;
-    const size_t blocks     = n / BLOCK;
-    const size_t tail_start = blocks * BLOCK;
-
+static void gp_block(const float* __restrict__ a_base,
+                     const float* __restrict__ b_base,
+                     float* __restrict__ o_base,
+                     size_t mv_count) {
+    constexpr size_t BLOCK = 8;
     alignas(32) float a_T[16 * BLOCK];
     alignas(32) float b_T[16 * BLOCK];
     alignas(32) float out_T[16 * BLOCK];
-
-    for (size_t bk = 0; bk < blocks; ++bk) {
-        const float* a_block = a + bk * BLOCK * 16;
-        const float* b_block = b + bk * BLOCK * 16;
-        float* out_block     = out + bk * BLOCK * 16;
-
-        transpose<8, 16>(a_block, a_T);
-        transpose<8, 16>(b_block, b_T);
+    const size_t full = mv_count / BLOCK;
+    for (size_t bk = 0; bk < full; ++bk) {
+        const float* ab = a_base + bk * BLOCK * 16;
+        const float* bb = b_base + bk * BLOCK * 16;
+        float* ob       = o_base + bk * BLOCK * 16;
+        transpose<8, 16>(ab, a_T);
+        transpose<8, 16>(bb, b_T);
         gp_avx2_8batch(a_T, b_T, out_T);
-        transpose<16, 8>(out_T, out_block);
+        transpose<16, 8>(out_T, ob);
     }
+    for (size_t i = full * BLOCK; i < mv_count; ++i)
+        gp_scalar_one(a_base + i * 16, b_base + i * 16, o_base + i * 16);
+}
 
-    for (size_t i = tail_start; i < n; ++i) {
-        gp_scalar_one(a + i * 16, b + i * 16, out + i * 16);
+void geometric_product_vectorized(const float* __restrict__ a,
+                                  const float* __restrict__ b,
+                                  float* __restrict__ out,
+                                  size_t n,
+                                  size_t block_size,
+                                  size_t outer_stride_a,
+                                  size_t outer_stride_b) {
+    if (block_size == 0) {
+        // contiguous path
+        if (n % 8 != 0)
+            __builtin_unreachable();
+        gp_block(a, b, out, n);
+    } else {
+        // strided path: n/block_size outer iterations
+        const size_t n_outer = n / block_size;
+        for (size_t outer = 0; outer < n_outer; ++outer) {
+            gp_block(a + outer * outer_stride_a, b + outer * outer_stride_b, out + outer * block_size * 16, block_size);
+        }
     }
 }
 
