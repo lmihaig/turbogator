@@ -136,7 +136,7 @@ def _draw(
         )
 
 
-MAX_GROUPS_PER_ROW = 4
+MAX_GROUPS_PER_ROW = 3
 
 
 def _generate(df, palette, ref_desc, ylabel, title, output_name):
@@ -164,7 +164,7 @@ def _generate(df, palette, ref_desc, ylabel, title, output_name):
             matrix,
             palette,
             ref_desc,
-            show_legend=(idx == 0),
+            show_legend=True,
             n_slots=MAX_GROUPS_PER_ROW,
         )
         ax.set_ylabel(ylabel, fontsize=10)

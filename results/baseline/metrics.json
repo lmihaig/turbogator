@@ -2,7 +2,7 @@
   "server": "adam",
   "user": "lmg",
   "description": "baseline",
-  "job_id": "1780083750_lmg",
+  "job_id": "1780104738_lmg",
   "data": [
     {
       "X": {
@@ -11,75 +11,23 @@
         "C_in": 2,
         "D": 16
       },
-      "cycles": 12131557107.5,
+      "cycles": 12096584217.5,
       "N": 1,
       "perf": {
-        "cycles": 12394066721.222221,
-        "instructions": 23251993455.88889,
-        "FP_ARITH_INST_RETIRED.SCALAR_SINGLE": 13858620621.666666,
+        "cycles": 12612228648.6,
+        "instructions": 23701144074.4,
+        "FP_ARITH_INST_RETIRED.SCALAR_SINGLE": 13865096133.6,
         "FP_ARITH_INST_RETIRED.128B_PACKED_SINGLE": 0.0,
-        "FP_ARITH_INST_RETIRED.256B_PACKED_SINGLE": 270669.0,
-        "L1-dcache-loads": 13770860827.555555,
-        "L1-dcache-stores": 477265275.4444444,
-        "l2_rqsts.references": 842172100.7777778,
-        "l2_rqsts.miss": 383459487.1111111,
-        "mem_load_retired.l3_miss": 424051.1111111111
+        "FP_ARITH_INST_RETIRED.256B_PACKED_SINGLE": 257181.4,
+        "L1-dcache-loads": 13885376811.2,
+        "L1-dcache-stores": 541124677.2,
+        "l2_rqsts.references": 846250282.8,
+        "l2_rqsts.miss": 385921907.8,
+        "mem_load_retired.l3_miss": 291995.8
       },
       "dram": {
-        "unc_m_cas_count_rd": 11593377.777777778,
-        "unc_m_cas_count_wr": 4475129.555555556
-      }
-    },
-    {
-      "X": {
-        "B": 8,
-        "T": 64,
-        "C_in": 4,
-        "D": 16
-      },
-      "cycles": 24418938447.5,
-      "N": 2,
-      "perf": {
-        "cycles": 24632184166.22222,
-        "instructions": 46777752432.55556,
-        "FP_ARITH_INST_RETIRED.SCALAR_SINGLE": 27695646286.77778,
-        "FP_ARITH_INST_RETIRED.128B_PACKED_SINGLE": 0.0,
-        "FP_ARITH_INST_RETIRED.256B_PACKED_SINGLE": 556932.4444444445,
-        "L1-dcache-loads": 27576577307.22222,
-        "L1-dcache-stores": 992742356.8888888,
-        "l2_rqsts.references": 1672336049.7777777,
-        "l2_rqsts.miss": 761511429.3333334,
-        "mem_load_retired.l3_miss": 1549853.4444444445
-      },
-      "dram": {
-        "unc_m_cas_count_rd": 20639572.333333332,
-        "unc_m_cas_count_wr": 8135730.0
-      }
-    },
-    {
-      "X": {
-        "B": 8,
-        "T": 96,
-        "C_in": 6,
-        "D": 16
-      },
-      "cycles": 37152968255.0,
-      "N": 3,
-      "perf": {
-        "cycles": 37265660145.77778,
-        "instructions": 71296293589.66667,
-        "FP_ARITH_INST_RETIRED.SCALAR_SINGLE": 41840713166.333336,
-        "FP_ARITH_INST_RETIRED.128B_PACKED_SINGLE": 0.0,
-        "FP_ARITH_INST_RETIRED.256B_PACKED_SINGLE": 765026.3333333334,
-        "L1-dcache-loads": 41756720760.77778,
-        "L1-dcache-stores": 1647264338.3333333,
-        "l2_rqsts.references": 2526922964.5555553,
-        "l2_rqsts.miss": 1137997788.8888888,
-        "mem_load_retired.l3_miss": 1890676.5555555555
-      },
-      "dram": {
-        "unc_m_cas_count_rd": 30469865.777777776,
-        "unc_m_cas_count_wr": 12581559.444444444
+        "unc_m_cas_count_rd": 9837366.4,
+        "unc_m_cas_count_wr": 3852283.8
       }
     },
     {
@@ -89,23 +37,23 @@
         "C_in": 8,
         "D": 16
       },
-      "cycles": 49990259155.0,
+      "cycles": 49889761990.0,
       "N": 4,
       "perf": {
-        "cycles": 50043715071.77778,
-        "instructions": 97069357744.22223,
-        "FP_ARITH_INST_RETIRED.SCALAR_SINGLE": 56447402821.44444,
+        "cycles": 50256355657.8,
+        "instructions": 97540131156.6,
+        "FP_ARITH_INST_RETIRED.SCALAR_SINGLE": 56458352805.2,
         "FP_ARITH_INST_RETIRED.128B_PACKED_SINGLE": 0.0,
-        "FP_ARITH_INST_RETIRED.256B_PACKED_SINGLE": 1049985.111111111,
-        "L1-dcache-loads": 56322637184.333336,
-        "L1-dcache-stores": 2420738159.7777777,
-        "l2_rqsts.references": 3369787195.888889,
-        "l2_rqsts.miss": 1525651855.0,
-        "mem_load_retired.l3_miss": 2670307.111111111
+        "FP_ARITH_INST_RETIRED.256B_PACKED_SINGLE": 1095893.0,
+        "L1-dcache-loads": 56423842745.2,
+        "L1-dcache-stores": 2481039004.6,
+        "l2_rqsts.references": 3382727935.6,
+        "l2_rqsts.miss": 1518650678.2,
+        "mem_load_retired.l3_miss": 1989543.2
       },
       "dram": {
-        "unc_m_cas_count_rd": 40446707.333333336,
-        "unc_m_cas_count_wr": 17389360.222222224
+        "unc_m_cas_count_rd": 28726115.2,
+        "unc_m_cas_count_wr": 14946973.2
       }
     },
     {
@@ -115,75 +63,23 @@
         "C_in": 12,
         "D": 16
       },
-      "cycles": 76873790220.0,
+      "cycles": 76835205742.5,
       "N": 6,
       "perf": {
-        "cycles": 76823091184.88889,
-        "instructions": 152117801819.44446,
-        "FP_ARITH_INST_RETIRED.SCALAR_SINGLE": 86764741283.88889,
+        "cycles": 77091834486.8,
+        "instructions": 152402630210.4,
+        "FP_ARITH_INST_RETIRED.SCALAR_SINGLE": 86749281755.8,
         "FP_ARITH_INST_RETIRED.128B_PACKED_SINGLE": 0.0,
-        "FP_ARITH_INST_RETIRED.256B_PACKED_SINGLE": 1578909.6666666667,
-        "L1-dcache-loads": 86665621081.77777,
-        "L1-dcache-stores": 4412060783.555555,
-        "l2_rqsts.references": 5105864207.222222,
-        "l2_rqsts.miss": 2289373373.0,
-        "mem_load_retired.l3_miss": 5093376.666666667
+        "FP_ARITH_INST_RETIRED.256B_PACKED_SINGLE": 1579630.0,
+        "L1-dcache-loads": 86746297546.0,
+        "L1-dcache-stores": 4456209853.6,
+        "l2_rqsts.references": 5385925608.6,
+        "l2_rqsts.miss": 2469993796.0,
+        "mem_load_retired.l3_miss": 3623339.6
       },
       "dram": {
-        "unc_m_cas_count_rd": 64645278.333333336,
-        "unc_m_cas_count_wr": 27397722.333333332
-      }
-    },
-    {
-      "X": {
-        "B": 8,
-        "T": 256,
-        "C_in": 16,
-        "D": 16
-      },
-      "cycles": 104870104540.0,
-      "N": 8,
-      "perf": {
-        "cycles": 104663128860.11111,
-        "instructions": 211767707751.44446,
-        "FP_ARITH_INST_RETIRED.SCALAR_SINGLE": 118665618122.33333,
-        "FP_ARITH_INST_RETIRED.128B_PACKED_SINGLE": 0.0,
-        "FP_ARITH_INST_RETIRED.256B_PACKED_SINGLE": 2121023.111111111,
-        "L1-dcache-loads": 118527774676.66667,
-        "L1-dcache-stores": 6924325407.555555,
-        "l2_rqsts.references": 6943249483.222222,
-        "l2_rqsts.miss": 3052241509.4444447,
-        "mem_load_retired.l3_miss": 5968346.444444444
-      },
-      "dram": {
-        "unc_m_cas_count_rd": 85078933.77777778,
-        "unc_m_cas_count_wr": 36704571.11111111
-      }
-    },
-    {
-      "X": {
-        "B": 8,
-        "T": 384,
-        "C_in": 24,
-        "D": 16
-      },
-      "cycles": 164372536015.0,
-      "N": 12,
-      "perf": {
-        "cycles": 163878961327.8889,
-        "instructions": 344574319805.2222,
-        "FP_ARITH_INST_RETIRED.SCALAR_SINGLE": 187016590357.1111,
-        "FP_ARITH_INST_RETIRED.128B_PACKED_SINGLE": 0.0,
-        "FP_ARITH_INST_RETIRED.256B_PACKED_SINGLE": 3485208.6666666665,
-        "L1-dcache-loads": 186945060086.44446,
-        "L1-dcache-stores": 13589247211.444445,
-        "l2_rqsts.references": 10860463598.11111,
-        "l2_rqsts.miss": 4647439650.222222,
-        "mem_load_retired.l3_miss": 11368769.555555556
-      },
-      "dram": {
-        "unc_m_cas_count_rd": 130871814.1111111,
-        "unc_m_cas_count_wr": 55827883.0
+        "unc_m_cas_count_rd": 43732400.0,
+        "unc_m_cas_count_wr": 22006105.4
       }
     },
     {
@@ -193,23 +89,127 @@
         "C_in": 32,
         "D": 16
       },
-      "cycles": 229175200307.5,
+      "cycles": 228878334315.0,
       "N": 16,
       "perf": {
-        "cycles": 228354003937.8889,
-        "instructions": 495877456282.3333,
-        "FP_ARITH_INST_RETIRED.SCALAR_SINGLE": 261605101601.33334,
+        "cycles": 228582937058.2,
+        "instructions": 496267860033.6,
+        "FP_ARITH_INST_RETIRED.SCALAR_SINGLE": 261634300023.8,
         "FP_ARITH_INST_RETIRED.128B_PACKED_SINGLE": 0.0,
-        "FP_ARITH_INST_RETIRED.256B_PACKED_SINGLE": 4535274.555555556,
-        "L1-dcache-loads": 261573993250.44446,
-        "L1-dcache-stores": 22408653580.444443,
-        "l2_rqsts.references": 15722669268.444445,
-        "l2_rqsts.miss": 6885609006.222222,
-        "mem_load_retired.l3_miss": 14095904.888888888
+        "FP_ARITH_INST_RETIRED.256B_PACKED_SINGLE": 4180015.8,
+        "L1-dcache-loads": 261663162635.2,
+        "L1-dcache-stores": 22449553725.8,
+        "l2_rqsts.references": 16220562472.0,
+        "l2_rqsts.miss": 7792085909.0,
+        "mem_load_retired.l3_miss": 10983917.0
       },
       "dram": {
-        "unc_m_cas_count_rd": 133788484.77777778,
-        "unc_m_cas_count_wr": 72218322.1111111
+        "unc_m_cas_count_rd": 118572434.4,
+        "unc_m_cas_count_wr": 60958065.8
+      }
+    },
+    {
+      "X": {
+        "B": 8,
+        "T": 1024,
+        "C_in": 64,
+        "D": 16
+      },
+      "cycles": 536428264505.0,
+      "N": 32,
+      "perf": {
+        "cycles": 534977047020.0,
+        "instructions": 1285451281875.0,
+        "FP_ARITH_INST_RETIRED.SCALAR_SINGLE": 621865507783.2,
+        "FP_ARITH_INST_RETIRED.128B_PACKED_SINGLE": 0.0,
+        "FP_ARITH_INST_RETIRED.256B_PACKED_SINGLE": 9754823.6,
+        "L1-dcache-loads": 622413757766.2,
+        "L1-dcache-stores": 79430767584.0,
+        "l2_rqsts.references": 39513753747.2,
+        "l2_rqsts.miss": 19467641872.6,
+        "mem_load_retired.l3_miss": 24213800.4
+      },
+      "dram": {
+        "unc_m_cas_count_rd": 256435434.0,
+        "unc_m_cas_count_wr": 130591441.2
+      }
+    },
+    {
+      "X": {
+        "B": 8,
+        "T": 1536,
+        "C_in": 96,
+        "D": 16
+      },
+      "cycles": 922094231987.5,
+      "N": 48,
+      "perf": {
+        "cycles": 919274670954.8,
+        "instructions": 2369202658773.2,
+        "FP_ARITH_INST_RETIRED.SCALAR_SINGLE": 1081200773615.2,
+        "FP_ARITH_INST_RETIRED.128B_PACKED_SINGLE": 0.0,
+        "FP_ARITH_INST_RETIRED.256B_PACKED_SINGLE": 15692988.6,
+        "L1-dcache-loads": 1082767935075.2,
+        "L1-dcache-stores": 171115900693.4,
+        "l2_rqsts.references": 70255803978.2,
+        "l2_rqsts.miss": 35748023456.8,
+        "mem_load_retired.l3_miss": 43126244.6
+      },
+      "dram": {
+        "unc_m_cas_count_rd": 489492702.8,
+        "unc_m_cas_count_wr": 219156144.2
+      }
+    },
+    {
+      "X": {
+        "B": 8,
+        "T": 1792,
+        "C_in": 112,
+        "D": 16
+      },
+      "cycles": 1156208234952.5,
+      "N": 56,
+      "perf": {
+        "cycles": 1152427842484.8,
+        "instructions": 3021439003182.8,
+        "FP_ARITH_INST_RETIRED.SCALAR_SINGLE": 1348099156239.4,
+        "FP_ARITH_INST_RETIRED.128B_PACKED_SINGLE": 0.0,
+        "FP_ARITH_INST_RETIRED.256B_PACKED_SINGLE": 18014153.0,
+        "L1-dcache-loads": 1350319156942.8,
+        "L1-dcache-stores": 229968615469.2,
+        "l2_rqsts.references": 88297352598.0,
+        "l2_rqsts.miss": 45450720754.2,
+        "mem_load_retired.l3_miss": 130692012.0
+      },
+      "dram": {
+        "unc_m_cas_count_rd": 949122054.0,
+        "unc_m_cas_count_wr": 266234039.8
+      }
+    },
+    {
+      "X": {
+        "B": 8,
+        "T": 2048,
+        "C_in": 128,
+        "D": 16
+      },
+      "cycles": 1405212856240.0,
+      "N": 64,
+      "perf": {
+        "cycles": 1400553941412.0,
+        "instructions": 3747488490850.4,
+        "FP_ARITH_INST_RETIRED.SCALAR_SINGLE": 1639570021923.4,
+        "FP_ARITH_INST_RETIRED.128B_PACKED_SINGLE": 0.0,
+        "FP_ARITH_INST_RETIRED.256B_PACKED_SINGLE": 22176173.0,
+        "L1-dcache-loads": 1642783505014.6,
+        "L1-dcache-stores": 297529081247.6,
+        "l2_rqsts.references": 107842321232.0,
+        "l2_rqsts.miss": 56094400069.6,
+        "mem_load_retired.l3_miss": 350951464.2
+      },
+      "dram": {
+        "unc_m_cas_count_rd": 2489270156.0,
+        "unc_m_cas_count_wr": 333115892.2
       }
     }
   ]

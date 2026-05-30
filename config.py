@@ -1,12 +1,11 @@
-import math
-
 ACTIVE_SERVER = "adam"
 
-WARMUP = 3
-STEPS = 5
+WARMUP = 5
+STEPS = 9
 # SIZES = [1]
-# SIZES = [1, 2, 3, 4]
-SIZES = [1, 4, 6, 16, 32, 48, 56, 64]
+# SIZES = [2, 4, 6, 8]
+SIZES = [2, 4, 8, 16, 32]
+# SIZES = [1, 4, 6, 16, 32, 48, 56, 64]
 REPRESENTATIVE_N = 8
 
 SHOW_CACHE_LINES = True
@@ -36,7 +35,7 @@ SERVERS = {
             "l1": 96,
             "l2": 64,
             "l3": 32,
-            "dram": 35.84,
+            "dram": 36,
         },
         "roofline_pi_scalar": 5,
         "roofline_pi_vector": 40,
@@ -109,28 +108,22 @@ CACHE_SIZES_BYTES = {
     "L3": 24576 * 1024,
 }
 
+# whole model miss rate
+# observed through experiments
+# L1d: 48 Kb too small for working set??
+# L2: 1280 Kb   -> miss rate flat ~27% (N=4) climbs to 36%    (N=8) -> 41% (N=16) -> 58% (N=32);
+# L3: 24576 Kb  -> miss rate flat ~0% (N=48) climbs to 0.01% (N=56) -> 0.02% (N=64);
+CACHE_LINE_SIZES = {
+    "L2": 64 * 12**2,  # N ~12  (size 9216)
+    "L3": 64 * 57**2,  # N ~57  (size 207936)
+}
 
-def working_set_bytes(size):
-
-    C_hid, D = 32, 16
-    qk_dim = C_hid * 12  # 7 ipa + 5 daa projected blades per channel
-    T = 4.0 * math.sqrt(max(float(size), 0.0))
-    return 4.0 * (T * T + T * C_hid * D + 3.0 * T * qk_dim)
-
-
-def input_size_at_cache(cache_bytes):
-    lo, hi = 0.0, 1.0
-    while working_set_bytes(hi) < cache_bytes:
-        hi *= 2.0
-        if hi > 1e18:
-            return float("inf")
-    for _ in range(60):
-        mid = 0.5 * (lo + hi)
-        if working_set_bytes(mid) < cache_bytes:
-            lo = mid
-        else:
-            hi = mid
-    return 0.5 * (lo + hi)
+# expected theory says:
+# ~9*T^2 attention dominates
+# boundaries would be at
+#  L1d  ~ N=2.3
+#  L2   ~ N=12
+#  L3   ~ N=52
 
 
 def get_dimensions(N):

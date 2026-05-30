@@ -1,7 +1,10 @@
 import os
 import sys
 from pathlib import Path
+import matplotlib
 
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 import numpy as np
 from data_io import description_order, load_history
 from style import (
@@ -75,8 +78,8 @@ def add_cache_lines(ax):
         return
     xmin, xmax = ax.get_xlim()
     trans = ax.get_xaxis_transform()
-    for name, nbytes in app_config.CACHE_SIZES_BYTES.items():
-        x = app_config.input_size_at_cache(nbytes)
+
+    for name, x in app_config.CACHE_LINE_SIZES.items():
         if not (xmin <= x <= xmax):
             continue
         ax.axvline(x, color=CACHE_LINE_COLOR, linestyle=":", linewidth=1.5, zorder=1)
@@ -150,21 +153,35 @@ def plot_performance_inputsize_theory(df, palette):
 
 
 def plot_runtime_inputsize(df, palette):
-    fig, ax = new_single_axes(figsize=(10, 6))
-    lines, all_y = _draw_lines(ax, df, palette, RUNTIME_Y_COL)
-    y_max = max(all_y) if all_y else 1.0
-    style_axes(
-        ax,
-        title=f"Runtime: {app_config.MACHINE}",
-        y_unit_text="Time [Gcycles]",
-        x_label="Input Size (TxC_in)",
-        x_scale="log2",
-        grid_axis="y",
-        ylim=(0, max(1.0, y_max * 1.2)),
-        hide_left_spine=True,
+    has_baseline = "baseline" in df["description"].values
+    nrows = 2 if has_baseline else 1
+
+    fig, axes = plt.subplots(
+        nrows=nrows, ncols=1, figsize=(10, 6 * nrows), squeeze=False
     )
-    place_line_labels(lines, label_adjustments=MANUAL_LABEL_ADJUSTMENTS)
-    add_cache_lines(ax)
+
+    plot_configs = [(df, " (With Baseline)" if has_baseline else "")]
+    if has_baseline:
+        df_no_baseline = df[df["description"] != "baseline"]
+        plot_configs.append((df_no_baseline, " (Without Baseline)"))
+
+    for ax, (data, title_suffix) in zip(axes.flatten(), plot_configs):
+        lines, all_y = _draw_lines(ax, data, palette, RUNTIME_Y_COL)
+        y_max = max(all_y) if all_y else 1.0
+
+        style_axes(
+            ax,
+            title=f"Runtime: {app_config.MACHINE}{title_suffix}",
+            y_unit_text="Time [Gcycles]",
+            x_label="Input Size (TxC_in)",
+            x_scale="log2",
+            grid_axis="y",
+            ylim=(0, max(1.0, y_max * 1.2)),
+            hide_left_spine=True,
+        )
+        place_line_labels(lines, label_adjustments=MANUAL_LABEL_ADJUSTMENTS)
+        add_cache_lines(ax)
+
     save_figure(fig, PLOT_DIR / "runtime_inputsize", tight_rect=(0, 0, 1.0, 1.0))
     print(f"Plot saved: {PLOT_DIR / 'runtime_inputsize'}")
 
@@ -281,7 +298,7 @@ def plot_work_efficiency(df, palette):
     ax.text(
         0.99,
         101.0,
-        "100% = dense brute force (every algorithmic FLOP)",
+        "100%",
         transform=ax.get_yaxis_transform(),
         ha="right",
         va="bottom",
@@ -302,28 +319,32 @@ def plot_work_efficiency(df, palette):
             linewidth=1.1,
             zorder=4,
             marker="o" if is_primary else "s",
-            label=f"{desc}  ({row['gcycles']:.1f} Gcyc, {row['flops_efficiency'] * 100:.0f}%)",
+            label=f"{desc}",
         )
 
     ax.set_xscale("log", base=2)
     style_axes(
         ax,
-        title=f"Work vs. Speed at N={target_n}: who's faster, and who computes less",
-        y_unit_text="Algorithmic FLOPs executed  [% of analytic]   ↓ less wasted work",
-        x_label="Runtime [Gcycles]   ← faster",
+        title=f"Work vs. Speed at N={target_n}",
+        y_unit_text="Algorithmic FLOPs executed  [% of theory]",
+        x_label="Runtime [Gcycles]",
         x_scale="log2",
         grid_axis="both",
         ylim=(0, 118),
         hide_left_spine=False,
     )
     ax.legend(
-        loc="center left",
+        loc="center right",
         fontsize=8,
         frameon=True,
         framealpha=0.92,
         edgecolor="#cccccc",
-        title="version  (runtime, work done)",
+        title="Variant",
         title_fontsize=8,
+        labelspacing=1.3,
+        borderpad=1.1,
+        handletextpad=0.6,
+        markerscale=0.4,
     )
     save_figure(fig, PLOT_DIR / "work_efficiency", tight_rect=(0, 0, 1.0, 1.0))
     print(f"Plot saved: {PLOT_DIR / 'work_efficiency'}")

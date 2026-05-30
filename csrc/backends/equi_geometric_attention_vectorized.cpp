@@ -14,11 +14,14 @@ static constexpr int N_BLADES  = 16;
 static constexpr int N_IPA     = 7;
 static constexpr int N_DAA     = 5;
 static constexpr float DAA_EPS = 1e-3f;
-static constexpr int64_t BT    = 32;
-static constexpr int64_t BD    = 288;
+static constexpr int64_t BT    = 32;   // token tile: 32x32x4 = 4 KiB scores tile
+static constexpr int64_t BD    = 288;  // feature tile: 32x288x4 = 36 KiB K tile fits in P-core L1d (48 KiB)
 
 static constexpr int IPA_IDX[N_IPA] = {0, 2, 3, 4, 8, 9, 10};
 static constexpr int TRI_IDX[4]     = {11, 12, 13, 14};
+
+static constexpr int TILE_MR = 4;
+static constexpr int TILE_NR = 2;
 
 static void project_ipa(const float* mv, float* out) {
     for (int i = 0; i < N_IPA; ++i)
@@ -52,39 +55,59 @@ static void project_daa_bk(const float* mv, float* out) {
     out[4] = 2.f * r[2] * r[3];
 }
 
-static inline float dot_avx_dual(const float* __restrict__ a, const float* __restrict__ b, int64_t n) {
-    __m256 acc0 = _mm256_setzero_ps();
-    __m256 acc1 = _mm256_setzero_ps();
-    __m256 acc2 = _mm256_setzero_ps();
-    __m256 acc3 = _mm256_setzero_ps();
+// Quad-accumulator AVX FMA dot product.
+// 4 independent accumulators fully hide the 4-cycle FMA latency: each acc
+template <int MR, int NR>
+static inline void mkernel(const float* A, int64_t lda, const float* B, int64_t ldb, float* C, int64_t ldc, int64_t K) {
+    __m256 c[MR][NR];
+#pragma GCC unroll 8
+    for (int i = 0; i < MR; ++i)
+        for (int j = 0; j < NR; ++j)
+            c[i][j] = _mm256_setzero_ps();
 
-    int64_t d = 0;
-    for (; d + 32 <= n; d += 32) {
-        acc0 = _mm256_fmadd_ps(_mm256_loadu_ps(a + d), _mm256_loadu_ps(b + d), acc0);
-        acc1 = _mm256_fmadd_ps(_mm256_loadu_ps(a + d + 8), _mm256_loadu_ps(b + d + 8), acc1);
-        acc2 = _mm256_fmadd_ps(_mm256_loadu_ps(a + d + 16), _mm256_loadu_ps(b + d + 16), acc2);
-        acc3 = _mm256_fmadd_ps(_mm256_loadu_ps(a + d + 24), _mm256_loadu_ps(b + d + 24), acc3);
+    for (int64_t k = 0; k < K; ++k) {
+        const float* brow = B + k * ldb;
+        __m256 bv[NR];
+#pragma GCC unroll 8
+        for (int j = 0; j < NR; ++j)
+            bv[j] = _mm256_loadu_ps(brow + j * 8);
+#pragma GCC unroll 8
+        for (int i = 0; i < MR; ++i) {
+            __m256 a = _mm256_broadcast_ss(A + (int64_t)i * lda + k);
+#pragma GCC unroll 8
+            for (int j = 0; j < NR; ++j)
+                c[i][j] = _mm256_fmadd_ps(a, bv[j], c[i][j]);
+        }
     }
-    for (; d + 16 <= n; d += 16) {
-        acc0 = _mm256_fmadd_ps(_mm256_loadu_ps(a + d), _mm256_loadu_ps(b + d), acc0);
-        acc1 = _mm256_fmadd_ps(_mm256_loadu_ps(a + d + 8), _mm256_loadu_ps(b + d + 8), acc1);
-    }
-    for (; d + 8 <= n; d += 8) {
-        acc0 = _mm256_fmadd_ps(_mm256_loadu_ps(a + d), _mm256_loadu_ps(b + d), acc0);
-    }
+#pragma GCC unroll 8
+    for (int i = 0; i < MR; ++i)
+        for (int j = 0; j < NR; ++j)
+            _mm256_storeu_ps(C + (int64_t)i * ldc + j * 8, c[i][j]);
+}
 
-    __m256 acc   = _mm256_add_ps(_mm256_add_ps(acc0, acc1), _mm256_add_ps(acc2, acc3));
-    __m128 lo    = _mm256_castps256_ps128(acc);
-    __m128 hi    = _mm256_extractf128_ps(acc, 1);
-    __m128 sum4  = _mm_add_ps(lo, hi);
-    __m128 sum2  = _mm_add_ps(sum4, _mm_movehl_ps(sum4, sum4));
-    __m128 sum1  = _mm_add_ss(sum2, _mm_shuffle_ps(sum2, sum2, 0x1));
-    float result = _mm_cvtss_f32(sum1);
+template <int MR, int NR>
+static void tiled_mm(
+    const float* A, int64_t lda, const float* B, int64_t ldb, float* C, int64_t ldc, int64_t M, int64_t N, int64_t K) {
+    constexpr int NB    = NR * 8;
+    const int64_t Mfull = M - (M % MR);
+    const int64_t Nfull = N - (N % NB);
 
-    for (; d < n; ++d)
-        result += a[d] * b[d];
+    for (int64_t i0 = 0; i0 < Mfull; i0 += MR)
+        for (int64_t j0 = 0; j0 < Nfull; j0 += NB)
+            mkernel<MR, NR>(A + i0 * lda, lda, B + j0, ldb, C + i0 * ldc + j0, ldc, K);
 
-    return result;
+    auto cell = [&](int64_t i, int64_t j) {
+        float acc = 0.f;
+        for (int64_t k = 0; k < K; ++k)
+            acc += A[i * lda + k] * B[k * ldb + j];
+        C[i * ldc + j] = acc;
+    };
+    for (int64_t i = 0; i < Mfull; ++i)
+        for (int64_t j = Nfull; j < N; ++j)
+            cell(i, j);
+    for (int64_t i = Mfull; i < M; ++i)
+        for (int64_t j = 0; j < N; ++j)
+            cell(i, j);
 }
 
 void equi_geometric_attention_vectorized(const float* q,
@@ -112,9 +135,11 @@ void equi_geometric_attention_vectorized(const float* q,
 
     const int64_t mv_stride = C * N_BLADES;
     const float scale       = 1.f / std::sqrt((float)qk_dim);
+    const float neg_inf     = -std::numeric_limits<float>::infinity();
 
     std::vector<float> q_flat(T * qk_dim);
     std::vector<float> k_flat(T * qk_dim);
+    std::vector<float> kt_flat(qk_dim * T);
     std::vector<float> scores(T * T);
 
     for (int64_t b = 0; b < B; ++b) {
@@ -128,10 +153,8 @@ void equi_geometric_attention_vectorized(const float* q,
                 float* qf   = q_flat.data() + t * qk_dim;
                 float* kf   = k_flat.data() + t * qk_dim;
                 int64_t off = 0;
-
                 for (size_t ki = 0; ki < kinds.size(); ++ki) {
                     const float* wptr = (ki < weights.size()) ? weights[ki] : nullptr;
-
                     if (kinds[ki] == "ipa") {
                         for (int64_t c = 0; c < C; ++c) {
                             const float* mv_q = q_bh + t * qs_t + c * N_BLADES;
@@ -164,42 +187,26 @@ void equi_geometric_attention_vectorized(const float* q,
                 }
             }
 
-            const float neg_inf = -std::numeric_limits<float>::infinity();
-            for (int64_t t1 = 0; t1 < T; ++t1)
-                for (int64_t t2 = 0; t2 < T; ++t2)
-                    scores[t1 * T + t2] = (is_causal && t2 > t1) ? neg_inf : 0.f;
-
-            for (int64_t t1b = 0; t1b < T; t1b += BT) {
-                const int64_t t1_end = std::min(t1b + BT, T);
-                for (int64_t t2b = 0; t2b < T; t2b += BT) {
-                    if (is_causal && t2b >= t1_end)
-                        break;
-                    const int64_t t2_end = std::min(t2b + BT, T);
-                    for (int64_t db = 0; db < qk_dim; db += BD) {
-                        const int64_t d_len = std::min(db + BD, qk_dim) - db;
-                        for (int64_t t1 = t1b; t1 < t1_end; ++t1) {
-                            const float* qf1     = q_flat.data() + t1 * qk_dim + db;
-                            const int64_t t2_lim = is_causal ? std::min(t2_end, t1 + 1) : t2_end;
-                            for (int64_t t2 = t2b; t2 < t2_lim; ++t2) {
-                                const float* kf2 = k_flat.data() + t2 * qk_dim + db;
-                                scores[t1 * T + t2] += dot_avx_dual(qf1, kf2, d_len);
-                            }
-                        }
-                    }
-                }
-            }
+            for (int64_t t2 = 0; t2 < T; ++t2)
+                for (int64_t d = 0; d < qk_dim; ++d)
+                    kt_flat[d * T + t2] = k_flat[t2 * qk_dim + d];
+            tiled_mm<TILE_MR, TILE_NR>(q_flat.data(), qk_dim, kt_flat.data(), T, scores.data(), T, T, T, qk_dim);
 
             for (int64_t t1 = 0; t1 < T; ++t1) {
                 float row_max = neg_inf;
                 for (int64_t t2 = 0; t2 < T; ++t2) {
-                    float& s = scores[t1 * T + t2];
-                    s *= scale;
-                    if (attn_mask)
-                        s += attn_mask[((b * H + h) * T + t1) * T + t2];
+                    float s;
+                    if (is_causal && t2 > t1) {
+                        s = neg_inf;
+                    } else {
+                        s = scores[t1 * T + t2] * scale;
+                        if (attn_mask)
+                            s += attn_mask[((b * H + h) * T + t1) * T + t2];
+                    }
+                    scores[t1 * T + t2] = s;
                     if (s > row_max)
                         row_max = s;
                 }
-
                 float sum_exp = 0.f;
                 for (int64_t t2 = 0; t2 < T; ++t2) {
                     float e             = std::exp(scores[t1 * T + t2] - row_max);
@@ -208,16 +215,9 @@ void equi_geometric_attention_vectorized(const float* q,
                 }
                 for (int64_t t2 = 0; t2 < T; ++t2)
                     scores[t1 * T + t2] /= sum_exp;
-
-                float* o_t1 = o_bh + t1 * mv_stride;
-                std::memset(o_t1, 0, mv_stride * sizeof(float));
-                for (int64_t t2 = 0; t2 < T; ++t2) {
-                    float a           = scores[t1 * T + t2];
-                    const float* v_t2 = v_bh + t2 * qs_t;
-                    for (int64_t d = 0; d < mv_stride; ++d)
-                        o_t1[d] += a * v_t2[d];
-                }
             }
+
+            tiled_mm<TILE_MR, TILE_NR>(scores.data(), T, v_bh, qs_t, o_bh, mv_stride, T, mv_stride, T);
         }
     }
 }
