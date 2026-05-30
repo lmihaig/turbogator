@@ -1,7 +1,7 @@
 #include <immintrin.h>
 
 #include <cmath>
-#include <cstring>
+#include <unordered_map>
 #include <vector>
 
 #include "ops.hpp"
@@ -30,6 +30,33 @@ __attribute__((always_inline)) static inline void pack_weight(float* __restrict_
     dst[31]                     = w[8];
 }
 
+namespace {
+struct PackedWeights {
+    std::vector<float> data;
+    bool normalize = false;
+};
+
+// shuffle + fma row
+__attribute__((always_inline)) static inline void fma_row(__m256& acc_lo,
+                                                          __m256& acc_hi,
+                                                          __m256 w0,
+                                                          __m256 w1,
+                                                          __m256 w2,
+                                                          __m256 w3,
+                                                          const float* __restrict__ xp,
+                                                          __m256i perm_lo,
+                                                          __m256i perm_hi) {
+    __m256 xlo = _mm256_loadu_ps(xp);
+    __m256 xhi = _mm256_loadu_ps(xp + 8);
+
+    acc_lo = _mm256_fmadd_ps(w0, xlo, acc_lo);
+    acc_hi = _mm256_fmadd_ps(w1, xhi, acc_hi);
+
+    acc_lo = _mm256_fmadd_ps(w2, _mm256_permutevar8x32_ps(xlo, perm_lo), acc_lo);
+    acc_hi = _mm256_fmadd_ps(w3, _mm256_permutevar8x32_ps(xhi, perm_hi), acc_hi);
+}
+}  // namespace
+
 void equi_linear_vectorized(const float* __restrict__ x,
                             const float* __restrict__ weight,
                             const float* __restrict__ bias,
@@ -38,8 +65,6 @@ void equi_linear_vectorized(const float* __restrict__ x,
                             size_t in_channels,
                             size_t out_channels,
                             bool normalize_basis) {
-    if (in_channels  % 2 != 0) __builtin_unreachable();
-    if (out_channels % 2 != 0) __builtin_unreachable();
     float scales[9] = {1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f};
     if (normalize_basis) {
         scales[1] = .5f;
@@ -49,60 +74,93 @@ void equi_linear_vectorized(const float* __restrict__ x,
         scales[7] = 1.0f / std::sqrt(3.0f);
     }
 
-    std::vector<float> w_packed(out_channels * in_channels * 32);
-    for (size_t ch = 0; ch < out_channels * in_channels; ++ch) {
-        const float* src = weight + ch * 9;
-        float w[9];
-        for (int i = 0; i < 9; ++i)
-            w[i] = src[i] * scales[i];
-        pack_weight(w_packed.data() + ch * 32, w);
+    // cache reuseeable weights
+    static thread_local std::unordered_map<const float*, PackedWeights> w_cache;
+    const float* weight_key    = weight;
+    PackedWeights& pk          = w_cache[weight_key];
+    const size_t packed_floats = out_channels * in_channels * 32;
+    if (pk.data.size() != packed_floats || pk.normalize != normalize_basis) {
+        pk.data.resize(packed_floats);
+        pk.normalize = normalize_basis;
+        for (size_t ch = 0; ch < out_channels * in_channels; ++ch) {
+            const float* src = weight + ch * 9;
+            float w[9];
+            for (int i = 0; i < 9; ++i)
+                w[i] = src[i] * scales[i];
+            pack_weight(pk.data.data() + ch * 32, w);
+        }
     }
+    const float* w_packed = pk.data.data();
 
     const __m256i perm_lo = _mm256_load_si256((const __m256i*)PERM_LO);
     const __m256i perm_hi = _mm256_load_si256((const __m256i*)PERM_HI);
 
-    for (size_t b = 0; b < batch; ++b) {
+    const size_t x_stride = in_channels * 16;
+
+    // load weights once for 4 rows
+    size_t b0 = 0;
+    for (; b0 + 4 <= batch; b0 += 4) {
+        const float* xr0 = x + (b0 + 0) * x_stride;
+        const float* xr1 = x + (b0 + 1) * x_stride;
+        const float* xr2 = x + (b0 + 2) * x_stride;
+        const float* xr3 = x + (b0 + 3) * x_stride;
         for (size_t oc = 0; oc < out_channels; ++oc) {
-            __m256 acc_lo_0 = _mm256_setzero_ps();
-            __m256 acc_lo_1 = _mm256_setzero_ps();
-            __m256 acc_lo_2 = _mm256_setzero_ps();
-            __m256 acc_lo_3 = _mm256_setzero_ps();
-            __m256 acc_hi_0 = _mm256_setzero_ps();
-            __m256 acc_hi_1 = _mm256_setzero_ps();
-            __m256 acc_hi_2 = _mm256_setzero_ps();
-            __m256 acc_hi_3 = _mm256_setzero_ps();
+            __m256 lo0 = _mm256_setzero_ps(), hi0 = _mm256_setzero_ps();
+            __m256 lo1 = _mm256_setzero_ps(), hi1 = _mm256_setzero_ps();
+            __m256 lo2 = _mm256_setzero_ps(), hi2 = _mm256_setzero_ps();
+            __m256 lo3 = _mm256_setzero_ps(), hi3 = _mm256_setzero_ps();
 
-            const float* w_base = w_packed.data() + oc * in_channels * 32;
-            const float* x_base = x + b * in_channels * 16;
-
-#define EQUI_FMAS(acc_lo, acc_hi, wp, xp)                                                                           \
-    do {                                                                                                            \
-        __m256 xlo_ = _mm256_loadu_ps(xp);                                                                          \
-        __m256 xhi_ = _mm256_loadu_ps((xp) + 8);                                                                    \
-        acc_lo      = _mm256_fmadd_ps(_mm256_loadu_ps(wp), xlo_, acc_lo);                                           \
-        acc_hi      = _mm256_fmadd_ps(_mm256_loadu_ps((wp) + 8), xhi_, acc_hi);                                     \
-        acc_lo      = _mm256_fmadd_ps(_mm256_loadu_ps((wp) + 16), _mm256_permutevar8x32_ps(xlo_, perm_lo), acc_lo); \
-        acc_hi      = _mm256_fmadd_ps(_mm256_loadu_ps((wp) + 24), _mm256_permutevar8x32_ps(xhi_, perm_hi), acc_hi); \
-    } while (0)
-
-            size_t ic = 0;
-            for (; ic + 3 < in_channels; ic += 4) {
-                EQUI_FMAS(acc_lo_0, acc_hi_0, w_base + ic * 32, x_base + ic * 16);
-                EQUI_FMAS(acc_lo_1, acc_hi_1, w_base + (ic + 1) * 32, x_base + (ic + 1) * 16);
-                EQUI_FMAS(acc_lo_2, acc_hi_2, w_base + (ic + 2) * 32, x_base + (ic + 2) * 16);
-                EQUI_FMAS(acc_lo_3, acc_hi_3, w_base + (ic + 3) * 32, x_base + (ic + 3) * 16);
+            const float* wp = w_packed + oc * in_channels * 32;
+            for (size_t ic = 0; ic < in_channels; ++ic) {
+                const float* w = wp + ic * 32;
+                __m256 w0      = _mm256_loadu_ps(w);
+                __m256 w1      = _mm256_loadu_ps(w + 8);
+                __m256 w2      = _mm256_loadu_ps(w + 16);
+                __m256 w3      = _mm256_loadu_ps(w + 24);
+                const size_t o = ic * 16;
+                fma_row(lo0, hi0, w0, w1, w2, w3, xr0 + o, perm_lo, perm_hi);
+                fma_row(lo1, hi1, w0, w1, w2, w3, xr1 + o, perm_lo, perm_hi);
+                fma_row(lo2, hi2, w0, w1, w2, w3, xr2 + o, perm_lo, perm_hi);
+                fma_row(lo3, hi3, w0, w1, w2, w3, xr3 + o, perm_lo, perm_hi);
             }
-            for (; ic < in_channels; ++ic)
-                EQUI_FMAS(acc_lo_0, acc_hi_0, w_base + ic * 32, x_base + ic * 16);
 
-#undef EQUI_FMAS
+            float* o0 = out + ((b0 + 0) * out_channels + oc) * 16;
+            float* o1 = out + ((b0 + 1) * out_channels + oc) * 16;
+            float* o2 = out + ((b0 + 2) * out_channels + oc) * 16;
+            float* o3 = out + ((b0 + 3) * out_channels + oc) * 16;
+            _mm256_storeu_ps(o0, lo0);
+            _mm256_storeu_ps(o0 + 8, hi0);
+            _mm256_storeu_ps(o1, lo1);
+            _mm256_storeu_ps(o1 + 8, hi1);
+            _mm256_storeu_ps(o2, lo2);
+            _mm256_storeu_ps(o2 + 8, hi2);
+            _mm256_storeu_ps(o3, lo3);
+            _mm256_storeu_ps(o3 + 8, hi3);
+        }
+    }
 
-            __m256 final_lo = _mm256_add_ps(_mm256_add_ps(acc_lo_0, acc_lo_1), _mm256_add_ps(acc_lo_2, acc_lo_3));
-            __m256 final_hi = _mm256_add_ps(_mm256_add_ps(acc_hi_0, acc_hi_1), _mm256_add_ps(acc_hi_2, acc_hi_3));
-
-            float* out_bo = out + (b * out_channels + oc) * 16;
-            _mm256_storeu_ps(out_bo, final_lo);
-            _mm256_storeu_ps(out_bo + 8, final_hi);
+    // tail
+    for (; b0 < batch; ++b0) {
+        const float* xb = x + b0 * x_stride;
+        for (size_t oc = 0; oc < out_channels; ++oc) {
+            __m256 lo       = _mm256_setzero_ps();
+            __m256 hi       = _mm256_setzero_ps();
+            const float* wp = w_packed + oc * in_channels * 32;
+            for (size_t ic = 0; ic < in_channels; ++ic) {
+                const float* w = wp + ic * 32;
+                fma_row(lo,
+                        hi,
+                        _mm256_loadu_ps(w),
+                        _mm256_loadu_ps(w + 8),
+                        _mm256_loadu_ps(w + 16),
+                        _mm256_loadu_ps(w + 24),
+                        xb + ic * 16,
+                        perm_lo,
+                        perm_hi);
+            }
+            float* out_bo = out + (b0 * out_channels + oc) * 16;
+            _mm256_storeu_ps(out_bo, lo);
+            _mm256_storeu_ps(out_bo + 8, hi);
         }
     }
 
