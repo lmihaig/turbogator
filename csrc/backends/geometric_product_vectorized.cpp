@@ -205,7 +205,6 @@ static constexpr GPEntry data[] = {
     {15, 14,  1, -1},
     {15, 15,  0,  1},
 };
-
 struct GPSplit {
     std::vector<GPEntry> pos;
     std::vector<GPEntry> neg;
@@ -220,17 +219,81 @@ struct GPSplit {
 };
 static const GPSplit split;
 
-template <int R, int C>
-void transpose(const float* src, float* dst) {
-    for (int r = 0; r < R; ++r)
-        for (int c = 0; c < C; ++c)
-            dst[c * R + r] = src[r * C + c];
+__attribute__((always_inline)) static inline void transpose_8x8(const __m256 in[8], __m256 out[8]) {
+    __m256 t0 = _mm256_unpacklo_ps(in[0], in[1]);
+    __m256 t1 = _mm256_unpackhi_ps(in[0], in[1]);
+    __m256 t2 = _mm256_unpacklo_ps(in[2], in[3]);
+    __m256 t3 = _mm256_unpackhi_ps(in[2], in[3]);
+    __m256 t4 = _mm256_unpacklo_ps(in[4], in[5]);
+    __m256 t5 = _mm256_unpackhi_ps(in[4], in[5]);
+    __m256 t6 = _mm256_unpacklo_ps(in[6], in[7]);
+    __m256 t7 = _mm256_unpackhi_ps(in[6], in[7]);
+
+    __m256 s0 = _mm256_shuffle_ps(t0, t2, _MM_SHUFFLE(1, 0, 1, 0));
+    __m256 s1 = _mm256_shuffle_ps(t0, t2, _MM_SHUFFLE(3, 2, 3, 2));
+    __m256 s2 = _mm256_shuffle_ps(t1, t3, _MM_SHUFFLE(1, 0, 1, 0));
+    __m256 s3 = _mm256_shuffle_ps(t1, t3, _MM_SHUFFLE(3, 2, 3, 2));
+    __m256 s4 = _mm256_shuffle_ps(t4, t6, _MM_SHUFFLE(1, 0, 1, 0));
+    __m256 s5 = _mm256_shuffle_ps(t4, t6, _MM_SHUFFLE(3, 2, 3, 2));
+    __m256 s6 = _mm256_shuffle_ps(t5, t7, _MM_SHUFFLE(1, 0, 1, 0));
+    __m256 s7 = _mm256_shuffle_ps(t5, t7, _MM_SHUFFLE(3, 2, 3, 2));
+
+    out[0] = _mm256_permute2f128_ps(s0, s4, 0x20);
+    out[1] = _mm256_permute2f128_ps(s1, s5, 0x20);
+    out[2] = _mm256_permute2f128_ps(s2, s6, 0x20);
+    out[3] = _mm256_permute2f128_ps(s3, s7, 0x20);
+    out[4] = _mm256_permute2f128_ps(s0, s4, 0x31);
+    out[5] = _mm256_permute2f128_ps(s1, s5, 0x31);
+    out[6] = _mm256_permute2f128_ps(s2, s6, 0x31);
+    out[7] = _mm256_permute2f128_ps(s3, s7, 0x31);
+}
+
+__attribute__((always_inline)) static inline void transpose_8x16(const float* __restrict__ src,
+                                                                 float* __restrict__ dst) {
+    __m256 lo[8], hi[8], olo[8], ohi[8];
+
+#pragma GCC unroll 8
+    for (int r = 0; r < 8; ++r) {
+        lo[r] = _mm256_loadu_ps(src + r * 16);
+        hi[r] = _mm256_loadu_ps(src + r * 16 + 8);
+    }
+
+    transpose_8x8(lo, olo);
+    transpose_8x8(hi, ohi);
+
+#pragma GCC unroll 8
+    for (int c = 0; c < 8; ++c) {
+        _mm256_storeu_ps(dst + c * 8, olo[c]);
+        _mm256_storeu_ps(dst + (c + 8) * 8, ohi[c]);
+    }
+}
+
+__attribute__((always_inline)) static inline void transpose_16x8(const float* __restrict__ src,
+                                                                 float* __restrict__ dst) {
+    __m256 top[8], bot[8], otop[8], obot[8];
+
+#pragma GCC unroll 8
+    for (int r = 0; r < 8; ++r) {
+        top[r] = _mm256_loadu_ps(src + r * 8);
+        bot[r] = _mm256_loadu_ps(src + (r + 8) * 8);
+    }
+
+    transpose_8x8(top, otop);
+    transpose_8x8(bot, obot);
+
+#pragma GCC unroll 8
+    for (int lane = 0; lane < 8; ++lane) {
+        _mm256_storeu_ps(dst + lane * 16, otop[lane]);
+        _mm256_storeu_ps(dst + lane * 16 + 8, obot[lane]);
+    }
 }
 
 __attribute__((always_inline)) static inline void gp_avx2_8batch(const float* __restrict__ a_T,
                                                                  const float* __restrict__ b_T,
                                                                  float* __restrict__ out_T) {
     __m256 acc[16];
+
+#pragma GCC unroll 16
     for (int i = 0; i < 16; ++i)
         acc[i] = _mm256_setzero_ps();
 
@@ -245,6 +308,7 @@ __attribute__((always_inline)) static inline void gp_avx2_8batch(const float* __
         acc[en.i] = _mm256_fnmadd_ps(va, vb, acc[en.i]);
     }
 
+#pragma GCC unroll 16
     for (int i = 0; i < 16; ++i)
         _mm256_storeu_ps(out_T + i * 8, acc[i]);
 }
@@ -252,8 +316,10 @@ __attribute__((always_inline)) static inline void gp_avx2_8batch(const float* __
 __attribute__((always_inline)) static inline void gp_scalar_one(const float* __restrict__ a,
                                                                 const float* __restrict__ b,
                                                                 float* __restrict__ out) {
+#pragma GCC unroll 16
     for (int i = 0; i < 16; ++i)
         out[i] = 0.0f;
+
     for (const auto& en : data) {
         if (en.val > 0)
             out[en.i] += a[en.j] * b[en.k];
@@ -277,10 +343,10 @@ static void gp_block(const float* __restrict__ a_base,
         const float* ab = a_base + bk * BLOCK * 16;
         const float* bb = b_base + bk * BLOCK * 16;
         float* ob       = o_base + bk * BLOCK * 16;
-        transpose<8, 16>(ab, a_T);
-        transpose<8, 16>(bb, b_T);
+        transpose_8x16(ab, a_T);
+        transpose_8x16(bb, b_T);
         gp_avx2_8batch(a_T, b_T, out_T);
-        transpose<16, 8>(out_T, ob);
+        transpose_16x8(out_T, ob);
     }
     for (size_t i = full * BLOCK; i < mv_count; ++i)
         gp_scalar_one(a_base + i * 16, b_base + i * 16, o_base + i * 16);
