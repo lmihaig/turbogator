@@ -390,6 +390,8 @@ PYBIND11_MODULE(turbogator_ext, m) {
                            turbogator::equi_geometric_attention_baseline));
     m.def("equi_geometric_attention_opt_v1",
           make_attn_lambda("turbogator::equi_geometric_attention_opt_v1", turbogator::equi_geometric_attention_opt_v1));
+    m.def("equi_geometric_attention_opt_v2",
+          make_attn_lambda("turbogator::equi_geometric_attention_opt_v2", turbogator::equi_geometric_attention_opt_v2));
     m.def(
         "equi_geometric_attention_vectorized",
         make_attn_lambda(

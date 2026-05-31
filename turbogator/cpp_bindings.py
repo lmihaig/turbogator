@@ -18,6 +18,7 @@ equi_join_vectorized_out = turbogator_ext.equi_join_vectorized_out
 # equi_geometric_attention
 equi_geometric_attention_baseline = turbogator_ext.equi_geometric_attention_baseline
 equi_geometric_attention_opt_v1 = turbogator_ext.equi_geometric_attention_opt_v1
+equi_geometric_attention_opt_v2 = turbogator_ext.equi_geometric_attention_opt_v2
 equi_geometric_attention_vectorized = turbogator_ext.equi_geometric_attention_vectorized
 
 # scaler_gated_gelu

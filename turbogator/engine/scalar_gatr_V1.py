@@ -7,7 +7,9 @@ import torch
 import torch.nn as nn
 from einops import rearrange
 
+# still use the ezgatr config
 from ezgatr.nets.mv_only_gatr import MVOnlyGATrConfig
+
 from turbogator import cpp_bindings as c_ops
 
 
@@ -110,8 +112,12 @@ class MVOnlyGATrEmbedding(nn.Module):
 
     def __init__(self, config: MVOnlyGATrConfig) -> None:
         super().__init__()
+
         self.config = config
-        self.embedding = EquiLinear(config.size_channels_in, config.size_channels_hidden)
+
+        self.embedding = EquiLinear(
+            config.size_channels_in, config.size_channels_hidden
+        )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         if x.shape[-2] != self.config.size_channels_in:
@@ -129,7 +135,9 @@ class MVOnlyGATrBilinear(nn.Module):
 
     def __init__(self, config: MVOnlyGATrConfig) -> None:
         super().__init__()
+
         self.config = config
+
         self.proj_bil = EquiLinear(
             config.size_channels_hidden, config.size_channels_intermediate * 4
         )
@@ -142,10 +150,13 @@ class MVOnlyGATrBilinear(nn.Module):
     ) -> torch.Tensor:
         size_inter = self.config.size_channels_intermediate
         lg, rg, lj, rj = torch.split(self.proj_bil(x), size_inter, dim=-2)
+
         x = torch.cat(
             [
                 c_ops.geometric_product_opt_v1(lg, rg),
+                # geometric_product(lg, rg),
                 c_ops.equi_join_opt_v1(lj, rj, reference),
+                # equi_join(lj, rj, reference),
             ],
             dim=-2,
         )
@@ -160,22 +171,30 @@ class MVOnlyGATrMLP(nn.Module):
 
     def __init__(self, config: MVOnlyGATrConfig) -> None:
         super().__init__()
+
         self.config = config
+
         self.layer_norm = EquiRMSNorm(
             config.size_channels_hidden,
             eps=config.norm_eps,
             channelwise_rescale=config.norm_channelwise_rescale,
         )
         self.equi_bil = MVOnlyGATrBilinear(config)
-        self.proj_out = EquiLinear(config.size_channels_hidden, config.size_channels_hidden)
+        self.proj_out = EquiLinear(
+            config.size_channels_hidden, config.size_channels_hidden
+        )
 
     def forward(
         self, x: torch.Tensor, reference: torch.Tensor | None = None
     ) -> torch.Tensor:
         residual = x
+
         x = self.layer_norm(x)
         x = self.equi_bil(x, reference)
-        x = self.proj_out(c_ops.scaler_gated_gelu_baseline(x, self.config.gelu_approximate))
+        x = self.proj_out(
+            c_ops.scaler_gated_gelu_baseline(x, self.config.gelu_approximate)
+        )
+
         return x + residual
 
 
@@ -187,13 +206,17 @@ class MVOnlyGATrAttention(nn.Module):
 
     def __init__(self, config: MVOnlyGATrConfig) -> None:
         super().__init__()
+
         self.config = config
+
         self.layer_norm = EquiRMSNorm(
             config.size_channels_hidden,
             eps=config.norm_eps,
             channelwise_rescale=config.norm_channelwise_rescale,
         )
 
+        # The two dummy dimensions are for the sequence length
+        # and blade dimension, respectively.
         attn_mix_shape = (config.attn_num_heads, 1, config.size_channels_hidden, 1)
         self.attn_mix = {}
         for kind in config.attn_kinds.keys():
@@ -214,6 +237,7 @@ class MVOnlyGATrAttention(nn.Module):
         self, x: torch.Tensor, attn_mask: torch.Tensor | None = None
     ) -> torch.Tensor:
         residual = x
+
         x = self.layer_norm(x)
         q, k, v = rearrange(
             self.proj_qkv(x),
@@ -222,7 +246,7 @@ class MVOnlyGATrAttention(nn.Module):
             h=self.config.attn_num_heads,
             c=self.config.size_channels_hidden,
         )
-        x, _ = c_ops.equi_geometric_attention_baseline(
+        x, _ = c_ops.equi_geometric_attention_opt_v1(
             q,
             k,
             v,
@@ -235,6 +259,7 @@ class MVOnlyGATrAttention(nn.Module):
         )
         x = rearrange(x, "b h t c k -> b t (h c) k", h=self.config.attn_num_heads)
         x = self.proj_out(x)
+
         return x + residual
 
 
@@ -246,8 +271,10 @@ class MVOnlyGATrBlock(nn.Module):
 
     def __init__(self, config: MVOnlyGATrConfig, layer_id: int) -> None:
         super().__init__()
+
         self.config = config
         self.layer_id = layer_id
+
         self.mlp = MVOnlyGATrMLP(config)
         self.attn = MVOnlyGATrAttention(config)
 
@@ -260,7 +287,7 @@ class MVOnlyGATrBlock(nn.Module):
         return self.mlp(self.attn(x, attn_mask), reference)
 
 
-class ScalarOpt1GATrModel(nn.Module):
+class ScalarGATrV1(nn.Module):
     config: MVOnlyGATrConfig
     embedding: MVOnlyGATrEmbedding
     blocks: nn.ModuleList
@@ -268,7 +295,9 @@ class ScalarOpt1GATrModel(nn.Module):
 
     def __init__(self, config: MVOnlyGATrConfig) -> None:
         super().__init__()
+
         self.config = config
+
         self.embedding = MVOnlyGATrEmbedding(config)
         self.blocks = nn.ModuleList(
             MVOnlyGATrBlock(config, i) for i in range(config.num_layers)
