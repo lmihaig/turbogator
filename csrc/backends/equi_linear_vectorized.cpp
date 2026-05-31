@@ -1,5 +1,6 @@
 #include <immintrin.h>
 
+#include <algorithm>
 #include <cmath>
 #include <unordered_map>
 #include <vector>
@@ -9,6 +10,8 @@
 namespace turbogator {
 alignas(32) static const int32_t PERM_LO[8] = {0, 0, 0, 0, 0, 2, 3, 4};
 alignas(32) static const int32_t PERM_HI[8] = {0, 0, 0, 0, 1, 2, 0, 6};
+static constexpr size_t PACK                = 32;
+static constexpr size_t PANEL_SIZE          = 512;
 
 __attribute__((always_inline)) static inline void pack_weight(float* __restrict__ dst, const float* __restrict__ w) {
     dst[0] = w[0];
@@ -55,6 +58,7 @@ __attribute__((always_inline)) static inline void fma_row(__m256& acc_lo,
     acc_lo = _mm256_fmadd_ps(w2, _mm256_permutevar8x32_ps(xlo, perm_lo), acc_lo);
     acc_hi = _mm256_fmadd_ps(w3, _mm256_permutevar8x32_ps(xhi, perm_hi), acc_hi);
 }
+
 }  // namespace
 
 void equi_linear_vectorized(const float* __restrict__ x,
@@ -78,7 +82,7 @@ void equi_linear_vectorized(const float* __restrict__ x,
     static thread_local std::unordered_map<const float*, PackedWeights> w_cache;
     const float* weight_key    = weight;
     PackedWeights& pk          = w_cache[weight_key];
-    const size_t packed_floats = out_channels * in_channels * 32;
+    const size_t packed_floats = out_channels * in_channels * PACK;
     if (pk.data.size() != packed_floats || pk.normalize != normalize_basis) {
         pk.data.resize(packed_floats);
         pk.normalize = normalize_basis;
@@ -87,7 +91,7 @@ void equi_linear_vectorized(const float* __restrict__ x,
             float w[9];
             for (int i = 0; i < 9; ++i)
                 w[i] = src[i] * scales[i];
-            pack_weight(pk.data.data() + ch * 32, w);
+            pack_weight(pk.data.data() + ch * PACK, w);
         }
     }
     const float* w_packed = pk.data.data();
@@ -97,70 +101,79 @@ void equi_linear_vectorized(const float* __restrict__ x,
 
     const size_t x_stride = in_channels * 16;
 
-    // load weights once for 4 rows
-    size_t b0 = 0;
-    for (; b0 + 4 <= batch; b0 += 4) {
-        const float* xr0 = x + (b0 + 0) * x_stride;
-        const float* xr1 = x + (b0 + 1) * x_stride;
-        const float* xr2 = x + (b0 + 2) * x_stride;
-        const float* xr3 = x + (b0 + 3) * x_stride;
-        for (size_t oc = 0; oc < out_channels; ++oc) {
-            __m256 lo0 = _mm256_setzero_ps(), hi0 = _mm256_setzero_ps();
-            __m256 lo1 = _mm256_setzero_ps(), hi1 = _mm256_setzero_ps();
-            __m256 lo2 = _mm256_setzero_ps(), hi2 = _mm256_setzero_ps();
-            __m256 lo3 = _mm256_setzero_ps(), hi3 = _mm256_setzero_ps();
+    const size_t per_oc = in_channels * PACK;
+    size_t NC           = (PANEL_SIZE * 1024 / sizeof(float)) / (per_oc ? per_oc : 1);
+    if (NC < 1)
+        NC = 1;
 
-            const float* wp = w_packed + oc * in_channels * 32;
-            for (size_t ic = 0; ic < in_channels; ++ic) {
-                const float* w = wp + ic * 32;
-                __m256 w0      = _mm256_loadu_ps(w);
-                __m256 w1      = _mm256_loadu_ps(w + 8);
-                __m256 w2      = _mm256_loadu_ps(w + 16);
-                __m256 w3      = _mm256_loadu_ps(w + 24);
-                const size_t o = ic * 16;
-                fma_row(lo0, hi0, w0, w1, w2, w3, xr0 + o, perm_lo, perm_hi);
-                fma_row(lo1, hi1, w0, w1, w2, w3, xr1 + o, perm_lo, perm_hi);
-                fma_row(lo2, hi2, w0, w1, w2, w3, xr2 + o, perm_lo, perm_hi);
-                fma_row(lo3, hi3, w0, w1, w2, w3, xr3 + o, perm_lo, perm_hi);
+    for (size_t oc0 = 0; oc0 < out_channels; oc0 += NC) {
+        const size_t oc_end = std::min(oc0 + NC, out_channels);
+
+        size_t b0 = 0;
+        for (; b0 + 4 <= batch; b0 += 4) {
+            const float* xr0 = x + (b0 + 0) * x_stride;
+            const float* xr1 = x + (b0 + 1) * x_stride;
+            const float* xr2 = x + (b0 + 2) * x_stride;
+            const float* xr3 = x + (b0 + 3) * x_stride;
+
+            for (size_t oc = oc0; oc < oc_end; ++oc) {
+                __m256 lo0 = _mm256_setzero_ps(), hi0 = _mm256_setzero_ps();
+                __m256 lo1 = _mm256_setzero_ps(), hi1 = _mm256_setzero_ps();
+                __m256 lo2 = _mm256_setzero_ps(), hi2 = _mm256_setzero_ps();
+                __m256 lo3 = _mm256_setzero_ps(), hi3 = _mm256_setzero_ps();
+
+                const float* wp = w_packed + oc * in_channels * PACK;
+                for (size_t ic = 0; ic < in_channels; ++ic) {
+                    const float* w = wp + ic * PACK;
+                    __m256 w0      = _mm256_loadu_ps(w);
+                    __m256 w1      = _mm256_loadu_ps(w + 8);
+                    __m256 w2      = _mm256_loadu_ps(w + 16);
+                    __m256 w3      = _mm256_loadu_ps(w + 24);
+                    const size_t o = ic * 16;
+                    fma_row(lo0, hi0, w0, w1, w2, w3, xr0 + o, perm_lo, perm_hi);
+                    fma_row(lo1, hi1, w0, w1, w2, w3, xr1 + o, perm_lo, perm_hi);
+                    fma_row(lo2, hi2, w0, w1, w2, w3, xr2 + o, perm_lo, perm_hi);
+                    fma_row(lo3, hi3, w0, w1, w2, w3, xr3 + o, perm_lo, perm_hi);
+                }
+
+                float* o0 = out + ((b0 + 0) * out_channels + oc) * 16;
+                float* o1 = out + ((b0 + 1) * out_channels + oc) * 16;
+                float* o2 = out + ((b0 + 2) * out_channels + oc) * 16;
+                float* o3 = out + ((b0 + 3) * out_channels + oc) * 16;
+                _mm256_storeu_ps(o0, lo0);
+                _mm256_storeu_ps(o0 + 8, hi0);
+                _mm256_storeu_ps(o1, lo1);
+                _mm256_storeu_ps(o1 + 8, hi1);
+                _mm256_storeu_ps(o2, lo2);
+                _mm256_storeu_ps(o2 + 8, hi2);
+                _mm256_storeu_ps(o3, lo3);
+                _mm256_storeu_ps(o3 + 8, hi3);
             }
-
-            float* o0 = out + ((b0 + 0) * out_channels + oc) * 16;
-            float* o1 = out + ((b0 + 1) * out_channels + oc) * 16;
-            float* o2 = out + ((b0 + 2) * out_channels + oc) * 16;
-            float* o3 = out + ((b0 + 3) * out_channels + oc) * 16;
-            _mm256_storeu_ps(o0, lo0);
-            _mm256_storeu_ps(o0 + 8, hi0);
-            _mm256_storeu_ps(o1, lo1);
-            _mm256_storeu_ps(o1 + 8, hi1);
-            _mm256_storeu_ps(o2, lo2);
-            _mm256_storeu_ps(o2 + 8, hi2);
-            _mm256_storeu_ps(o3, lo3);
-            _mm256_storeu_ps(o3 + 8, hi3);
         }
-    }
 
-    // tail
-    for (; b0 < batch; ++b0) {
-        const float* xb = x + b0 * x_stride;
-        for (size_t oc = 0; oc < out_channels; ++oc) {
-            __m256 lo       = _mm256_setzero_ps();
-            __m256 hi       = _mm256_setzero_ps();
-            const float* wp = w_packed + oc * in_channels * 32;
-            for (size_t ic = 0; ic < in_channels; ++ic) {
-                const float* w = wp + ic * 32;
-                fma_row(lo,
-                        hi,
-                        _mm256_loadu_ps(w),
-                        _mm256_loadu_ps(w + 8),
-                        _mm256_loadu_ps(w + 16),
-                        _mm256_loadu_ps(w + 24),
-                        xb + ic * 16,
-                        perm_lo,
-                        perm_hi);
+        // tail
+        for (; b0 < batch; ++b0) {
+            const float* xb = x + b0 * x_stride;
+            for (size_t oc = oc0; oc < oc_end; ++oc) {
+                __m256 lo       = _mm256_setzero_ps();
+                __m256 hi       = _mm256_setzero_ps();
+                const float* wp = w_packed + oc * in_channels * PACK;
+                for (size_t ic = 0; ic < in_channels; ++ic) {
+                    const float* w = wp + ic * PACK;
+                    fma_row(lo,
+                            hi,
+                            _mm256_loadu_ps(w),
+                            _mm256_loadu_ps(w + 8),
+                            _mm256_loadu_ps(w + 16),
+                            _mm256_loadu_ps(w + 24),
+                            xb + ic * 16,
+                            perm_lo,
+                            perm_hi);
+                }
+                float* out_bo = out + (b0 * out_channels + oc) * 16;
+                _mm256_storeu_ps(out_bo, lo);
+                _mm256_storeu_ps(out_bo + 8, hi);
             }
-            float* out_bo = out + (b0 * out_channels + oc) * 16;
-            _mm256_storeu_ps(out_bo, lo);
-            _mm256_storeu_ps(out_bo + 8, hi);
         }
     }
 

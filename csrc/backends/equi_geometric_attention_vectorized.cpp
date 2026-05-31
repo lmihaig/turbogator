@@ -14,7 +14,7 @@ static constexpr int N_BLADES  = 16;
 static constexpr int N_IPA     = 7;
 static constexpr int N_DAA     = 5;
 static constexpr float DAA_EPS = 1e-3f;
-static constexpr int64_t BT    = 32;  // token tile: 32x32x4 = 4 KiB scores tile
+static constexpr int64_t BT    = 64;  // token tile: 32x32x4 = 4 KiB scores tile
 // static constexpr int64_t BD    = 288;  // feature tile: 32x288x4 = 36 KiB K tile fits in P-core L1d (48 KiB)
 
 // original vec_softmax better at T < 256
@@ -519,10 +519,11 @@ void equi_geometric_attention_vectorized(const float* __restrict__ q,
     const __m256 v_scale       = _mm256_set1_ps(scalar_scale);
     const __m256 v_neg_inf     = _mm256_set1_ps(scalar_neg_inf);
 
-    std::vector<float> q_flat(T * qk_dim);
-    std::vector<float> k_flat(T * qk_dim);
-    std::vector<float> kt_flat(qk_dim * T);
-    std::vector<float> scores(T < FLASH_T_THRESHOLD ? T * T : 0);
+    static thread_local std::vector<float> q_flat, k_flat, kt_flat, scores;
+    q_flat.resize(T * qk_dim);
+    k_flat.resize(T * qk_dim);
+    kt_flat.resize(qk_dim * T);
+    scores.resize(T < FLASH_T_THRESHOLD ? T * T : 0);
 
     alignas(32) float score_tile[BT * BT];
     alignas(32) float row_max_fa[BT];
