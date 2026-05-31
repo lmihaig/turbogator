@@ -2,6 +2,7 @@ import hashlib
 from pathlib import Path
 
 import matplotlib
+import matplotlib.transforms as _mtrans
 import numpy as np
 
 matplotlib.use("Agg")
@@ -81,8 +82,6 @@ def series_palette(descriptions, primary=PRIMARY_DESC):
 
 DEFAULT_FIGSIZE = (10, 6)
 DEFAULT_DPI = 180
-_LABEL_BASE_FRACS = [0.34, 0.42, 0.50, 0.58, 0.66, 0.74]
-_LABEL_Y_TRIALS = [1.0, -1.0, 1.8, -1.8, 2.6, -2.6]
 
 
 def use_style(overrides=None):
@@ -219,22 +218,44 @@ def add_series(
     return line
 
 
-def place_line_labels(
-    lines,
-    *,
-    label_adjustments=None,
-):
+def _text_dims(ax, renderer, text, fontsize, fontweight="normal"):
+    t = ax.text(
+        0.5,
+        0.5,
+        text,
+        fontsize=fontsize,
+        fontweight=fontweight,
+        ha="center",
+        va="center",
+        alpha=0.0,
+        transform=ax.transAxes,
+    )
+    bb = t.get_window_extent(renderer=renderer)
+    t.remove()
+    return bb.x1 - bb.x0, bb.y1 - bb.y0
+
+
+def _label_bbox(cx, cy, tw, th, pad=2):
+    return _mtrans.Bbox.from_extents(
+        cx - tw / 2 - pad,
+        cy - th / 2 - pad,
+        cx + tw / 2 + pad,
+        cy + th / 2 + pad,
+    )
+
+
+def place_line_labels(lines, *, label_adjustments=None):
     candidates = []
     for line in lines:
-        label = str(line.get_label()).strip()
-        if not label or label.startswith("_"):
+        lbl = str(line.get_label()).strip()
+        if not lbl or lbl.startswith("_"):
             continue
-        x_arr = np.atleast_1d(np.asarray(line.get_xdata(orig=False), dtype=float))
-        y_arr = np.atleast_1d(np.asarray(line.get_ydata(orig=False), dtype=float))
-        if x_arr.size == 0 or x_arr.size != y_arr.size:
+        xa = np.atleast_1d(np.asarray(line.get_xdata(orig=False), dtype=float))
+        ya = np.atleast_1d(np.asarray(line.get_ydata(orig=False), dtype=float))
+        ok = np.isfinite(xa) & np.isfinite(ya)
+        if ok.sum() == 0:
             continue
-        candidates.append((line, x_arr, y_arr, label, str(line.get_color())))
-
+        candidates.append((line, xa[ok], ya[ok], lbl, str(line.get_color())))
     if not candidates:
         return
 
@@ -244,131 +265,154 @@ def place_line_labels(
     fig = ax.figure
     fig.canvas.draw()
     renderer = fig.canvas.get_renderer()
-    axes_bbox = ax.get_window_extent(renderer=renderer)
+    plot_bbox = ax.bbox
     line_paths = [
         ln.get_path().transformed(ln.get_transform()) for ln, *_ in candidates
     ]
     placed_boxes = []
 
-    x_left, x_right = ax.get_xlim()
-    y_min, y_max = ax.get_ylim()
-    y_jitter = max((y_max - y_min) * 0.015, 1e-6)
-    y_step = max((y_max - y_min) * 0.01, 1e-12)
+    # nudges
 
-    x_scale = ax.get_xscale()
-    if x_scale == "log":
-        lo = max(min(x_left, x_right), 1e-12)
-        hi = max(max(x_left, x_right), lo * 1.0000001)
-        x_step = max((np.log2(hi) - np.log2(lo)) * 0.01, 1e-12)
-    else:
-        x_step = max(abs(x_right - x_left) * 0.01, 1e-12)
+    EDGE_GAPS = [5, 10, 17, 26, 38, 54, 72]
+    DX_FRACS = [0.0, 0.25, -0.25, 0.5, -0.5]
 
-    for i, (_, x_target, y_target, label, color) in enumerate(candidates):
-        n = int(x_target.size)
+    for _, (line, xa, ya, lbl, color) in enumerate(candidates):
+        tw, th = _text_dims(ax, renderer, lbl, 10, "bold")
 
-        x_units = 0.0
-        y_units = 0.0
-        if label_adjustments is not None and label in label_adjustments:
-            x_units, y_units = label_adjustments[label]
+        adj_dx, adj_dy = 0.0, 0.0
+        if label_adjustments and lbl in label_adjustments:
+            adj_dx, adj_dy = label_adjustments[lbl]
 
-        # Each line gets a different preferred middle anchor by rotating fractions.
-        shift = i % len(_LABEL_BASE_FRACS)
-        fracs = _LABEL_BASE_FRACS[shift:] + _LABEL_BASE_FRACS[:shift]
+        pts = ax.transData.transform(np.column_stack([xa, ya]))
+        n = len(xa)
+        mid = (n - 1) / 2.0
+        idx_order = sorted(range(n), key=lambda j: abs(j - mid))
 
-        idx_candidates = []
-        seen_idx = set()
-        for frac in fracs:
-            idx = int(round((n - 1) * frac))
-            idx = max(1, min(n - 2, idx)) if n > 2 else max(0, min(n - 1, idx))
-            if idx not in seen_idx:
-                seen_idx.add(idx)
-                idx_candidates.append(idx)
+        offsets = []
+        for gap in EDGE_GAPS:
+            cy = gap + th / 2
+            for fx in DX_FRACS:
+                dx = fx * tw
+                offsets.append((cy, dx))
+                offsets.append((-cy, dx))
+        offsets.sort(key=lambda p: p[0] ** 2 + p[1] ** 2)
 
-        best = None
-        placed = False
+        best_score, best_result = None, None
+        found = False
 
-        for idx in idx_candidates:
-            x_pos = float(x_target[idx])
-            y_pos = float(y_target[idx])
+        for idx in idx_order:
+            if found:
+                break
+            xd, yd = pts[idx]
+            for cy_off, cx_off in offsets:
+                tx = xd + cx_off + adj_dx
+                ty = yd + cy_off + adj_dy
+                bb = _label_bbox(tx, ty, tw, th)
 
-            if x_scale == "log":
-                x_base = np.log2(max(x_pos, 1e-12)) + (float(x_units) * x_step)
-                x_text = 2**x_base
-            else:
-                x_text = x_pos + (float(x_units) * x_step)
-
-            for mult in _LABEL_Y_TRIALS:
-                y_text = y_pos + (mult * y_jitter) + (float(y_units) * y_step)
-
-                ghost = ax.text(
-                    x_text,
-                    y_text,
-                    label,
-                    ha="center",
-                    va="bottom",
-                    fontsize=10,
-                    fontweight="bold",
-                    color=color,
-                    alpha=0.0,
+                inside = (
+                    bb.x0 >= plot_bbox.x0
+                    and bb.x1 <= plot_bbox.x1
+                    and bb.y0 >= plot_bbox.y0
+                    and bb.y1 <= plot_bbox.y1
                 )
-                bbox = ghost.get_window_extent(renderer=renderer)
-                ghost.remove()
-                padded = bbox.from_extents(
-                    bbox.x0 - 1.0, bbox.y0 - 1.0, bbox.x1 + 1.0, bbox.y1 + 1.0
+                ln_hits = sum(
+                    1 for p in line_paths if p.intersects_bbox(bb, filled=False)
+                )
+                lb_hits = sum(1 for b in placed_boxes if b.overlaps(bb))
+                dist = (cx_off**2 + cy_off**2) ** 0.5
+                score = (
+                    dist + 800 * ln_hits + 1200 * lb_hits + (5000 if not inside else 0)
                 )
 
-                in_axes = (
-                    padded.x0 >= axes_bbox.x0
-                    and padded.x1 <= axes_bbox.x1
-                    and padded.y0 >= axes_bbox.y0
-                    and padded.y1 <= axes_bbox.y1
-                )
-                line_overlaps = sum(
-                    1
-                    for path in line_paths
-                    if path.intersects_bbox(padded, filled=False)
-                )
-                label_overlaps = sum(1 for box in placed_boxes if box.overlaps(padded))
-                score = (1000 * line_overlaps) + (1200 * label_overlaps) + abs(mult)
-                if not in_axes:
-                    score += 5000
+                if best_score is None or score < best_score:
+                    best_score = score
+                    td = ax.transData.inverted().transform((tx, ty))
+                    best_result = (float(td[0]), float(td[1]), bb)
 
-                if best is None or score < best[2]:
-                    best = (x_text, y_text, score, padded)
-
-                if in_axes and line_overlaps == 0 and label_overlaps == 0:
-                    ax.text(
-                        x_text,
-                        y_text,
-                        label,
-                        ha="center",
-                        va="bottom",
-                        fontsize=10,
-                        fontweight="bold",
-                        color=color,
-                        zorder=4,
-                    )
-                    placed_boxes.append(padded)
-                    placed = True
+                if inside and ln_hits == 0 and lb_hits == 0:
+                    found = True
                     break
 
-            if placed:
-                break
-
-        if not placed and best is not None:
-            x_text, y_text, _, padded = best
+        if best_result is not None:
+            tx, ty, bb = best_result
             ax.text(
-                x_text,
-                y_text,
-                label,
+                tx,
+                ty,
+                lbl,
                 ha="center",
-                va="bottom",
-                fontsize=8,
+                va="center",
+                fontsize=10,
                 fontweight="bold",
                 color=color,
-                zorder=4,
+                zorder=5,
             )
-            placed_boxes.append(padded)
+            placed_boxes.append(bb)
+
+
+def place_dot_labels(ax, points, *, fontsize=9, label_adjustments=None):
+
+    fig = ax.figure
+    fig.canvas.draw()
+    renderer = fig.canvas.get_renderer()
+    plot_bbox = ax.bbox
+
+    placed_boxes = []
+    angles = np.linspace(0, 2 * np.pi, 8, endpoint=False)
+    dirs = [(np.cos(a), np.sin(a)) for a in angles]
+    MAGNITUDES = [28, 38, 50, 65, 84, 108]
+
+    offsets_base = sorted(
+        [(mag * cx, mag * cy) for mag in MAGNITUDES for cx, cy in dirs],
+        key=lambda p: p[0] ** 2 + p[1] ** 2,
+    )
+
+    for lbl, x_data, y_data, color in points:
+        tw, th = _text_dims(ax, renderer, lbl, fontsize, "bold")
+
+        adj_dx, adj_dy = 0.0, 0.0
+        if label_adjustments and lbl in label_adjustments:
+            adj_dx, adj_dy = label_adjustments[lbl]
+
+        xd, yd = ax.transData.transform((x_data, y_data))
+
+        best_score, best_result = None, None
+        for dx_px, dy_px in offsets_base:
+            tx = xd + dx_px + adj_dx
+            ty = yd + dy_px + adj_dy
+            bb = _label_bbox(tx, ty, tw, th)
+
+            inside = (
+                bb.x0 >= plot_bbox.x0
+                and bb.x1 <= plot_bbox.x1
+                and bb.y0 >= plot_bbox.y0
+                and bb.y1 <= plot_bbox.y1
+            )
+            lb_hits = sum(1 for b in placed_boxes if b.overlaps(bb))
+            dist = (dx_px**2 + dy_px**2) ** 0.5
+            score = dist + 1500 * lb_hits + (5000 if not inside else 0)
+
+            if best_score is None or score < best_score:
+                best_score = score
+                td = ax.transData.inverted().transform((tx, ty))
+                best_result = (float(td[0]), float(td[1]), bb)
+
+            if inside and lb_hits == 0:
+                break
+
+        if best_result is not None:
+            tx, ty, bb = best_result
+            ax.text(
+                tx,
+                ty,
+                lbl,
+                ha="center",
+                va="center",
+                fontsize=fontsize,
+                fontweight="bold",
+                color=color,
+                zorder=5,
+            )
+            placed_boxes.append(bb)
 
 
 def annotate_bar_values(

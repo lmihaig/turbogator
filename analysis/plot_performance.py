@@ -10,7 +10,9 @@ from data_io import description_order, load_history
 from style import (
     PRIMARY_DESC,
     add_series,
+    new_figure,
     new_single_axes,
+    place_dot_labels,
     place_line_labels,
     save_figure,
     series_palette,
@@ -31,6 +33,7 @@ X_COL = "size"
 PERF_Y_COL = "perf"
 PERF_THEORY_Y_COL = "perf_theory"
 RUNTIME_Y_COL = "gcycles"
+IPC_Y_COL = "ipc"
 
 
 OI_LEVELS = [
@@ -150,6 +153,33 @@ def plot_performance_inputsize_theory(df, palette):
         fig, PLOT_DIR / "performance_inputsize_theory", tight_rect=(0, 0, 1.0, 1.0)
     )
     print(f"Plot saved: {PLOT_DIR / 'performance_inputsize_theory'}")
+
+
+def plot_performance_inputsize_ipc(df, palette):
+    if IPC_Y_COL not in df.columns:
+        print(f"Column {IPC_Y_COL!r} not in data - skipping IPC plot.")
+        return
+    fig, ax = new_single_axes(figsize=(10, 6))
+    lines, all_y = _draw_lines(ax, df, palette, IPC_Y_COL)
+    if not lines:
+        return
+    y_max = max(all_y) if all_y else 1.0
+    style_axes(
+        ax,
+        title=f"IPC: {app_config.MACHINE}",
+        y_unit_text="IPC [instructions / cycle]",
+        x_label="Input Size (TxC_in)",
+        x_scale="log2",
+        grid_axis="y",
+        ylim=(0, max(1.0, y_max * 1.2)),
+        hide_left_spine=True,
+    )
+    place_line_labels(lines, label_adjustments=MANUAL_LABEL_ADJUSTMENTS)
+    add_cache_lines(ax)
+    save_figure(
+        fig, PLOT_DIR / "performance_inputsize_ipc", tight_rect=(0, 0, 1.0, 1.0)
+    )
+    print(f"Plot saved: {PLOT_DIR / 'performance_inputsize_ipc'}")
 
 
 def plot_runtime_inputsize(df, palette):
@@ -274,78 +304,103 @@ def plot_work_efficiency(df, palette):
         print("Missing work/efficiency columns - skipping work-efficiency plot.")
         return
 
-    target_n = app_config.REPRESENTATIVE_N
-    pts = []
-    for desc in description_order(df):
-        g = df[df["description"] == desc]
-        if g.empty:
-            continue
-        exact = g[g["N"] == target_n]
-        row = (
-            exact.iloc[0]
-            if not exact.empty
-            else g.iloc[(g["N"] - target_n).abs().argsort().iloc[0]]
-        )
-        eff, gc = row["flops_efficiency"], row["gcycles"]
-        if np.isfinite(eff) and np.isfinite(gc) and gc > 0:
-            pts.append((desc, row))
-    if not pts:
+    baseline_df = df[df["description"] == "baseline"]
+    if baseline_df.empty:
+        print("No 'baseline' found - skipping work-efficiency plot.")
         return
 
-    fig, ax = new_single_axes(figsize=(10, 6))
+    n_vals = sorted(int(n) for n in baseline_df["N"].dropna().unique())
+    if not n_vals:
+        return
 
-    ax.axhline(100.0, color="gray", linestyle="--", linewidth=1.2, zorder=1)
-    ax.text(
-        0.99,
-        101.0,
-        "100%",
-        transform=ax.get_yaxis_transform(),
-        ha="right",
-        va="bottom",
-        fontsize=8,
-        color="0.45",
-    )
+    n_low = n_vals[0]
+    n_high = n_vals[-1]
+    n_target = 8 if 8 in n_vals else min(n_vals, key=lambda n: abs(n - 8))
 
-    for desc, row in pts:
-        x = float(row["gcycles"])
-        y = float(row["flops_efficiency"]) * 100.0
-        is_primary = desc == PRIMARY_DESC
-        ax.scatter(
-            x,
-            y,
-            s=260 if is_primary else 150,
-            color=palette[desc],
-            edgecolor="black",
-            linewidth=1.1,
-            zorder=4,
-            marker="o" if is_primary else "s",
-            label=f"{desc}",
+    target_idx = n_vals.index(n_target)
+    high_idx = n_vals.index(n_high)
+    if high_idx - target_idx > 1:
+        n_mid = n_vals[target_idx + (high_idx - target_idx) // 2]
+    else:
+        n_mid = next((n for n in n_vals if n not in (n_low, n_target, n_high)), None)
+
+    unique_targets = []
+    for t in [n_low, n_target, n_mid, n_high]:
+        if t is not None and t not in unique_targets:
+            unique_targets.append(t)
+
+    while len(unique_targets) < 4:
+        unique_targets.append(None)
+
+    fig, axes = new_figure(nrows=2, ncols=2, figsize=(12, 9), squeeze=False)
+
+    for ax, target_n in zip(axes.ravel(), unique_targets):
+        if target_n is None:
+            ax.set_visible(False)
+            continue
+
+        pts = []
+        for desc in description_order(df):
+            g = df[df["description"] == desc]
+            if g.empty:
+                continue
+
+            exact = g[g["N"] == target_n]
+            if exact.empty:
+                continue
+
+            row = exact.iloc[0]
+            eff, gc = row["flops_efficiency"], row["gcycles"]
+
+            if np.isfinite(eff) and np.isfinite(gc) and gc > 0:
+                pts.append((desc, row))
+
+        if not pts:
+            ax.set_visible(False)
+            continue
+
+        ax.axhline(100.0, color="gray", linestyle="--", linewidth=1.2, zorder=1)
+        ax.text(
+            0.99,
+            101.0,
+            "100%",
+            transform=ax.get_yaxis_transform(),
+            ha="right",
+            va="bottom",
+            fontsize=8,
+            color="0.45",
         )
 
-    ax.set_xscale("log", base=2)
-    style_axes(
-        ax,
-        title=f"Work vs. Speed at N={target_n}",
-        y_unit_text="Algorithmic FLOPs executed  [% of theory]",
-        x_label="Runtime [Gcycles]",
-        x_scale="log2",
-        grid_axis="both",
-        ylim=(0, 118),
-        hide_left_spine=False,
-    )
-    ax.legend(
-        loc="center right",
-        fontsize=8,
-        frameon=True,
-        framealpha=0.92,
-        edgecolor="#cccccc",
-        title="Variant",
-        title_fontsize=8,
-        labelspacing=1.3,
-        borderpad=1.1,
-        handletextpad=0.6,
-        markerscale=0.4,
-    )
+        dot_pts = []
+        for desc, row in pts:
+            x = float(row["gcycles"])
+            y = float(row["flops_efficiency"]) * 100.0
+            is_primary = desc == PRIMARY_DESC
+            ax.scatter(
+                x,
+                y,
+                s=260 if is_primary else 150,
+                color=palette[desc],
+                edgecolor="black",
+                linewidth=1.1,
+                zorder=4,
+                marker="o" if is_primary else "s",
+            )
+            dot_pts.append((desc, x, y, palette[desc]))
+
+        ax.set_xscale("log", base=2)
+        style_axes(
+            ax,
+            title=f"Work vs. Speed at N={target_n}",
+            y_unit_text="Algorithmic FLOPs executed  [% of theory]",
+            x_label="Runtime [Gcycles]",
+            x_scale="log2",
+            grid_axis="both",
+            ylim=(0, 118),
+            hide_left_spine=False,
+        )
+        place_dot_labels(ax, dot_pts)
+
     save_figure(fig, PLOT_DIR / "work_efficiency", tight_rect=(0, 0, 1.0, 1.0))
     print(f"Plot saved: {PLOT_DIR / 'work_efficiency'}")
 
@@ -361,6 +416,7 @@ def generate_performance_plot():
 
     plot_performance_inputsize(df, palette)
     plot_performance_inputsize_theory(df, palette)
+    plot_performance_inputsize_ipc(df, palette)
     plot_runtime_inputsize(df, palette)
     plot_speedup_inputsize(df, palette)
     plot_work_efficiency(df, palette)
