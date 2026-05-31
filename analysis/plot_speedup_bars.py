@@ -94,8 +94,9 @@ def _draw(
                     f"{val:.2f}",
                     ha="center",
                     va="bottom",
-                    fontsize=7,
-                    rotation=90,
+                    fontsize=14,
+                    rotation=45,
+                    # rotation_mode="anchor",
                     color="black",
                     zorder=5,
                 )
@@ -128,7 +129,7 @@ def _draw(
         ax.legend(
             loc="upper left",
             ncol=len(descs),
-            fontsize=8,
+            fontsize=14,
             frameon=True,
             framealpha=0.92,
             edgecolor="#cccccc",

@@ -271,12 +271,15 @@ def place_line_labels(lines, *, label_adjustments=None):
     ]
     placed_boxes = []
 
+    n_lines = len(candidates)
+    placed_centers = []
+
     # nudges
 
     EDGE_GAPS = [5, 10, 17, 26, 38, 54, 72]
-    DX_FRACS = [0.0, 0.25, -0.25, 0.5, -0.5]
+    DX_FRACS = [0.0, 0.3, -0.3, 0.6, -0.6, 0.9, -0.9]
 
-    for _, (line, xa, ya, lbl, color) in enumerate(candidates):
+    for i, (line, xa, ya, lbl, color) in enumerate(candidates):
         tw, th = _text_dims(ax, renderer, lbl, 10, "bold")
 
         adj_dx, adj_dy = 0.0, 0.0
@@ -285,8 +288,9 @@ def place_line_labels(lines, *, label_adjustments=None):
 
         pts = ax.transData.transform(np.column_stack([xa, ya]))
         n = len(xa)
-        mid = (n - 1) / 2.0
-        idx_order = sorted(range(n), key=lambda j: abs(j - mid))
+        frac = 0.5 if n_lines == 1 else 0.18 + 0.64 * i / (n_lines - 1)
+        pref = frac * (n - 1)
+        idx_order = sorted(range(n), key=lambda j: abs(j - pref))
 
         offsets = []
         for gap in EDGE_GAPS:
@@ -296,6 +300,8 @@ def place_line_labels(lines, *, label_adjustments=None):
                 offsets.append((cy, dx))
                 offsets.append((-cy, dx))
         offsets.sort(key=lambda p: p[0] ** 2 + p[1] ** 2)
+
+        x_sep = tw + 18
 
         best_score, best_result = None, None
         found = False
@@ -319,25 +325,31 @@ def place_line_labels(lines, *, label_adjustments=None):
                     1 for p in line_paths if p.intersects_bbox(bb, filled=False)
                 )
                 lb_hits = sum(1 for b in placed_boxes if b.overlaps(bb))
+
+                x_pen = sum(max(0.0, x_sep - abs(tx - px)) for px in placed_centers)
                 dist = (cx_off**2 + cy_off**2) ** 0.5
                 score = (
-                    dist + 800 * ln_hits + 1200 * lb_hits + (5000 if not inside else 0)
+                    dist
+                    + 2.5 * x_pen
+                    + 800 * ln_hits
+                    + 1200 * lb_hits
+                    + (5000 if not inside else 0)
                 )
 
                 if best_score is None or score < best_score:
                     best_score = score
-                    td = ax.transData.inverted().transform((tx, ty))
-                    best_result = (float(td[0]), float(td[1]), bb)
+                    best_result = (tx, ty, bb)
 
-                if inside and ln_hits == 0 and lb_hits == 0:
+                if inside and ln_hits == 0 and lb_hits == 0 and x_pen == 0.0:
                     found = True
                     break
 
         if best_result is not None:
             tx, ty, bb = best_result
+            td = ax.transData.inverted().transform((tx, ty))
             ax.text(
-                tx,
-                ty,
+                float(td[0]),
+                float(td[1]),
                 lbl,
                 ha="center",
                 va="center",
@@ -347,6 +359,7 @@ def place_line_labels(lines, *, label_adjustments=None):
                 zorder=5,
             )
             placed_boxes.append(bb)
+            placed_centers.append(tx)
 
 
 def place_dot_labels(ax, points, *, fontsize=9, label_adjustments=None):
