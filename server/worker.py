@@ -56,11 +56,30 @@ def run_cmd(cmd, job_dir, env, log_file, pass_fds=()):
         raise subprocess.CalledProcessError(rc, cmd_str)
 
 
+def pin_prefix(app_config):
+    core = str(app_config.PINNED_CPU_CORE)
+    if getattr(app_config, "LAUNCH_MODE", "taskset") == "systemd-run":
+        slice_name = getattr(app_config, "BENCH_SLICE", "bench.slice")
+        return [
+            "sudo",
+            "-n",
+            "systemd-run",
+            "--scope",
+            "--quiet",
+            "--collect",
+            f"--slice={slice_name}",
+            "-p",
+            f"AllowedCPUs={core}",
+            "--",
+        ]
+    return ["taskset", "-c", core]
+
+
 def build_project(job_dir, env, log_file):
     run_cmd(["uv", "sync", "--reinstall-package", "turbogator"], job_dir, env, log_file)
 
 
-def validate_build(job_dir, env, log_file):
+def validate_build(job_dir, env, log_file, app_config):
     print("\n=== Stage: Validate ===", file=log_file, flush=True)
 
     ccdb = job_dir / "build" / "skbuild" / "compile_commands.json"
@@ -93,10 +112,14 @@ def validate_build(job_dir, env, log_file):
             f"fma={_colored_count(fma)}",
             file=log_file,
         )
-
     python_exe = str(Path(venv) / "bin" / "python") if venv else "python"
     try:
-        run_cmd([python_exe, "turbogator/validate.py"], job_dir, env, log_file)
+        run_cmd(
+            pin_prefix(app_config) + [python_exe, "turbogator/validate.py"],
+            job_dir,
+            env,
+            log_file,
+        )
         return True
     except subprocess.CalledProcessError:
         print(
@@ -147,7 +170,6 @@ def parse_perf_csv(perf_path, events):
 
 def run_microbench(job_dir, env, log_file, app_config, desc):
     print("\n=== Stage: Microbench ===", file=log_file, flush=True)
-    pinned_core = app_config.PINNED_CPU_CORE
     n_val = app_config.REPRESENTATIVE_N
     t_val, c_val = app_config.get_dimensions(n_val)
 
@@ -159,10 +181,7 @@ def run_microbench(job_dir, env, log_file, app_config, desc):
     torch_out = job_dir / "pytorch_profile.trace.json"
 
     ################# PY-SPY #################
-    pyspy_cmd = [
-        "taskset",
-        "-c",
-        pinned_core,
+    pyspy_cmd = pin_prefix(app_config) + [
         pyspy_bin,
         "record",
         "-o",
@@ -201,10 +220,7 @@ def run_microbench(job_dir, env, log_file, app_config, desc):
         )
 
     ################# PYTORCH PROFILER #################
-    torch_cmd = [
-        "taskset",
-        "-c",
-        pinned_core,
+    torch_cmd = pin_prefix(app_config) + [
         python_exe,
         "turbogator/benchmark.py",
         "--desc",
@@ -242,7 +258,7 @@ def run_sweep(job_dir, env, log_file, app_config, desc, metrics):
         if perf_events:
             ctl_r, ctl_w = os.pipe()
 
-        inner = ["taskset", "-c", pinned_core]
+        inner = list(pin_prefix(app_config))
 
         if perf_events:
             pcore_events = ",".join(f"cpu_core/{e}/" for e in perf_events)
@@ -380,7 +396,7 @@ def main():
         build_project(job_dir, env, log_file)
         _fence(log_file, "after build")
 
-        if not validate_build(job_dir, env, log_file):
+        if not validate_build(job_dir, env, log_file, app_config):
             failure_reason = "validate_failed"
             raise RuntimeError("validate.py failed; skipping microbench and sweep")
         _fence(log_file, "after verify_build")

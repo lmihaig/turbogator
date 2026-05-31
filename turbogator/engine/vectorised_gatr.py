@@ -152,14 +152,22 @@ class MVOnlyGATrBilinear(nn.Module):
         size_inter = self.config.size_channels_intermediate
         lg, rg, lj, rj = torch.split(self.proj_bil(x), size_inter, dim=-2)
 
-        x = torch.cat(
-            [
-                c_ops.geometric_product_vectorized(lg, rg),
-                c_ops.equi_join_vectorized(lj, rj, reference),
-            ],
-            dim=-2,
-        )
-        return self.proj_out(x)
+        # x = torch.cat(
+        #     [
+        #         c_ops.geometric_product_vectorized(lg, rg),
+        #         c_ops.equi_join_vectorized(lj, rj, reference),
+        #     ],
+        #     dim=-2,
+        # )
+        # return self.proj_out(x)
+
+        # gp and join write straight into the two halves of one buffer — no torch.cat copy.
+        #  modified gp and join to write directly into the buffer to avoid copy in torch.cat
+        *lead, _, blades = lg.shape
+        out = lg.new_empty((*lead, 2 * size_inter, blades))
+        c_ops.geometric_product_vectorized_out(lg, rg, out[..., :size_inter, :])
+        c_ops.equi_join_vectorized_out(lj, rj, reference, out[..., size_inter:, :])
+        return self.proj_out(out)
 
 
 class MVOnlyGATrMLP(nn.Module):
@@ -222,6 +230,7 @@ class MVOnlyGATrAttention(nn.Module):
             param = nn.Parameter(torch.zeros(attn_mix_shape, dtype=torch.float32))
             self.attn_mix[kind] = param
             self.register_parameter(f"attn_mix_{kind}", param)
+        self._attn_mix_exp: list[torch.Tensor] | None = None
 
         self.proj_qkv = EquiLinear(
             config.size_channels_hidden,
@@ -231,6 +240,12 @@ class MVOnlyGATrAttention(nn.Module):
             config.size_channels_hidden * config.attn_num_heads,
             config.size_channels_hidden,
         )
+
+    def _exp_attn_mix(self) -> list[torch.Tensor]:
+        # attn_mix constants, cache instead of rebuilding
+        if self.training or self._attn_mix_exp is None:
+            self._attn_mix_exp = [w.exp() for w in self.attn_mix.values()]
+        return self._attn_mix_exp
 
     def forward(
         self, x: torch.Tensor, attn_mask: torch.Tensor | None = None
@@ -250,13 +265,14 @@ class MVOnlyGATrAttention(nn.Module):
             k,
             v,
             kinds=self.config.attn_kinds,
-            weight=[w.exp() for w in self.attn_mix.values()],
+            weight=self._exp_attn_mix(),
             attn_mask=attn_mask,
             is_causal=self.config.attn_is_causal,
             dropout_p=self.config.attn_dropout_p,
             scale=self.config.attn_scale,
         )
-        x = rearrange(x, "b h t c k -> b t (h c) k", h=self.config.attn_num_heads)
+        # changed kernel to output correct shape avoid overhead of arrange
+        # x = rearrange(x, "b h t c k -> b t (h c) k", h=self.config.attn_num_heads)
         x = self.proj_out(x)
 
         return x + residual

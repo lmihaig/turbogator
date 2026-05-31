@@ -352,6 +352,28 @@ static void gp_block(const float* __restrict__ a_base,
         gp_scalar_one(a_base + i * 16, b_base + i * 16, o_base + i * 16);
 }
 
+void geometric_product_vectorized_out(const float* __restrict__ a,
+                                      const float* __restrict__ b,
+                                      float* __restrict__ out,
+                                      size_t n,
+                                      size_t block_size,
+                                      size_t outer_stride_a,
+                                      size_t outer_stride_b,
+                                      size_t outer_stride_out) {
+    if (block_size == 0) {
+        // contiguous path
+        if (n % 8 != 0)
+            __builtin_unreachable();
+        gp_block(a, b, out, n);
+    } else {
+        const size_t row_out = outer_stride_out ? outer_stride_out : block_size * 16;
+        const size_t n_outer = n / block_size;
+        for (size_t outer = 0; outer < n_outer; ++outer) {
+            gp_block(a + outer * outer_stride_a, b + outer * outer_stride_b, out + outer * row_out, block_size);
+        }
+    }
+}
+
 void geometric_product_vectorized(const float* __restrict__ a,
                                   const float* __restrict__ b,
                                   float* __restrict__ out,
@@ -359,18 +381,7 @@ void geometric_product_vectorized(const float* __restrict__ a,
                                   size_t block_size,
                                   size_t outer_stride_a,
                                   size_t outer_stride_b) {
-    if (block_size == 0) {
-        // contiguous path
-        if (n % 8 != 0)
-            __builtin_unreachable();
-        gp_block(a, b, out, n);
-    } else {
-        // strided path: n/block_size outer iterations
-        const size_t n_outer = n / block_size;
-        for (size_t outer = 0; outer < n_outer; ++outer) {
-            gp_block(a + outer * outer_stride_a, b + outer * outer_stride_b, out + outer * block_size * 16, block_size);
-        }
-    }
+    geometric_product_vectorized_out(a, b, out, n, block_size, outer_stride_a, outer_stride_b, 0);
 }
 
 }  // namespace turbogator

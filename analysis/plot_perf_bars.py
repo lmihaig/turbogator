@@ -16,15 +16,19 @@ PLOT_DIR = REPO_ROOT / "results" / "plots"
 
 # (column in dataframe, display label, subtitle)
 METRICS = [
-    ("ipc", "IPC", "instructions / cycle  ↑ better"),
-    ("avx2_ratio", "AVX2 ratio", "AVX2 FLOPs / total FLOPs  ↑ more vectorized"),
-    ("l1_load_miss_rate", "L1 load miss rate", "L1↔L2 lines / L1 loads"),
-    ("l2_miss_rate", "L2 miss rate", "L2→L3 lines / L1→L2 lines"),
+    ("ipc", "IPC", "instructions / cycle  ^ better"),
+    ("avx2_ratio", "AVX2 ratio", "AVX2 FLOPs / total FLOPs  ^ more vectorized"),
+    ("l1_load_miss_rate", "L1 load miss rate", "L1<->L2 lines / L1 loads"),
+    ("l2_miss_rate", "L2 miss rate", "L2->L3 lines / L1->L2 lines"),
     ("l3_demand_miss_rate", "L3 demand miss", "L3 demand misses / L1 loads"),
     ("store_load_ratio", "Store/Load", "L1 stores / L1 loads"),
-    ("dram_per_gflop", "DRAM bytes/GFLOP", "DRAM bytes / GFLOP  ↓ more compute-bound"),
-    ("dram_prefetch_share", "DRAM prefetch %", "1 − demand-L3-miss bytes / DRAM bytes"),
-    ("bytes_per_flop_l1", "Bytes/FLOP L1", "L1↔L2 bytes / FLOP  ↑ memory-bound at L1"),
+    ("dram_per_gflop", "DRAM bytes/GFLOP", "DRAM bytes / GFLOP  v more compute-bound"),
+    ("dram_prefetch_share", "DRAM prefetch %", "1 - demand-L3-miss bytes / DRAM bytes"),
+    (
+        "bytes_per_flop_l1",
+        "Bytes/FLOP L1",
+        "L1<->L2 bytes / FLOP  ^ memory-bound at L1",
+    ),
 ]
 
 

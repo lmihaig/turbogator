@@ -6,12 +6,14 @@ turbogator_ext = importlib.import_module("turbogator.turbogator_ext")
 geometric_product_baseline = turbogator_ext.geometric_product_baseline
 geometric_product_opt_v1 = turbogator_ext.geometric_product_opt_v1
 geometric_product_vectorized = turbogator_ext.geometric_product_vectorized
+geometric_product_vectorized_out = turbogator_ext.geometric_product_vectorized_out
 
 # equi_join
 equi_join_baseline = turbogator_ext.equi_join_baseline
 equi_join_opt_v1 = turbogator_ext.equi_join_opt_v1
 equi_join_opt_v2 = turbogator_ext.equi_join_opt_v2
 equi_join_vectorized = turbogator_ext.equi_join_vectorized
+equi_join_vectorized_out = turbogator_ext.equi_join_vectorized_out
 
 # equi_geometric_attention
 equi_geometric_attention_baseline = turbogator_ext.equi_geometric_attention_baseline

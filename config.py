@@ -90,6 +90,9 @@ _ACTIVE = SERVERS[ACTIVE_SERVER]
 MACHINE = _ACTIVE["machine"]
 CPU_FREQ = _ACTIVE["cpu_freq"]
 PINNED_CPU_CORE = _ACTIVE["pinned_core"]
+
+LAUNCH_MODE = _ACTIVE.get("launch_mode", "taskset")
+BENCH_SLICE = _ACTIVE.get("bench_slice", "bench.slice")
 PERF_EVENTS = _ACTIVE["perf_events"]
 DRAM_EVENTS = _ACTIVE.get("dram_events", [])
 ROOFLINE_BETA = _ACTIVE["roofline_beta"]

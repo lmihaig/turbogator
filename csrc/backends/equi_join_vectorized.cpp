@@ -42,24 +42,27 @@ __attribute__((always_inline)) static inline float hsum256_ps(__m256 v) {
     return _mm_cvtss_f32(sum1);
 }
 
-void equi_join_vectorized(const float* __restrict__ a,
-                          const float* __restrict__ b,
-                          const float* __restrict__ ref,
-                          float* __restrict__ out,
-                          size_t n,
-                          size_t ref_group,
-                          size_t block_size,
-                          size_t outer_stride_a,
-                          size_t outer_stride_b) {
+void equi_join_vectorized_out(const float* __restrict__ a,
+                              const float* __restrict__ b,
+                              const float* __restrict__ ref,
+                              float* __restrict__ out,
+                              size_t n,
+                              size_t ref_group,
+                              size_t block_size,
+                              size_t outer_stride_a,
+                              size_t outer_stride_b,
+                              size_t outer_stride_out) {
     const float* cur_ref    = ref;
     size_t ref_left         = ref_group;
     const size_t n_outer    = (block_size > 0) ? n / block_size : 1;
     const size_t inner_size = (block_size > 0) ? block_size : n;
 
+    const size_t row_out = outer_stride_out ? outer_stride_out : inner_size * 16;
+
     for (size_t outer = 0; outer < n_outer; ++outer) {
         const float* a_base = (block_size > 0) ? a + outer * outer_stride_a : a;
         const float* b_base = (block_size > 0) ? b + outer * outer_stride_b : b;
-        float* o_base       = out + outer * inner_size * 16;
+        float* o_base       = out + outer * row_out;
 
         for (size_t batch = 0; batch < inner_size; ++batch) {
             const float* cur_a = a_base + batch * 16;
@@ -83,8 +86,6 @@ void equi_join_vectorized(const float* __restrict__ a,
                     __m256 v_vals   = _mm256_loadu_ps(v_ptr + idx);
                     __m256 b_signed = _mm256_mul_ps(b_vals, v_vals);
                     acc             = _mm256_fmadd_ps(a_vals, b_signed, acc);
-                    __m256 prod     = _mm256_mul_ps(_mm256_mul_ps(a_vals, b_vals), v_vals);
-                    acc             = _mm256_add_ps(acc, prod);
                 }
 
                 float sum = hsum256_ps(acc);
@@ -107,6 +108,18 @@ void equi_join_vectorized(const float* __restrict__ a,
             }
         }
     }
+}
+
+void equi_join_vectorized(const float* __restrict__ a,
+                          const float* __restrict__ b,
+                          const float* __restrict__ ref,
+                          float* __restrict__ out,
+                          size_t n,
+                          size_t ref_group,
+                          size_t block_size,
+                          size_t outer_stride_a,
+                          size_t outer_stride_b) {
+    equi_join_vectorized_out(a, b, ref, out, n, ref_group, block_size, outer_stride_a, outer_stride_b, 0);
 }
 
 }  // namespace turbogator

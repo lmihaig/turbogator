@@ -1,3 +1,4 @@
+#include <malloc.h>
 #include <pybind11/pybind11.h>
 #include <torch/extension.h>
 
@@ -92,6 +93,89 @@ static const float* resolve_ref(
         ref_group  = 1;
     }
     return ref_contig.data_ptr<float>();
+}
+
+// avoid strided pytorch tensors
+// true -> directly use mem
+// false -> copy first
+static bool io_strides(const torch::Tensor& a,
+                       const torch::Tensor& b,
+                       const torch::Tensor& out,
+                       size_t& bs,
+                       size_t& os_a,
+                       size_t& os_b,
+                       size_t& os_out) {
+    auto inner = [](const torch::Tensor& t) {
+        int nd = t.dim();
+        return nd >= 3 && nd <= 4 && t.stride(nd - 1) == 1 && t.stride(nd - 2) == 16;
+    };
+    if (!inner(a) || !inner(b) || !inner(out))
+        return false;
+    int64_t c = a.size(a.dim() - 2);
+    if (c <= 0 || b.size(b.dim() - 2) != c || out.size(out.dim() - 2) != c)
+        return false;
+    auto mergeok = [](const torch::Tensor& t) { return t.dim() != 4 || t.stride(0) == t.size(1) * t.stride(1); };
+    if (!mergeok(a) || !mergeok(b) || !mergeok(out))
+        return false;
+    bs     = (size_t)c;
+    os_a   = (size_t)a.stride(a.dim() - 3);
+    os_b   = (size_t)b.stride(b.dim() - 3);
+    os_out = (size_t)out.stride(out.dim() - 3);
+    return true;
+}
+
+// gp variant to write directly into buff
+static void gp_vectorized_out(torch::Tensor a, torch::Tensor b, torch::Tensor out) {
+    RECORD_FUNCTION("turbogator::geometric_product_vectorized_out", {});
+    if (a.numel() != b.numel() || a.numel() != out.numel())
+        throw std::runtime_error("size mismatch (a/b/out)");
+    if (a.size(-1) != 16)
+        throw std::runtime_error("last dimension must be 16");
+    size_t n = a.numel() / 16;
+    size_t bs, os_a, os_b, os_out;
+    if (io_strides(a, b, out, bs, os_a, os_b, os_out)) {
+        turbogator::geometric_product_vectorized_out(
+            a.data_ptr<float>(), b.data_ptr<float>(), out.data_ptr<float>(), n, bs, os_a, os_b, os_out);
+    } else {
+        auto ac = a.contiguous(), bc = b.contiguous();
+        auto tmp = torch::empty(ac.sizes().vec(), ac.options());
+        turbogator::geometric_product_vectorized(
+            ac.data_ptr<float>(), bc.data_ptr<float>(), tmp.data_ptr<float>(), n, 0, 0, 0);
+        out.copy_(tmp);
+    }
+}
+
+// join variant to write directly into buff
+static void join_vectorized_out(torch::Tensor a, torch::Tensor b, torch::Tensor ref, torch::Tensor out) {
+    RECORD_FUNCTION("turbogator::equi_join_vectorized_out", {});
+    if (a.numel() != b.numel() || a.numel() != out.numel())
+        throw std::runtime_error("size mismatch (a/b/out)");
+    if (a.size(-1) != 16)
+        throw std::runtime_error("last dimension must be 16");
+    size_t n         = a.numel() / 16;
+    size_t ref_group = 1;
+    torch::Tensor ref_contig;
+    size_t bs, os_a, os_b, os_out;
+    if (io_strides(a, b, out, bs, os_a, os_b, os_out)) {
+        const float* ref_ptr = resolve_ref(ref, a, n, ref_contig, ref_group);
+        turbogator::equi_join_vectorized_out(a.data_ptr<float>(),
+                                             b.data_ptr<float>(),
+                                             ref_ptr,
+                                             out.data_ptr<float>(),
+                                             n,
+                                             ref_group,
+                                             bs,
+                                             os_a,
+                                             os_b,
+                                             os_out);
+    } else {
+        auto ac = a.contiguous(), bc = b.contiguous();
+        auto tmp             = torch::empty(ac.sizes().vec(), ac.options());
+        const float* ref_ptr = resolve_ref(ref, ac, n, ref_contig, ref_group);
+        turbogator::equi_join_vectorized(
+            ac.data_ptr<float>(), bc.data_ptr<float>(), ref_ptr, tmp.data_ptr<float>(), n, ref_group);
+        out.copy_(tmp);
+    }
 }
 
 template <typename Fn>
@@ -215,8 +299,8 @@ auto make_scaler_gated_gelu_lambda(const char* name, Fn fn) {
 }
 
 template <typename Fn>
-auto make_attn_lambda(const char* name, Fn fn) {
-    return [name, fn](torch::Tensor q, torch::Tensor k, torch::Tensor v, py::kwargs kwargs) {
+auto make_attn_lambda(const char* name, Fn fn, bool transposed_out = false) {
+    return [name, fn, transposed_out](torch::Tensor q, torch::Tensor k, torch::Tensor v, py::kwargs kwargs) {
         RECORD_FUNCTION(name, {});
         auto inner_contig = [](const torch::Tensor& t) {
             auto nd = t.dim();
@@ -251,7 +335,10 @@ auto make_attn_lambda(const char* name, Fn fn) {
             mask_ptr     = mask_storage.data_ptr<float>();
         }
         bool is_causal = kwargs.contains("is_causal") && kwargs["is_causal"].cast<bool>();
-        auto out       = torch::empty({B, H, T, C, 16}, v.options());
+
+        // kernel emit (B, T, H*C, 16) directly so next equi_linear can use it without rearrange/copy
+        auto out =
+            transposed_out ? torch::empty({B, T, H * C, 16}, v.options()) : torch::empty({B, H, T, C, 16}, v.options());
         fn(q.data_ptr<float>(),
            k.data_ptr<float>(),
            v.data_ptr<float>(),
@@ -274,6 +361,11 @@ auto make_attn_lambda(const char* name, Fn fn) {
 }  // namespace
 
 PYBIND11_MODULE(turbogator_ext, m) {
+    // stop page faults from allocate on touch policy
+    // alloc from retained heap, never return the heap to the os
+    mallopt(M_MMAP_MAX, 0);
+    mallopt(M_TRIM_THRESHOLD, -1);
+
     // geometric_product
     m.def("geometric_product_baseline",
           make_gp_lambda("turbogator::geometric_product_baseline", turbogator::geometric_product_baseline));
@@ -281,6 +373,7 @@ PYBIND11_MODULE(turbogator_ext, m) {
           make_gp_lambda("turbogator::geometric_product_opt_v1", turbogator::geometric_product_opt_v1));
     m.def("geometric_product_vectorized",
           make_gp_lambda("turbogator::geometric_product_vectorized", turbogator::geometric_product_vectorized));
+    m.def("geometric_product_vectorized_out", &gp_vectorized_out);
 
     // equi_join
     m.def("equi_join_baseline",
@@ -289,6 +382,7 @@ PYBIND11_MODULE(turbogator_ext, m) {
     m.def("equi_join_opt_v2", make_equi_join_lambda("turbogator::equi_join_opt_v2", turbogator::equi_join_opt_v2));
     m.def("equi_join_vectorized",
           make_equi_join_lambda("turbogator::equi_join_vectorized", turbogator::equi_join_vectorized));
+    m.def("equi_join_vectorized_out", &join_vectorized_out);
 
     // equi_geometric_attention
     m.def("equi_geometric_attention_baseline",
@@ -296,9 +390,10 @@ PYBIND11_MODULE(turbogator_ext, m) {
                            turbogator::equi_geometric_attention_baseline));
     m.def("equi_geometric_attention_opt_v1",
           make_attn_lambda("turbogator::equi_geometric_attention_opt_v1", turbogator::equi_geometric_attention_opt_v1));
-    m.def("equi_geometric_attention_vectorized",
-          make_attn_lambda("turbogator::equi_geometric_attention_vectorized",
-                           turbogator::equi_geometric_attention_vectorized));
+    m.def(
+        "equi_geometric_attention_vectorized",
+        make_attn_lambda(
+            "turbogator::equi_geometric_attention_vectorized", turbogator::equi_geometric_attention_vectorized, true));
 
     // scaler_gated_gelu
     m.def(

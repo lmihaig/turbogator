@@ -390,6 +390,7 @@ __attribute__((always_inline)) static inline void flash_attention_bh(const float
                                                                      int64_t T,
                                                                      int64_t qk_dim,
                                                                      int64_t mv_stride,
+                                                                     int64_t out_t_stride,
                                                                      int64_t qs_t,
                                                                      __m256 v_scale,
                                                                      __m256 v_neg_inf,
@@ -406,9 +407,12 @@ __attribute__((always_inline)) static inline void flash_attention_bh(const float
             row_sum_fa[r] = 0.f;
         }
 
-        float* o_qt = o_bh + t1s * mv_stride;
-        for (int64_t x = 0; x < (int64_t)BT * mv_stride; x += 8)
-            _mm256_storeu_ps(o_qt + x, _mm256_setzero_ps());
+        float* o_qt = o_bh + t1s * out_t_stride;
+        for (int r = 0; r < BT; ++r) {
+            float* orow = o_qt + r * out_t_stride;
+            for (int64_t d = 0; d < mv_stride; d += 8)
+                _mm256_storeu_ps(orow + d, _mm256_setzero_ps());
+        }
 
         const int64_t t2_lim = is_causal ? (t1s + BT) : T;
         for (int64_t t2s = 0; t2s < t2_lim; t2s += BT) {
@@ -459,13 +463,13 @@ __attribute__((always_inline)) static inline void flash_attention_bh(const float
             }
 
             tiled_mm_accum<TILE_MR, TILE_NR>(
-                score_tile, BT, v_bh + t2s * qs_t, qs_t, o_qt, mv_stride, BT, mv_stride, BT, corrections);
+                score_tile, BT, v_bh + t2s * qs_t, qs_t, o_qt, out_t_stride, BT, mv_stride, BT, corrections);
         }
 
         // norm rows
         for (int r = 0; r < BT; ++r) {
             float inv_sum = 1.f / row_sum_fa[r];
-            float* orow   = o_qt + r * mv_stride;
+            float* orow   = o_qt + r * out_t_stride;
             __m256 vinv   = _mm256_set1_ps(inv_sum);
             for (int64_t d = 0; d < mv_stride; d += 8)
                 _mm256_storeu_ps(orow + d, _mm256_mul_ps(_mm256_loadu_ps(orow + d), vinv));
@@ -508,6 +512,8 @@ void equi_geometric_attention_vectorized(const float* __restrict__ q,
     }
 
     const int64_t mv_stride    = C * N_BLADES;
+    const int64_t out_t_stride = H * mv_stride;
+
     const float scalar_scale   = 1.f / std::sqrt((float)qk_dim);
     const float scalar_neg_inf = -std::numeric_limits<float>::infinity();
     const __m256 v_scale       = _mm256_set1_ps(scalar_scale);
@@ -527,7 +533,7 @@ void equi_geometric_attention_vectorized(const float* __restrict__ q,
             const float* q_bh = q + b * qs_b + h * qs_h;
             const float* k_bh = k + b * qs_b + h * qs_h;
             const float* v_bh = v + b * qs_b + h * qs_h;
-            float* o_bh       = out + (b * H + h) * T * mv_stride;
+            float* o_bh       = out + (b * T * H + h) * mv_stride;
 
             for (int64_t t = 0; t < T; ++t) {
                 float* qf   = q_flat.data() + t * qk_dim;
@@ -574,7 +580,7 @@ void equi_geometric_attention_vectorized(const float* __restrict__ q,
             if (T < FLASH_T_THRESHOLD) {
                 tiled_mm<TILE_MR, TILE_NR>(q_flat.data(), qk_dim, kt_flat.data(), T, scores.data(), T, T, T, qk_dim);
                 vec_softmax(scores.data(), T, v_scale, attn_mask, is_causal, b, H, h, v_neg_inf);
-                tiled_mm<TILE_MR, TILE_NR>(scores.data(), T, v_bh, qs_t, o_bh, mv_stride, T, mv_stride, T);
+                tiled_mm<TILE_MR, TILE_NR>(scores.data(), T, v_bh, qs_t, o_bh, out_t_stride, T, mv_stride, T);
             } else {
                 flash_attention_bh(q_flat.data(),
                                    kt_flat.data(),
@@ -583,6 +589,7 @@ void equi_geometric_attention_vectorized(const float* __restrict__ q,
                                    T,
                                    qk_dim,
                                    mv_stride,
+                                   out_t_stride,
                                    qs_t,
                                    v_scale,
                                    v_neg_inf,

@@ -15,6 +15,14 @@ void geometric_product_vectorized(const float* a,
                                   size_t block_size     = 0,
                                   size_t outer_stride_a = 0,
                                   size_t outer_stride_b = 0);
+void geometric_product_vectorized_out(const float* a,
+                                      const float* b,
+                                      float* out,
+                                      size_t n,
+                                      size_t block_size,
+                                      size_t outer_stride_a,
+                                      size_t outer_stride_b,
+                                      size_t outer_stride_out);
 
 void equi_join_baseline(const float* a, const float* b, const float* ref, float* out, size_t n, size_t ref_group);
 void equi_join_opt_v1(const float* a, const float* b, const float* ref, float* out, size_t n, size_t ref_group);
@@ -28,6 +36,16 @@ void equi_join_vectorized(const float* a,
                           size_t block_size     = 0,
                           size_t outer_stride_a = 0,
                           size_t outer_stride_b = 0);
+void equi_join_vectorized_out(const float* a,
+                              const float* b,
+                              const float* ref,
+                              float* out,
+                              size_t n,
+                              size_t ref_group,
+                              size_t block_size,
+                              size_t outer_stride_a,
+                              size_t outer_stride_b,
+                              size_t outer_stride_out);
 
 void equi_geometric_attention_baseline(const float* q,
                                        const float* k,
