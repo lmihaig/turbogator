@@ -23,6 +23,7 @@ PALETTE = {
     "slate": "#475569",
     "primary": "#8B0000",
     "gray_text": "0.4",
+    "black": "#000000",
 }
 
 SERIES_COLORS = [
@@ -276,7 +277,7 @@ def place_line_labels(lines, *, label_adjustments=None):
 
     # nudges
 
-    EDGE_GAPS = [5, 10, 17, 26, 38, 54, 72]
+    EDGE_GAPS = [5, 9, 14, 20, 28, 38]
     DX_FRACS = [0.0, 0.3, -0.3, 0.6, -0.6, 0.9, -0.9]
 
     for i, (line, xa, ya, lbl, color) in enumerate(candidates):
@@ -322,15 +323,18 @@ def place_line_labels(lines, *, label_adjustments=None):
                     and bb.y1 <= plot_bbox.y1
                 )
                 ln_hits = sum(
-                    1 for p in line_paths if p.intersects_bbox(bb, filled=False)
+                    1
+                    for j, p in enumerate(line_paths)
+                    if j != i and p.intersects_bbox(bb, filled=False)
                 )
                 lb_hits = sum(1 for b in placed_boxes if b.overlaps(bb))
 
                 x_pen = sum(max(0.0, x_sep - abs(tx - px)) for px in placed_centers)
                 dist = (cx_off**2 + cy_off**2) ** 0.5
+                prox = dist + 0.05 * dist * dist
                 score = (
-                    dist
-                    + 2.5 * x_pen
+                    prox
+                    + 1.0 * x_pen
                     + 800 * ln_hits
                     + 1200 * lb_hits
                     + (5000 if not inside else 0)
@@ -362,12 +366,21 @@ def place_line_labels(lines, *, label_adjustments=None):
             placed_centers.append(tx)
 
 
-def place_dot_labels(ax, points, *, fontsize=9, label_adjustments=None):
+def place_dot_labels(
+    ax, points, *, fontsize=9, label_adjustments=None, marker_sizes=None
+):
 
     fig = ax.figure
     fig.canvas.draw()
     renderer = fig.canvas.get_renderer()
     plot_bbox = ax.bbox
+
+    dot_boxes = []
+    for i, (lbl, x_data, y_data, color) in enumerate(points):
+        s = marker_sizes[i] if marker_sizes is not None else 150.0
+        half_px = (float(s) ** 0.5) / 2.0 * fig.dpi / 72.0
+        dcx, dcy = ax.transData.transform((x_data, y_data))
+        dot_boxes.append(_label_bbox(dcx, dcy, 2 * half_px, 2 * half_px, pad=2))
 
     placed_boxes = []
     angles = np.linspace(0, 2 * np.pi, 8, endpoint=False)
@@ -401,15 +414,18 @@ def place_dot_labels(ax, points, *, fontsize=9, label_adjustments=None):
                 and bb.y1 <= plot_bbox.y1
             )
             lb_hits = sum(1 for b in placed_boxes if b.overlaps(bb))
+            dot_hits = sum(1 for b in dot_boxes if b.overlaps(bb))
             dist = (dx_px**2 + dy_px**2) ** 0.5
-            score = dist + 1500 * lb_hits + (5000 if not inside else 0)
+            score = (
+                dist + 1500 * lb_hits + 1500 * dot_hits + (5000 if not inside else 0)
+            )
 
             if best_score is None or score < best_score:
                 best_score = score
                 td = ax.transData.inverted().transform((tx, ty))
                 best_result = (float(td[0]), float(td[1]), bb)
 
-            if inside and lb_hits == 0:
+            if inside and lb_hits == 0 and dot_hits == 0:
                 break
 
         if best_result is not None:

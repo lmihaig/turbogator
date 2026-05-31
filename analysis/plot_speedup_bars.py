@@ -128,7 +128,7 @@ def _draw(
     if show_legend:
         ax.legend(
             loc="upper left",
-            ncol=len(descs),
+            ncol=(len(descs) + 1) // 2,
             fontsize=14,
             frameon=True,
             framealpha=0.92,
@@ -177,6 +177,26 @@ def _generate(df, palette, ref_desc, ylabel, title, output_name):
     print(f"Plot saved: {out}")
 
 
+def _generate_slides(df, palette, ref_desc, ylabel, title, output_name, only_n):
+    descs, n_values, matrix = _build_matrix(df, ref_desc)
+    if descs is None:
+        print(f"No {ref_desc} in history or no hw data - skipping {output_name}.")
+        return
+    if only_n not in n_values:
+        print(f"N={only_n} not in data - skipping {output_name}.")
+        return
+
+    row_w = max(12, 2.1 * len(descs))
+    fig, ax = plt.subplots(figsize=(row_w, 6))
+    _draw(ax, descs, [only_n], matrix, palette, ref_desc, show_legend=True, n_slots=1)
+    ax.set_ylabel(ylabel, fontsize=10)
+    ax.set_title(title, fontsize=12, fontweight="bold", pad=10)
+
+    out = PLOT_DIR / output_name
+    save_figure(fig, out, dpi=180)
+    print(f"Plot saved: {out}")
+
+
 def generate_speedup_bars():
     df = load_history(HISTORY_FILE)
     if df.empty:
@@ -201,4 +221,13 @@ def generate_speedup_bars():
         ylabel="Speedup over baseline [x]",
         title=f"Speedup vs baseline - {app_config.MACHINE}",
         output_name="speedup_bars_baseline",
+    )
+    _generate_slides(
+        df,
+        palette,
+        ref_desc="ezgatr",
+        ylabel="Speedup over ezgatr [x]",
+        title=f"Speedup vs ezgatr - {app_config.MACHINE}",
+        output_name="_slides_speedup_bars_ezgatr",
+        only_n=16,
     )

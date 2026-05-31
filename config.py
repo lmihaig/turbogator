@@ -106,12 +106,6 @@ def roofline_beta_for(level):
     return ROOFLINE_BETA_LEVELS.get(level, ROOFLINE_BETA)
 
 
-CACHE_SIZES_BYTES = {
-    "L1d": 48 * 1024,
-    "L2": 1280 * 1024,
-    "L3": 24576 * 1024,
-}
-
 # whole model miss rate
 # observed through experiments
 # L1d: 48 Kb too small for working set??

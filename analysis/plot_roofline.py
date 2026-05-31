@@ -26,9 +26,9 @@ PLOT_DIR = REPO_ROOT / "results" / "plots"
 Y_COL = "perf"
 ROOFLINES = [
     ("oi_dram", "roofline_dram", "Roofline (DRAM)"),
-    ("oi_l3", "roofline_l3", "Roofline (L3 warm-cache)"),
-    ("oi_l2", "roofline_l2", "Roofline (L2 warm-cache)"),
-    ("oi_l1", "roofline_l1", "Roofline (L1 warm-cache)"),
+    ("oi_l3", "roofline_l3", "Roofline (L3 warm)"),
+    ("oi_l2", "roofline_l2", "Roofline (L2 warm)"),
+    ("oi_l1", "roofline_l1", "Roofline (L1 warm)"),
 ]
 
 
@@ -47,8 +47,8 @@ def _draw_roofline(ax, xlim, ylim, beta, title):
     x_min, x_max = xlim
     y_min, y_max = ylim
     roofs = [
-        ("π_s", app_config.ROOFLINE_PI_SCALAR, PALETTE["green"]),
-        ("π_v", app_config.ROOFLINE_PI_VECTOR, PALETTE["blue"]),
+        ("π_s", app_config.ROOFLINE_PI_SCALAR, PALETTE["black"]),
+        ("π_v", app_config.ROOFLINE_PI_VECTOR, PALETTE["black"]),
     ]
 
     ax.plot(
@@ -68,7 +68,7 @@ def _draw_roofline(ax, xlim, ylim, beta, title):
             peak * 1.1,
             f"{label} = {peak}",
             fontsize=9,
-            color=color,
+            color="black",
             fontweight="bold",
             ha="right",
             va="bottom",
