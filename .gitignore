@@ -33,10 +33,11 @@ junk/
 
 results/microbench/
 results/raw/
-results/plots/
+results/
 *.tar.gz
 *.bin
 workspace.tar.gz
 
+!results/plots/
 !results/reference/
 !results/baseline/
