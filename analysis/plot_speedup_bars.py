@@ -18,46 +18,62 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 HISTORY_FILE = REPO_ROOT / "results" / "history.jsonl"
 PLOT_DIR = REPO_ROOT / "results" / "plots"
 
-PERF_COL = "perf"
 X_COL = "N"
+
+SPEEDUP_KINDS = {
+    "perf": {
+        "col": "perf",
+        "invert": False,
+        "metric": "Performance (flops / cycle)",
+    },
+    "runtime": {
+        "col": "gcycles",
+        "invert": True,
+        "metric": "Runtime (cycles)",
+    },
+}
 
 HATCHES = ["///", "...", "xx", "\\\\", "---"]
 
 
-def _perf_by_n(df_desc):
+def _metric_by_n(df_desc, col):
     out = {}
     for _, row in df_desc.iterrows():
         n = row[X_COL]
-        v = row[PERF_COL]
+        v = row[col]
         if n is not None and np.isfinite(v) and v > 0:
             out[int(n)] = float(v)
     return out
 
 
-def _build_matrix(df, ref_desc):
+def _build_matrix(df, ref_desc, col, invert):
     ref_rows = df[df["description"] == ref_desc]
     if ref_rows.empty:
         return None, None, None
-    ref_perf = _perf_by_n(ref_rows)
-    if not ref_perf:
+    ref_vals = _metric_by_n(ref_rows, col)
+    if not ref_vals:
         return None, None, None
 
     descs = [ref_desc]
-    matrix = {ref_desc: {n: 1.0 for n in ref_perf}}
+    matrix = {ref_desc: {n: 1.0 for n in ref_vals}}
 
     for desc in description_order(df):
         if desc == ref_desc:
             continue
-        perf = _perf_by_n(df[df["description"] == desc])
-        if not perf:
+        vals = _metric_by_n(df[df["description"] == desc], col)
+        if not vals:
             continue
         descs.append(desc)
-        matrix[desc] = {
-            n: (perf[n] / rp if (n in perf and rp > 0) else float("nan"))
-            for n, rp in ref_perf.items()
-        }
+        row = {}
+        for n, ref_v in ref_vals.items():
+            our_v = vals.get(n)
+            if our_v is None or our_v <= 0 or ref_v <= 0:
+                row[n] = float("nan")
+            else:
+                row[n] = (ref_v / our_v) if invert else (our_v / ref_v)
+        matrix[desc] = row
 
-    n_values = sorted(ref_perf.keys())
+    n_values = sorted(ref_vals.keys())
     return descs, n_values, matrix
 
 
@@ -140,8 +156,8 @@ def _draw(
 MAX_GROUPS_PER_ROW = 3
 
 
-def _generate(df, palette, ref_desc, ylabel, title, output_name):
-    descs, n_values, matrix = _build_matrix(df, ref_desc)
+def _generate(df, palette, ref_desc, col, invert, ylabel, title, output_name):
+    descs, n_values, matrix = _build_matrix(df, ref_desc, col, invert)
     if descs is None:
         print(f"No {ref_desc} in history or no hw data - skipping {output_name}.")
         return
@@ -177,8 +193,10 @@ def _generate(df, palette, ref_desc, ylabel, title, output_name):
     print(f"Plot saved: {out}")
 
 
-def _generate_slides(df, palette, ref_desc, ylabel, title, output_name, only_n):
-    descs, n_values, matrix = _build_matrix(df, ref_desc)
+def _generate_slides(
+    df, palette, ref_desc, col, invert, ylabel, title, output_name, only_n
+):
+    descs, n_values, matrix = _build_matrix(df, ref_desc, col, invert)
     if descs is None:
         print(f"No {ref_desc} in history or no hw data - skipping {output_name}.")
         return
@@ -197,6 +215,9 @@ def _generate_slides(df, palette, ref_desc, ylabel, title, output_name, only_n):
     print(f"Plot saved: {out}")
 
 
+REFERENCES = ["ezgatr", "baseline"]
+
+
 def generate_speedup_bars():
     df = load_history(HISTORY_FILE)
     if df.empty:
@@ -206,28 +227,27 @@ def generate_speedup_bars():
     PLOT_DIR.mkdir(parents=True, exist_ok=True)
     palette = series_palette(description_order(df))
 
-    _generate(
-        df,
-        palette,
-        ref_desc="ezgatr",
-        ylabel="Speedup over ezgatr [x]",
-        title=f"Speedup vs ezgatr - {app_config.MACHINE}",
-        output_name="speedup_bars_ezgatr",
-    )
-    _generate(
-        df,
-        palette,
-        ref_desc="baseline",
-        ylabel="Speedup over baseline [x]",
-        title=f"Speedup vs baseline - {app_config.MACHINE}",
-        output_name="speedup_bars_baseline",
-    )
-    _generate_slides(
-        df,
-        palette,
-        ref_desc="ezgatr",
-        ylabel="Speedup over ezgatr [x]",
-        title=f"Speedup vs ezgatr - {app_config.MACHINE}",
-        output_name="_slides_speedup_bars_ezgatr",
-        only_n=16,
-    )
+    for kind, spec in SPEEDUP_KINDS.items():
+        col, invert, metric = spec["col"], spec["invert"], spec["metric"]
+        for ref in REFERENCES:
+            _generate(
+                df,
+                palette,
+                ref_desc=ref,
+                col=col,
+                invert=invert,
+                ylabel=f"{kind.capitalize()} speedup over {ref}",
+                title=f"{metric} speedup vs {ref} - {app_config.MACHINE}",
+                output_name=f"speedup_bars_{kind}_{ref}",
+            )
+        _generate_slides(
+            df,
+            palette,
+            ref_desc="ezgatr",
+            col=col,
+            invert=invert,
+            ylabel=f"{kind.capitalize()} speedup over ezgatr",
+            title=f"{metric} speedup vs ezgatr - {app_config.MACHINE}",
+            output_name=f"_slides_speedup_bars_{kind}_ezgatr",
+            only_n=16,
+        )

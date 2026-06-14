@@ -209,3 +209,56 @@ def description_order(df):
         if d not in seen:
             seen.append(d)
     return seen
+
+
+# buckets for workloads
+# executed FLOPs as a % of analytic
+def workload_percent(df):
+    out = {}
+    if "flops_efficiency" not in df.columns:
+        return out
+    for desc in description_order(df):
+        v = df.loc[df["description"] == desc, "flops_efficiency"].mean()
+        if pd.notna(v):
+            out[desc] = float(v) * 100.0
+    return out
+
+
+def _bucket_edges(edges):
+    if edges is None:
+        edges = getattr(app_config, "WORKLOAD_BUCKET_EDGES", [105, 70, 35, 0])
+    return sorted({float(e) for e in edges}, reverse=True)
+
+
+def workload_bucket_label(hi, lo):
+    return f"{int(round(hi))}_{int(round(lo))}"
+
+
+def workload_buckets(df, edges=None):
+    band_edges = _bucket_edges(edges)
+    wl = workload_percent(df)
+    order = description_order(df)
+
+    buckets = []
+    placed = set()
+    for hi, lo in zip(band_edges[:-1], band_edges[1:]):
+        members = [d for d in order if d in wl and lo < wl[d] <= hi]
+        placed.update(members)
+        if members:
+            buckets.append((hi, lo, members))
+
+    unplaced = [d for d in order if d in wl and d not in placed]
+    if unplaced:
+        spans = ", ".join(f"{d}={wl[d]:.0f}%" for d in unplaced)
+        print(f"WARN: workload outside bands {band_edges} -> omitted: {spans}")
+    return buckets
+
+
+def iter_workload_subsets(df, edges=None):
+    for hi, lo, members in workload_buckets(df, edges):
+        yield (
+            workload_bucket_label(hi, lo),
+            hi,
+            lo,
+            df[df["description"].isin(members)],
+        )

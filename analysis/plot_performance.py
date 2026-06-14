@@ -6,7 +6,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
-from data_io import description_order, load_history
+from data_io import description_order, iter_workload_subsets, load_history
 from style import (
     PRIMARY_DESC,
     add_series,
@@ -108,13 +108,15 @@ def add_cache_lines(ax):
         )
 
 
-def plot_performance_inputsize(df, palette):
+def plot_performance_inputsize(
+    df, palette, *, output_name="performance_inputsize", title_extra=""
+):
     fig, ax = new_single_axes(figsize=(10, 6))
     lines, all_y = _draw_lines(ax, df, palette, PERF_Y_COL)
     y_max = max(all_y) if all_y else 1.0
     style_axes(
         ax,
-        title=f"Performance: {app_config.MACHINE}",
+        title=f"Performance: {app_config.MACHINE}{title_extra}",
         y_unit_text="Performance [flops / cycle]",
         x_label="Input Size (TxC_in)",
         x_scale="log2",
@@ -124,11 +126,13 @@ def plot_performance_inputsize(df, palette):
     )
     place_line_labels(lines, label_adjustments=MANUAL_LABEL_ADJUSTMENTS)
     add_cache_lines(ax)
-    save_figure(fig, PLOT_DIR / "performance_inputsize", tight_rect=(0, 0, 1.0, 1.0))
-    print(f"Plot saved: {PLOT_DIR / 'performance_inputsize'}")
+    save_figure(fig, PLOT_DIR / output_name, tight_rect=(0, 0, 1.0, 1.0))
+    print(f"Plot saved: {PLOT_DIR / output_name}")
 
 
-def plot_performance_inputsize_theory(df, palette):
+def plot_performance_inputsize_theory(
+    df, palette, *, output_name="performance_inputsize_theory", title_extra=""
+):
     if PERF_THEORY_Y_COL not in df.columns:
         print(f"Column {PERF_THEORY_Y_COL!r} not in data - skipping theory perf plot.")
         return
@@ -139,7 +143,7 @@ def plot_performance_inputsize_theory(df, palette):
     y_max = max(all_y) if all_y else 1.0
     style_axes(
         ax,
-        title=f"Performance (analytic FLOPs): {app_config.MACHINE}",
+        title=f"Performance (analytic FLOPs): {app_config.MACHINE}{title_extra}",
         y_unit_text="Performance [theoretical flops / cycle]",
         x_label="Input Size (TxC_in)",
         x_scale="log2",
@@ -149,10 +153,8 @@ def plot_performance_inputsize_theory(df, palette):
     )
     place_line_labels(lines, label_adjustments=MANUAL_LABEL_ADJUSTMENTS)
     add_cache_lines(ax)
-    save_figure(
-        fig, PLOT_DIR / "performance_inputsize_theory", tight_rect=(0, 0, 1.0, 1.0)
-    )
-    print(f"Plot saved: {PLOT_DIR / 'performance_inputsize_theory'}")
+    save_figure(fig, PLOT_DIR / output_name, tight_rect=(0, 0, 1.0, 1.0))
+    print(f"Plot saved: {PLOT_DIR / output_name}")
 
 
 def plot_performance_inputsize_ipc(df, palette):
@@ -438,6 +440,7 @@ def generate_performance_plot():
     PLOT_DIR.mkdir(parents=True, exist_ok=True)
     palette = series_palette(description_order(df))
 
+    # overall (all variants together)
     plot_performance_inputsize(df, palette)
     plot_performance_inputsize_theory(df, palette)
     plot_performance_inputsize_ipc(df, palette)
@@ -447,3 +450,20 @@ def generate_performance_plot():
     plot_work_efficiency(df, palette)
     for oi_col, level_label in OI_LEVELS:
         plot_oi_inputsize(df, palette, oi_col, level_label)
+
+    # variants separated in workload buckets
+    # flops/cycle is only comparable within the same bucket
+    for label, hi, lo, sub in iter_workload_subsets(df):
+        extra = ""
+        plot_performance_inputsize(
+            sub,
+            palette,
+            output_name=f"performance_inputsize_wl{label}",
+            title_extra=extra,
+        )
+        plot_performance_inputsize_theory(
+            sub,
+            palette,
+            output_name=f"performance_inputsize_theory_wl{label}",
+            title_extra=extra,
+        )

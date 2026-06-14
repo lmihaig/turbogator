@@ -3,7 +3,7 @@ import sys
 from pathlib import Path
 
 import numpy as np
-from data_io import description_order, load_history
+from data_io import description_order, iter_workload_subsets, load_history
 from matplotlib.ticker import LogLocator
 from style import (
     PALETTE,
@@ -112,7 +112,7 @@ def _draw_roofline(ax, xlim, ylim, beta, title):
     ax.spines["left"].set_visible(False)
 
 
-def _generate_one(df, palette, oi_col, output_name, title_base, beta):
+def _generate_one(df, palette, oi_col, output_name, title_base, beta, title_extra=""):
     fig, ax = new_single_axes(figsize=(10, 6))
     lines = []
 
@@ -176,7 +176,11 @@ def _generate_one(df, palette, oi_col, output_name, title_base, beta):
         x_min, x_max = x_mid / (2**half), x_mid * (2**half)
 
     _draw_roofline(
-        ax, (x_min, x_max), (y_min, y_max), beta, f"{title_base}: {app_config.MACHINE}"
+        ax,
+        (x_min, x_max),
+        (y_min, y_max),
+        beta,
+        f"{title_base}{title_extra}: {app_config.MACHINE}",
     )
     place_line_labels(lines)
     save_figure(fig, PLOT_DIR / output_name)
@@ -196,4 +200,18 @@ def generate_roofline_plot():
             continue
         level = oi_col.replace("oi_", "")
         beta = app_config.roofline_beta_for(level)
+
+        # overall
         _generate_one(df, palette, oi_col, name, title, beta)
+
+        # per workload bucket
+        for label, hi, lo, sub in iter_workload_subsets(df):
+            _generate_one(
+                sub,
+                palette,
+                oi_col,
+                f"{name}_wl{label}",
+                title,
+                beta,
+                title_extra=" ",
+            )

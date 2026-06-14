@@ -8,6 +8,8 @@ STEPS = 9
 SIZES = [1, 4, 6, 16, 32, 48, 56, 64]
 REPRESENTATIVE_N = 8
 
+# these are for plotting logic
+WORKLOAD_BUCKET_EDGES = [105, 70, 35, 0]
 SHOW_CACHE_LINES = True
 
 

@@ -470,7 +470,7 @@ def annotate_bar_values(
         )
 
 
-DEFAULT_SAVE_FMTS = ["png", "svg"]
+DEFAULT_SAVE_FMTS = ["png", "pdf"]
 
 
 def save_figure(
