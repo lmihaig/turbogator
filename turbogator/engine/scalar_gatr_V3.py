@@ -154,7 +154,7 @@ class MVOnlyGATrBilinear(nn.Module):
         x = torch.cat(
             [
                 c_ops.geometric_product_opt_v1(lg, rg),
-                c_ops.equi_join_opt_v1(lj, rj, reference),
+                c_ops.equi_join_opt_v2(lj, rj, reference),
             ],
             dim=-2,
         )
@@ -244,7 +244,7 @@ class MVOnlyGATrAttention(nn.Module):
             h=self.config.attn_num_heads,
             c=self.config.size_channels_hidden,
         )
-        x, _ = c_ops.equi_geometric_attention_opt_v1(
+        x, _ = c_ops.equi_geometric_attention_opt_v2(
             q,
             k,
             v,
@@ -285,7 +285,7 @@ class MVOnlyGATrBlock(nn.Module):
         return self.mlp(self.attn(x, attn_mask), reference)
 
 
-class ScalarGATrV2(nn.Module):
+class ScalarGATrV3(nn.Module):
     config: MVOnlyGATrConfig
     embedding: MVOnlyGATrEmbedding
     blocks: nn.ModuleList

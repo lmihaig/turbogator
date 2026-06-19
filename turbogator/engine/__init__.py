@@ -6,6 +6,7 @@
 
 # from .scalar_gatr_V1 import ScalarGATrV1 as TurboGatorModel
 from .scalar_gatr_V2 import ScalarGATrV2 as TurboGatorModel
+# from .scalar_gatr_V3 import ScalarGATrV3 as TurboGatorModel
 
 # from .vectorised_gatr import VectorisedGATrModel as TurboGatorModel
 
