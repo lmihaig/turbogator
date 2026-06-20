@@ -33,7 +33,7 @@ junk/
 
 results/microbench/
 results/raw/
-results/
+results/*
 *.tar.gz
 *.bin
 workspace.tar.gz
