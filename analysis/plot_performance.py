@@ -211,13 +211,26 @@ def plot_runtime_inputsize(df, palette):
         title=f"Runtime: {app_config.MACHINE}",
         output_name="runtime_inputsize",
     )
+
     if "baseline" in df["description"].values:
+        df_no_baseline = df[df["description"] != "baseline"]
         _plot_runtime_panel(
-            df[df["description"] != "baseline"],
+            df_no_baseline,
             palette,
             title=f"Runtime: {app_config.MACHINE} (Without Baseline)",
             output_name="runtime_inputsize_nobaseline",
         )
+
+        if df_no_baseline["description"].str.contains("Scalar", na=False).any():
+            df_no_baseline_noscalar = df_no_baseline[
+                ~df_no_baseline["description"].str.contains("Scalar", na=False)
+            ]
+            _plot_runtime_panel(
+                df_no_baseline_noscalar,
+                palette,
+                title=f"Runtime: {app_config.MACHINE} (Without Baseline or Scalars)",
+                output_name="runtime_inputsize_nobaseline_noscalar",
+            )
 
 
 def plot_speedup_inputsize(df, palette):

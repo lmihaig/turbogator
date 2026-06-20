@@ -5,6 +5,7 @@ STEPS = 9
 # SIZES = [1]
 # SIZES = [4, 6, 8, 56]
 # SIZES = [2, 4, 8, 16, 32]
+# SIZES = [32, 48, 56]
 SIZES = [1, 4, 6, 16, 32, 48, 56, 64]
 REPRESENTATIVE_N = 8
 

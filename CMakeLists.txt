@@ -58,11 +58,11 @@ target_compile_options(turbogator_ext PRIVATE
     -fno-tree-slp-vectorize
 
     ## FAST BOYS HERE
+    # -fprefetch-loop-arrays 
     # -funroll-loops 
     # -ffinite-math-only
     # -ffast-math
     # -fno-trapping-math      
-    # -fprefetch-loop-arrays 
     # -flto=auto
     # -fno-semantic-interposition
     # -mprefer-vector-width=256
